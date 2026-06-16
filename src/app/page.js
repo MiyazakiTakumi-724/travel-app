@@ -2,7 +2,7 @@
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center pt-10 bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center pt-10 bg-gray-100">
       <p className="absolute top-20 font-bold text-8xl">
         旅行割り勘サイト
       </p>
