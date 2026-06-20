@@ -34,7 +34,7 @@ export default function Projects() {
         <div className="p-20 bg-gray-100 min-h-screen">
             <button
                 onClick={() => setisOpen(!isOpen)}
-                className="bg-blue-600 text-white px-6 py-3 rounded-md font-bold">
+                className="bg-blue-600 text-white px-6 py-3 rounded-md font-bold shadow-md hover:shadow-lg text-left transition transform hover:-translate-y-1 block">
                 プロジェクト新規作成
             </button>
 
