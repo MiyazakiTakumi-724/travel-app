@@ -9,9 +9,7 @@ export default function Projects() {
     const [title, setTitle] = useState("");
     const [destination, setDestination] = useState("");
     const [date, setDate] = useState("");
-    const [projects, setProjects] = useState([
-        { id: 1, title: "スノボ合宿", destination: "舞子スノーリゾート", date: "3/2~3/5" }
-    ]);
+    const [projects, setProjects] = useState([]);
 
     // プロジェクト作成時のデータ保管用関数
     const AddProject = () => {
@@ -40,28 +38,35 @@ export default function Projects() {
 
             <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
+                {/* プロジェクトが0の時文字を表示する */}
+                {projects.length === 0 ? (
 
-                {projects.map((project) => (
-                    //プロジェクトのページに遷移するボタン
-                    <Link
-                        key={project.id}
-                        href={`/projects/${project.id}?title=${project.title}&destination=${project.destination}&date=${project.date}`}
-                        className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg text-left transition transform hover:-translate-y-1 block"
-                    >
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                            {project.title}
-                        </h2>
-                        <p className="text-gray-600 font-medium">
-                            目的地：{project.destination}
-                        </p>
-                        <p className="text-gray-600 font-medium">
-                            出発日：{project.date}
-                        </p>
-                    </Link>
-                ))}
+                    <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
+                        <p className="text-2xl font-bold mb-2">プロジェクト無し</p>
+                        <p className="text-sm">上のボタンから新しいプロジェクトを作成してください</p>
+                    </div>
+                ) : (
+                    // プロジェクトが1個以上ある時の表示（今までのmap処理）
+                    projects.map((project) => (
+                        <Link
+                            key={project.id}
+                            href={`/projects/${project.id}?title=${project.title}&destination=${project.destination}&date=${project.date}`}
+                            className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg text-left transition transform hover:-translate-y-1 block"
+                        >
+                            <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                                {project.title}
+                            </h2>
+                            <p className="text-gray-600 font-medium">
+                                目的地：{project.destination}
+                            </p>
+                            <p className="text-gray-600 font-medium">
+                                出発日：{project.date}
+                            </p>
+                        </Link>
+                    ))
+                )}
 
                 {isOpen && (
-
                     // オーバーレイ
                     <>
                         <div className="fixed inset-0 bg-black/50 z-40"
@@ -70,7 +75,6 @@ export default function Projects() {
                         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-8 bg-white border-4 border-blue-200 rounded-xl shadow-lg w-full max-w-lg">
 
                             <input
-
                                 // 新規プロジェクト入力フォーム
                                 type="text"
                                 className="border-2 border-gray-300 p-2 rounded-md w-full mb-2"
