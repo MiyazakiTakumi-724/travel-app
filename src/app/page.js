@@ -1,11 +1,17 @@
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
 
-export default async function Home() {
+export default async function Home({ searchParams }) {
+  const { callbackUrl } = await searchParams;
+  const redirectTarget =
+    typeof callbackUrl === "string" && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+      ? callbackUrl
+      : "/projects";
+
   const session = await auth();
 
   if (session) {
-    redirect("/projects");
+    redirect(redirectTarget);
   }
 
   return (
@@ -22,7 +28,7 @@ export default async function Home() {
           className="w-full"
           action={async () => {
             "use server";
-            await signIn("google", { redirectTo: "/projects" });
+            await signIn("google", { redirectTo: redirectTarget });
           }}
         >
           <button

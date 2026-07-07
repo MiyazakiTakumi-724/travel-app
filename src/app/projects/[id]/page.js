@@ -19,7 +19,11 @@ export default async function ProjectDetailPage({ params }) {
     },
   });
 
-  if (!project || project.ownerId !== session.user.id) {
+  const isMember =
+    project?.ownerId === session.user.id ||
+    project?.participants.some((p) => p.userId === session.user.id);
+
+  if (!project || !isMember) {
     notFound();
   }
 

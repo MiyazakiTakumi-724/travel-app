@@ -8,6 +8,14 @@ export default function PaymentsClient({ project }) {
   const [isOpen, setisOpen] = useState(false);
   const [payer, setPayer] = useState(project.participants[0]?.name ?? "");
   const [isPending, startTransition] = useTransition();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyInviteLink = async () => {
+    const inviteUrl = `${window.location.origin}/invite/${project.id}`;
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleAddPayment = (formData) => {
     startTransition(async () => {
@@ -28,7 +36,12 @@ export default function PaymentsClient({ project }) {
       <p className="text-gray-600 ml-5 text-2xl">目的地：{project.destination}</p>
       <p className="text-gray-600 ml-5 text-2xl">期間：{project.date}</p>
 
-      <div className="justify-end flex">
+      <div className="justify-end flex gap-3">
+        <button
+          onClick={handleCopyInviteLink}
+          className="bg-white text-blue-600 border-2 border-blue-600 text-xl px-6 py-4 mb-3 rounded-md font-bold shadow-md hover:shadow-lg text-left transition transform hover:-translate-y-1 block">
+          {copied ? "コピーしました！" : "招待リンクをコピー"}
+        </button>
         <button
           onClick={() => setisOpen(!isOpen)}
           className="bg-blue-600 text-xl text-white px-6 py-4 mr-5 mb-3 rounded-md font-bold shadow-md hover:shadow-lg text-left transition transform hover:-translate-y-1 block">

@@ -36,7 +36,7 @@ export async function createProject(formData) {
       date,
       ownerId: session.user.id,
       participants: {
-        create: [{ name: session.user.nickname }],
+        create: [{ name: session.user.nickname, userId: session.user.id }],
       },
     },
   });

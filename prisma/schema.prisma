@@ -19,6 +19,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   projects      Project[]
+  participations Participant[]
 }
 
 model Account {
@@ -73,6 +74,10 @@ model Participant {
   name      String
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
 }
 
 model Payment {
