@@ -3,6 +3,49 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { addPayment, toggleSettled } from "./actions";
 
+// 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
+function calculateSettlements(participants, payments) {
+  if (participants.length === 0) return [];
+
+  const unsettled = payments.filter((payment) => !payment.isSettled);
+  const total = unsettled.reduce((sum, payment) => sum + payment.amount, 0);
+  const share = total / participants.length;
+
+  const balances = new Map(participants.map((p) => [p.name, -share]));
+  for (const payment of unsettled) {
+    balances.set(payment.payer, (balances.get(payment.payer) ?? -share) + payment.amount);
+  }
+
+  const creditors = [];
+  const debtors = [];
+  for (const [name, balance] of balances) {
+    if (balance > 0.5) creditors.push({ name, amount: balance });
+    else if (balance < -0.5) debtors.push({ name, amount: -balance });
+  }
+  creditors.sort((a, b) => b.amount - a.amount);
+  debtors.sort((a, b) => b.amount - a.amount);
+
+  const transfers = [];
+  let i = 0;
+  let j = 0;
+  while (i < debtors.length && j < creditors.length) {
+    const debtor = debtors[i];
+    const creditor = creditors[j];
+    const amount = Math.min(debtor.amount, creditor.amount);
+
+    if (amount > 0.5) {
+      transfers.push({ from: debtor.name, to: creditor.name, amount: Math.round(amount) });
+    }
+
+    debtor.amount -= amount;
+    creditor.amount -= amount;
+    if (debtor.amount <= 0.5) i++;
+    if (creditor.amount <= 0.5) j++;
+  }
+
+  return transfers;
+}
+
 export default function PaymentsClient({ project }) {
 
   // useState初期値設定
@@ -30,6 +73,8 @@ export default function PaymentsClient({ project }) {
     (sum, payment) => sum + payment.amount,
     0
   );
+
+  const settlements = calculateSettlements(project.participants, project.payments);
 
   return (
     <div className="bg-gray-50 min-h-screen pb-28 relative">
@@ -117,6 +162,34 @@ export default function PaymentsClient({ project }) {
             </form>
           </div>
         </>
+      )}
+
+      {project.payments.length > 0 && (
+        <div className="max-w-3xl mx-auto px-4 sm:px-8 mb-6">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5">
+            <h2 className="text-sm font-bold text-blue-900 mb-3">精算方法</h2>
+            {settlements.length === 0 ? (
+              <p className="text-sm text-blue-700">精算の必要はありません</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {settlements.map((transfer, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between text-sm bg-white rounded-lg px-4 py-3 shadow-sm">
+                    <p className="font-bold text-gray-900">
+                      {transfer.from}
+                      <span className="mx-2 text-blue-500">→</span>
+                      {transfer.to}
+                    </p>
+                    <p className="font-bold text-blue-600">
+                      ¥{transfer.amount.toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="max-w-3xl mx-auto px-4 sm:px-8 flex flex-col gap-2">
