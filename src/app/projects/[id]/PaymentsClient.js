@@ -139,13 +139,29 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
   );
 }
 
-export default function PaymentsClient({ project }) {
+function SettlementRow({ transfer }) {
+  return (
+    <div className="flex items-center justify-between text-sm bg-white rounded-lg px-4 py-3 shadow-sm">
+      <p className="font-bold text-gray-900">
+        {transfer.from}
+        <span className="mx-2 text-blue-500">→</span>
+        {transfer.to}
+      </p>
+      <p className="font-bold text-blue-600">
+        ¥{transfer.amount.toLocaleString()}
+      </p>
+    </div>
+  );
+}
+
+export default function PaymentsClient({ project, currentUserName }) {
 
   // useState初期値設定
   const [isOpen, setisOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
+  const [showOthers, setShowOthers] = useState(false);
 
   const handleCopyInviteLink = async () => {
     const inviteUrl = `${window.location.origin}/invite/${project.id}`;
@@ -174,6 +190,11 @@ export default function PaymentsClient({ project }) {
   );
 
   const settlements = calculateSettlements(project.participants, project.payments);
+  const iReceive = settlements.filter((t) => t.to === currentUserName);
+  const iPay = settlements.filter((t) => t.from === currentUserName);
+  const others = settlements.filter(
+    (t) => t.from !== currentUserName && t.to !== currentUserName
+  );
 
   return (
     <div className="bg-gray-50 min-h-screen pb-28 relative">
@@ -237,21 +258,47 @@ export default function PaymentsClient({ project }) {
             {settlements.length === 0 ? (
               <p className="text-sm text-blue-700">精算の必要はありません</p>
             ) : (
-              <div className="flex flex-col gap-2">
-                {settlements.map((transfer, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between text-sm bg-white rounded-lg px-4 py-3 shadow-sm">
-                    <p className="font-bold text-gray-900">
-                      {transfer.from}
-                      <span className="mx-2 text-blue-500">→</span>
-                      {transfer.to}
-                    </p>
-                    <p className="font-bold text-blue-600">
-                      ¥{transfer.amount.toLocaleString()}
-                    </p>
+              <div className="flex flex-col gap-4">
+                {iReceive.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-green-700 mb-2">あなたが受け取る</p>
+                    <div className="flex flex-col gap-2">
+                      {iReceive.map((transfer, index) => (
+                        <SettlementRow key={index} transfer={transfer} />
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
+
+                {iPay.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-orange-700 mb-2">あなたが支払う</p>
+                    <div className="flex flex-col gap-2">
+                      {iPay.map((transfer, index) => (
+                        <SettlementRow key={index} transfer={transfer} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {others.length > 0 && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowOthers(!showOthers)}
+                      className="flex items-center gap-1 text-xs font-bold text-blue-700">
+                      その他の精算（{others.length}件）
+                      <span className="text-blue-400">{showOthers ? "▲" : "▼"}</span>
+                    </button>
+                    {showOthers && (
+                      <div className="flex flex-col gap-2 mt-2">
+                        {others.map((transfer, index) => (
+                          <SettlementRow key={index} transfer={transfer} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

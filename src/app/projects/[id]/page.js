@@ -27,5 +27,11 @@ export default async function ProjectDetailPage({ params }) {
     notFound();
   }
 
-  return <PaymentsClient project={project} />;
+  const currentParticipant = project.participants.find(
+    (p) => p.userId === session.user.id
+  );
+
+  return (
+    <PaymentsClient project={project} currentUserName={currentParticipant?.name} />
+  );
 }
