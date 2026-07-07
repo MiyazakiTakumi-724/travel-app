@@ -19,91 +19,104 @@ export default function ProjectsList({ projects }) {
     };
 
     return (
-        <div className="p-20 bg-gray-100 min-h-screen">
-            <div className="flex justify-between items-center mb-6">
+        <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-8 sm:py-10 lg:px-12">
+            <div className="max-w-6xl mx-auto">
+                <div className="flex items-center justify-between gap-4 mb-6 sm:mb-8">
+                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                        マイプロジェクト
+                    </h1>
+                    <button
+                        onClick={() => signOut({ redirectTo: "/" })}
+                        className="text-gray-400 text-sm font-medium hover:text-gray-600 transition">
+                        ログアウト
+                    </button>
+                </div>
+
                 <button
                     onClick={() => setisOpen(!isOpen)}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-md font-bold shadow-md hover:shadow-lg text-left transition transform hover:-translate-y-1 block">
-                    プロジェクト新規作成
+                    className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-sm transition hover:bg-blue-700 hover:shadow-md active:scale-[0.99] mb-8 sm:mb-10">
+                    ＋ プロジェクト新規作成
                 </button>
-                <button
-                    onClick={() => signOut({ redirectTo: "/" })}
-                    className="text-gray-500 text-sm font-bold hover:text-gray-700">
-                    ログアウト
-                </button>
-            </div>
 
-            <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
 
-                {/* プロジェクトが0の時文字を表示する */}
-                {projects.length === 0 ? (
+                    {/* プロジェクトが0の時文字を表示する */}
+                    {projects.length === 0 ? (
 
-                    <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
-                        <p className="text-2xl font-bold mb-2">プロジェクト無し</p>
-                        <p className="text-sm">上のボタンから新しいプロジェクトを作成してください</p>
-                    </div>
-                ) : (
-                    // プロジェクトが1個以上ある時の表示
-                    projects.map((project) => (
-                        <Link
-                            key={project.id}
-                            href={`/projects/${project.id}`}
-                            className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg text-left transition transform hover:-translate-y-1 block"
-                        >
-                            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                                {project.title}
-                            </h2>
-                            <p className="text-gray-600 font-medium">
-                                目的地：{project.destination}
-                            </p>
-                            <p className="text-gray-600 font-medium">
-                                出発日：{project.date}
-                            </p>
-                        </Link>
-                    ))
-                )}
-
-                {isOpen && (
-                    // オーバーレイ
-                    <>
-                        <div className="fixed inset-0 bg-black/50 z-40"
-                            onClick={() => setisOpen(false)} />
-
-                        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-8 bg-white border-4 border-blue-200 rounded-xl shadow-lg w-full max-w-lg">
-
-                            <form action={handleCreateProject}>
-                                <input
-                                    // 新規プロジェクト入力フォーム
-                                    type="text"
-                                    name="title"
-                                    required
-                                    className="border-2 border-gray-300 p-2 rounded-md w-full mb-2"
-                                    placeholder="タイトル"
-                                />
-                                <input
-                                    type="text"
-                                    name="destination"
-                                    className="border-2 border-gray-300 p-2 rounded-md w-full mb-2"
-                                    placeholder="目的地"
-                                />
-                                <input
-                                    type="date"
-                                    name="date"
-                                    className="border-2 border-gray-300 p-2 rounded-md w-full mb-2"
-                                    placeholder="期間"
-                                />
-                                <div className="flex justify-end">
-                                    <button
-                                        type="submit"
-                                        disabled={isPending}
-                                        className="bg-blue-600 text-white px-6 py-3 rounded-md font-bold disabled:opacity-50">
-                                        確定する
-                                    </button>
-                                </div>
-                            </form>
+                        <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
+                            <p className="text-xl sm:text-2xl font-bold mb-2 text-gray-500">プロジェクト無し</p>
+                            <p className="text-sm">上のボタンから新しいプロジェクトを作成してください</p>
                         </div>
-                    </>
-                )}
+                    ) : (
+                        // プロジェクトが1個以上ある時の表示
+                        projects.map((project) => (
+                            <Link
+                                key={project.id}
+                                href={`/projects/${project.id}`}
+                                className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm text-left transition hover:shadow-md hover:-translate-y-0.5 block"
+                            >
+                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 truncate">
+                                    {project.title}
+                                </h2>
+                                <p className="text-sm text-gray-500 mb-1">
+                                    目的地：{project.destination || "未定"}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    出発日：{project.date || "未定"}
+                                </p>
+                            </Link>
+                        ))
+                    )}
+
+                    {isOpen && (
+                        // オーバーレイ
+                        <>
+                            <div className="fixed inset-0 bg-black/50 z-40"
+                                onClick={() => setisOpen(false)} />
+
+                            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 sm:p-8 bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md">
+                                <h2 className="text-lg font-bold text-gray-900 mb-4">新規プロジェクト</h2>
+
+                                <form action={handleCreateProject} className="flex flex-col gap-3">
+                                    <input
+                                        // 新規プロジェクト入力フォーム
+                                        type="text"
+                                        name="title"
+                                        required
+                                        className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="タイトル"
+                                    />
+                                    <input
+                                        type="text"
+                                        name="destination"
+                                        className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="目的地"
+                                    />
+                                    <input
+                                        type="date"
+                                        name="date"
+                                        className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="期間"
+                                    />
+                                    <div className="flex justify-end gap-2 mt-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setisOpen(false)}
+                                            className="text-gray-500 px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
+                                            キャンセル
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={isPending}
+                                            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
+                                            確定する
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
