@@ -61,7 +61,8 @@ model Project {
   id           String        @id @default(cuid())
   title        String
   destination  String
-  date         String
+  startDate    String @default("")
+  endDate      String @default("")
   createdAt    DateTime      @default(now())
   ownerId      String
   owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)

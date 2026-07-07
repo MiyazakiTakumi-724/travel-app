@@ -25,7 +25,8 @@ export async function createProject(formData) {
 
   const title = formData.get("title")?.toString().trim();
   const destination = formData.get("destination")?.toString().trim();
-  const date = formData.get("date")?.toString().trim();
+  const startDate = formData.get("startDate")?.toString().trim();
+  const endDate = formData.get("endDate")?.toString().trim();
 
   if (!title) return;
 
@@ -33,7 +34,8 @@ export async function createProject(formData) {
     data: {
       title,
       destination,
-      date,
+      startDate,
+      endDate,
       ownerId: session.user.id,
       participants: {
         create: [{ name: session.user.nickname, userId: session.user.id }],

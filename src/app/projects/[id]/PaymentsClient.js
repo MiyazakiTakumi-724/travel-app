@@ -211,7 +211,12 @@ export default function PaymentsClient({ project, currentUserName }) {
         </h1>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm sm:text-base text-gray-500 mb-6">
           <p>目的地：{project.destination || "未定"}</p>
-          <p>期間：{project.date || "未定"}</p>
+          <p>
+            期間：
+            {project.startDate || project.endDate
+              ? `${project.startDate || "未定"} 〜 ${project.endDate || "未定"}`
+              : "未定"}
+          </p>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 mb-6">

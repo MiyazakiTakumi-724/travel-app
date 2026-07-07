@@ -62,7 +62,10 @@ export default function ProjectsList({ projects }) {
                                     目的地：{project.destination || "未定"}
                                 </p>
                                 <p className="text-sm text-gray-500">
-                                    出発日：{project.date || "未定"}
+                                    期間：
+                                    {project.startDate || project.endDate
+                                        ? `${project.startDate || "未定"} 〜 ${project.endDate || "未定"}`
+                                        : "未定"}
                                 </p>
                             </Link>
                         ))
@@ -92,12 +95,24 @@ export default function ProjectsList({ projects }) {
                                         className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         placeholder="目的地"
                                     />
-                                    <input
-                                        type="date"
-                                        name="date"
-                                        className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="期間"
-                                    />
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-500 mb-1">期間</p>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="date"
+                                                name="startDate"
+                                                aria-label="開始日"
+                                                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                            <span className="text-gray-400 shrink-0">〜</span>
+                                            <input
+                                                type="date"
+                                                name="endDate"
+                                                aria-label="終了日"
+                                                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                        </div>
+                                    </div>
                                     <div className="flex justify-end gap-2 mt-2">
                                         <button
                                             type="button"
