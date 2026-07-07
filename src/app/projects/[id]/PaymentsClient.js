@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { addPayment, toggleSettled } from "./actions";
+import { addPayment, deletePayment, editPayment, toggleSettled } from "./actions";
 
 // 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
 function calculateSettlements(participants, payments) {
@@ -46,11 +46,71 @@ function calculateSettlements(participants, payments) {
   return transfers;
 }
 
+function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCancel, isPending, submitLabel }) {
+  const [payer, setPayer] = useState(defaultValues?.payer ?? participants[0]?.name ?? "");
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onCancel} />
+
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 sm:p-8 bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">{title}</h2>
+
+        <form action={onSubmit} className="flex flex-col gap-3">
+          <select
+            // 支払い入力フォーム（参加者から選択）
+            name="payer"
+            className="border border-gray-300 p-3 rounded-lg w-full text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={payer}
+            onChange={(e) => setPayer(e.target.value)}
+          >
+            {participants.map((participant) => (
+              <option key={participant.id} value={participant.name}>
+                {participant.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            name="memo"
+            defaultValue={defaultValues?.memo}
+            className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="支払い内容"
+          />
+          <input
+            type="number"
+            name="amount"
+            defaultValue={defaultValues?.amount}
+            required
+            min="1"
+            className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="金額"
+          />
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-gray-500 px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
+              {submitLabel}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+
 export default function PaymentsClient({ project }) {
 
   // useState初期値設定
   const [isOpen, setisOpen] = useState(false);
-  const [payer, setPayer] = useState(project.participants[0]?.name ?? "");
+  const [editingPayment, setEditingPayment] = useState(null);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
 
@@ -65,7 +125,13 @@ export default function PaymentsClient({ project }) {
     startTransition(async () => {
       await addPayment(project.id, formData);
       setisOpen(false);
-      setPayer(project.participants[0]?.name ?? "");
+    });
+  };
+
+  const handleEditPayment = (formData) => {
+    startTransition(async () => {
+      await editPayment(project.id, editingPayment.id, formData);
+      setEditingPayment(null);
     });
   };
 
@@ -108,60 +174,26 @@ export default function PaymentsClient({ project }) {
       </div>
 
       {isOpen && (
+        <PaymentFormModal
+          title="支払いを記録"
+          participants={project.participants}
+          onSubmit={handleAddPayment}
+          onCancel={() => setisOpen(false)}
+          isPending={isPending}
+          submitLabel="確定する"
+        />
+      )}
 
-        // オーバーレイ
-        <>
-          <div className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setisOpen(false)} />
-
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 sm:p-8 bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">支払いを記録</h2>
-
-            <form action={handleAddPayment} className="flex flex-col gap-3">
-              <select
-                // 支払い入力フォーム（参加者から選択）
-                name="payer"
-                className="border border-gray-300 p-3 rounded-lg w-full text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                value={payer}
-                onChange={(e) => setPayer(e.target.value)}
-              >
-                {project.participants.map((participant) => (
-                  <option key={participant.id} value={participant.name}>
-                    {participant.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="text"
-                name="memo"
-                className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="支払い内容"
-              />
-              <input
-                type="number"
-                name="amount"
-                required
-                min="1"
-                className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="金額"
-              />
-              <div className="flex justify-end gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setisOpen(false)}
-                  className="text-gray-500 px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
-                  キャンセル
-                </button>
-                <button
-                  type="submit"
-                  disabled={isPending}
-                  className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
-                  確定する
-                </button>
-              </div>
-            </form>
-          </div>
-        </>
+      {editingPayment && (
+        <PaymentFormModal
+          title="支払いを編集"
+          participants={project.participants}
+          defaultValues={editingPayment}
+          onSubmit={handleEditPayment}
+          onCancel={() => setEditingPayment(null)}
+          isPending={isPending}
+          submitLabel="更新する"
+        />
       )}
 
       {project.payments.length > 0 && (
@@ -202,11 +234,8 @@ export default function PaymentsClient({ project }) {
             <PaymentRow
               key={payment.id}
               projectId={project.id}
-              paymentId={payment.id}
-              payer={payment.payer}
-              memo={payment.memo}
-              amount={payment.amount}
-              isSettled={payment.isSettled}
+              payment={payment}
+              onEdit={setEditingPayment}
             />
           ))
         )}
@@ -223,7 +252,8 @@ export default function PaymentsClient({ project }) {
   );
 }
 
-function PaymentRow({ projectId, paymentId, payer, memo, amount, isSettled }) {
+function PaymentRow({ projectId, payment, onEdit }) {
+  const { id: paymentId, payer, memo, amount, isSettled } = payment;
   const [isPending, startTransition] = useTransition();
 
   const handleToggle = () => {
@@ -232,38 +262,60 @@ function PaymentRow({ projectId, paymentId, payer, memo, amount, isSettled }) {
     });
   };
 
+  const handleDelete = () => {
+    if (!window.confirm("この支払い記録を削除しますか？")) return;
+    startTransition(async () => {
+      await deletePayment(projectId, paymentId);
+    });
+  };
+
   return (
-    <div className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${isSettled ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-gray-200'
+    <div className={`p-4 border rounded-lg transition-colors ${isSettled ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-gray-200'
       }`}>
+      <div className="flex items-center justify-between">
+        {/*チェックボックス*/}
+        <div className="shrink-0 mr-4">
+          <input
+            type="checkbox"
+            checked={isSettled}
+            disabled={isPending}
+            onChange={handleToggle}
+            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+          />
+        </div>
 
-      {/*チェックボックス*/}
-      <div className="shrink-0 mr-4">
-        <input
-          type="checkbox"
-          checked={isSettled}
+        {/*支払者+メモ*/}
+        <div className="flex-1 min-w-0 pr-4">
+          <p className={`font-bold truncate ${isSettled ? 'text-gray-400 line-through' : 'text-gray-900'
+            }`}>
+            {payer}
+          </p>
+          <p className="text-sm text-gray-500 truncate">{memo}</p>
+        </div>
+
+        {/* 支払金額 */}
+        <div className="shrink-0 text-right">
+          <p className={`text-lg font-bold ${isSettled ? 'text-gray-400' : 'text-blue-600'
+            }`}>
+            ¥{Number(amount).toLocaleString()}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-4 mt-2 pt-2 border-t border-gray-100">
+        <button
+          onClick={() => onEdit(payment)}
           disabled={isPending}
-          onChange={handleToggle}
-          className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-        />
+          className="text-xs font-bold text-gray-400 hover:text-blue-600 transition disabled:opacity-50">
+          編集
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={isPending}
+          className="text-xs font-bold text-gray-400 hover:text-red-600 transition disabled:opacity-50">
+          削除
+        </button>
       </div>
-
-      {/*支払者+メモ*/}
-      <div className="flex-1 min-w-0 pr-4">
-        <p className={`font-bold truncate ${isSettled ? 'text-gray-400 line-through' : 'text-gray-900'
-          }`}>
-          {payer}
-        </p>
-        <p className="text-sm text-gray-500 truncate">{memo}</p>
-      </div>
-
-      {/* 支払金額 */}
-      <div className="shrink-0 text-right">
-        <p className={`text-lg font-bold ${isSettled ? 'text-gray-400' : 'text-blue-600'
-          }`}>
-          ¥{Number(amount).toLocaleString()}
-        </p>
-      </div>
-
     </div>
   );
 }

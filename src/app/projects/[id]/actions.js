@@ -39,9 +39,40 @@ export async function toggleSettled(projectId, paymentId, isSettled) {
   if (!session?.user?.id) return;
   if (!(await assertMember(projectId, session.user.id))) return;
 
-  await prisma.payment.update({
-    where: { id: paymentId },
+  await prisma.payment.updateMany({
+    where: { id: paymentId, projectId },
     data: { isSettled },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function editPayment(projectId, paymentId, formData) {
+  const session = await auth();
+  if (!session?.user?.id) return;
+  if (!(await assertMember(projectId, session.user.id))) return;
+
+  const payer = formData.get("payer")?.toString().trim();
+  const memo = formData.get("memo")?.toString().trim();
+  const amount = Number(formData.get("amount"));
+
+  if (!payer || !amount || amount <= 0) return;
+
+  await prisma.payment.updateMany({
+    where: { id: paymentId, projectId },
+    data: { payer, memo, amount },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function deletePayment(projectId, paymentId) {
+  const session = await auth();
+  if (!session?.user?.id) return;
+  if (!(await assertMember(projectId, session.user.id))) return;
+
+  await prisma.payment.deleteMany({
+    where: { id: paymentId, projectId },
   });
 
   revalidatePath(`/projects/${projectId}`);
