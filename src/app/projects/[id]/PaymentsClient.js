@@ -4,8 +4,9 @@ import Link from "next/link";
 import { addPayment, deletePayment, editPayment, toggleSettled } from "./actions";
 
 // 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
+// balances は各参加者の収支（プラス=最終的に受け取る、マイナス=最終的に支払う）
 function calculateSettlements(participants, payments) {
-  if (participants.length === 0) return [];
+  if (participants.length === 0) return { transfers: [], balances: new Map() };
 
   const unsettled = payments.filter((payment) => !payment.isSettled);
   const total = unsettled.reduce((sum, payment) => sum + payment.amount, 0);
@@ -43,7 +44,7 @@ function calculateSettlements(participants, payments) {
     if (creditor.amount <= 0.5) j++;
   }
 
-  return transfers;
+  return { transfers, balances };
 }
 
 function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCancel, isPending, submitLabel, allowMultiplePayers }) {
@@ -184,17 +185,17 @@ export default function PaymentsClient({ project, currentUserName }) {
     });
   };
 
-  const totalAmount = project.payments.reduce(
-    (sum, payment) => sum + payment.amount,
-    0
+  const { transfers: settlements, balances } = calculateSettlements(
+    project.participants,
+    project.payments
   );
-
-  const settlements = calculateSettlements(project.participants, project.payments);
   const iReceive = settlements.filter((t) => t.to === currentUserName);
   const iPay = settlements.filter((t) => t.from === currentUserName);
   const others = settlements.filter(
     (t) => t.from !== currentUserName && t.to !== currentUserName
   );
+
+  const myBalance = Math.round(balances.get(currentUserName) ?? 0);
 
   return (
     <div className="bg-gray-50 min-h-screen pb-28 relative">
@@ -322,11 +323,17 @@ export default function PaymentsClient({ project, currentUserName }) {
         )}
       </div>
 
-      {/* 合計精算額 */}
+      {/* 精算後の自分の収支 */}
       <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] px-4 py-4 sm:px-8">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <p className="text-sm text-gray-500">合計精算額</p>
-          <p className="text-2xl font-bold text-blue-600">¥{totalAmount.toLocaleString()}</p>
+          <p className="text-sm text-gray-500">
+            {myBalance > 0 ? "あなたの受取額" : myBalance < 0 ? "あなたの支払額" : "あなたの収支"}
+          </p>
+          <p
+            className={`text-2xl font-bold ${myBalance > 0 ? "text-green-600" : myBalance < 0 ? "text-orange-600" : "text-gray-500"
+              }`}>
+            {myBalance > 0 ? "+" : myBalance < 0 ? "-" : ""}¥{Math.abs(myBalance).toLocaleString()}
+          </p>
         </div>
       </div>
     </div>
