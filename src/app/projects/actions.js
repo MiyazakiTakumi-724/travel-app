@@ -18,3 +18,32 @@ export async function setNickname(formData) {
 
   revalidatePath("/projects");
 }
+
+export async function createProject(formData) {
+  const session = await auth();
+  if (!session?.user?.id) return;
+
+  const title = formData.get("title")?.toString().trim();
+  const destination = formData.get("destination")?.toString().trim();
+  const date = formData.get("date")?.toString().trim();
+  const participantNames = formData
+    .getAll("participants")
+    .map((name) => name.toString().trim())
+    .filter(Boolean);
+
+  if (!title || participantNames.length === 0) return;
+
+  await prisma.project.create({
+    data: {
+      title,
+      destination,
+      date,
+      ownerId: session.user.id,
+      participants: {
+        create: participantNames.map((name) => ({ name })),
+      },
+    },
+  });
+
+  revalidatePath("/projects");
+}
