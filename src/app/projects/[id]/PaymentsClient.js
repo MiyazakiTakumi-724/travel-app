@@ -46,8 +46,17 @@ function calculateSettlements(participants, payments) {
   return transfers;
 }
 
-function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCancel, isPending, submitLabel }) {
+function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCancel, isPending, submitLabel, allowMultiplePayers }) {
   const [payer, setPayer] = useState(defaultValues?.payer ?? participants[0]?.name ?? "");
+  const [selectedPayers, setSelectedPayers] = useState(
+    defaultValues?.payer ? [defaultValues.payer] : participants[0] ? [participants[0].name] : []
+  );
+
+  const togglePayer = (name) => {
+    setSelectedPayers((current) =>
+      current.includes(name) ? current.filter((n) => n !== name) : [...current, name]
+    );
+  };
 
   return (
     <>
@@ -57,19 +66,43 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
         <h2 className="text-lg font-bold text-gray-900 mb-4">{title}</h2>
 
         <form action={onSubmit} className="flex flex-col gap-3">
-          <select
-            // 支払い入力フォーム（参加者から選択）
-            name="payer"
-            className="border border-gray-300 p-3 rounded-lg w-full text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={payer}
-            onChange={(e) => setPayer(e.target.value)}
-          >
-            {participants.map((participant) => (
-              <option key={participant.id} value={participant.name}>
-                {participant.name}
-              </option>
-            ))}
-          </select>
+          {allowMultiplePayers ? (
+            <div className="border border-gray-300 rounded-lg p-3">
+              <p className="text-xs font-bold text-gray-500 mb-2">支払者（複数選択可・均等割り）</p>
+              <div className="flex flex-col gap-2 max-h-40 overflow-y-auto">
+                {participants.map((participant) => (
+                  <label key={participant.id} className="flex items-center gap-2 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      name="payer"
+                      value={participant.name}
+                      checked={selectedPayers.includes(participant.name)}
+                      onChange={() => togglePayer(participant.name)}
+                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                    />
+                    {participant.name}
+                  </label>
+                ))}
+              </div>
+              {selectedPayers.length === 0 && (
+                <p className="text-xs text-red-500 mt-2">支払者を1人以上選択してください</p>
+              )}
+            </div>
+          ) : (
+            <select
+              // 支払い入力フォーム（参加者から選択）
+              name="payer"
+              className="border border-gray-300 p-3 rounded-lg w-full text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={payer}
+              onChange={(e) => setPayer(e.target.value)}
+            >
+              {participants.map((participant) => (
+                <option key={participant.id} value={participant.name}>
+                  {participant.name}
+                </option>
+              ))}
+            </select>
+          )}
           <input
             type="text"
             name="memo"
@@ -95,7 +128,7 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
             </button>
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || (allowMultiplePayers && selectedPayers.length === 0)}
               className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
               {submitLabel}
             </button>
@@ -181,6 +214,7 @@ export default function PaymentsClient({ project }) {
           onCancel={() => setisOpen(false)}
           isPending={isPending}
           submitLabel="確定する"
+          allowMultiplePayers
         />
       )}
 
