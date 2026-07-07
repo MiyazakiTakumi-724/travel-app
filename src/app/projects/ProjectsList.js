@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { createProject } from "./actions";
@@ -8,25 +8,13 @@ export default function ProjectsList({ projects }) {
 
     // useStateの初期値設定
     const [isOpen, setisOpen] = useState(false);
-    const [participantFields, setParticipantFields] = useState([0]);
     const [isPending, startTransition] = useTransition();
-    const nextKeyRef = useRef(1);
-
-    const addParticipantField = () => {
-        setParticipantFields((fields) => [...fields, nextKeyRef.current++]);
-    };
-
-    const removeParticipantField = (key) => {
-        setParticipantFields((fields) => fields.filter((k) => k !== key));
-    };
 
     // プロジェクト作成時のデータ保管用関数
     const handleCreateProject = (formData) => {
         startTransition(async () => {
             await createProject(formData);
             setisOpen(false);
-            setParticipantFields([0]);
-            nextKeyRef.current = 1;
         });
     };
 
@@ -81,7 +69,7 @@ export default function ProjectsList({ projects }) {
                         <div className="fixed inset-0 bg-black/50 z-40"
                             onClick={() => setisOpen(false)} />
 
-                        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-8 bg-white border-4 border-blue-200 rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-8 bg-white border-4 border-blue-200 rounded-xl shadow-lg w-full max-w-lg">
 
                             <form action={handleCreateProject}>
                                 <input
@@ -104,34 +92,6 @@ export default function ProjectsList({ projects }) {
                                     className="border-2 border-gray-300 p-2 rounded-md w-full mb-2"
                                     placeholder="期間"
                                 />
-
-                                <p className="text-sm font-bold text-gray-600 mt-4 mb-2">参加者</p>
-                                {participantFields.map((key) => (
-                                    <div key={key} className="flex gap-2 mb-2">
-                                        <input
-                                            type="text"
-                                            name="participants"
-                                            required
-                                            className="border-2 border-gray-300 p-2 rounded-md w-full"
-                                            placeholder="参加者名"
-                                        />
-                                        {participantFields.length > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => removeParticipantField(key)}
-                                                className="text-gray-400 font-bold px-2">
-                                                ✕
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={addParticipantField}
-                                    className="text-blue-600 text-sm font-bold mb-4">
-                                    + 参加者を追加
-                                </button>
-
                                 <div className="flex justify-end">
                                     <button
                                         type="submit"

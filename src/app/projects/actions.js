@@ -26,12 +26,8 @@ export async function createProject(formData) {
   const title = formData.get("title")?.toString().trim();
   const destination = formData.get("destination")?.toString().trim();
   const date = formData.get("date")?.toString().trim();
-  const participantNames = formData
-    .getAll("participants")
-    .map((name) => name.toString().trim())
-    .filter(Boolean);
 
-  if (!title || participantNames.length === 0) return;
+  if (!title) return;
 
   await prisma.project.create({
     data: {
@@ -40,7 +36,7 @@ export async function createProject(formData) {
       date,
       ownerId: session.user.id,
       participants: {
-        create: participantNames.map((name) => ({ name })),
+        create: [{ name: session.user.nickname }],
       },
     },
   });
