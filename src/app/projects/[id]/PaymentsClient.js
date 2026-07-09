@@ -1,7 +1,15 @@
 "use client";
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { addPayment, deletePayment, editPayment, toggleSettled } from "./actions";
+import { useRouter } from "next/navigation";
+import {
+  addPayment,
+  deletePayment,
+  deleteProject,
+  editPayment,
+  editProject,
+  toggleSettled,
+} from "./actions";
 
 // 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
 // balances は各参加者の収支（プラス=最終的に受け取る、マイナス=最終的に支払う）
@@ -140,6 +148,70 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
   );
 }
 
+function ProjectFormModal({ project, onSubmit, onCancel, isPending }) {
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onCancel} />
+
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 sm:p-8 bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">プロジェクトを編集</h2>
+
+        <form action={onSubmit} className="flex flex-col gap-3">
+          <input
+            type="text"
+            name="title"
+            defaultValue={project.title}
+            required
+            className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="タイトル"
+          />
+          <input
+            type="text"
+            name="destination"
+            defaultValue={project.destination}
+            className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="目的地"
+          />
+          <div>
+            <p className="text-xs font-bold text-gray-500 mb-1">期間</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                name="startDate"
+                defaultValue={project.startDate}
+                aria-label="開始日"
+                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <span className="text-gray-400 shrink-0">〜</span>
+              <input
+                type="date"
+                name="endDate"
+                defaultValue={project.endDate}
+                aria-label="終了日"
+                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-gray-500 px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
+              キャンセル
+            </button>
+            <button
+              type="submit"
+              disabled={isPending}
+              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
+              更新する
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
+
 function SettlementRow({ transfer }) {
   return (
     <div className="flex items-center justify-between text-sm bg-white rounded-lg px-4 py-3 shadow-sm">
@@ -155,11 +227,13 @@ function SettlementRow({ transfer }) {
   );
 }
 
-export default function PaymentsClient({ project, currentUserName }) {
+export default function PaymentsClient({ project, currentUserName, isOwner }) {
+  const router = useRouter();
 
   // useState初期値設定
   const [isOpen, setisOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+  const [isEditingProject, setIsEditingProject] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
   const [showOthers, setShowOthers] = useState(false);
@@ -185,6 +259,21 @@ export default function PaymentsClient({ project, currentUserName }) {
     });
   };
 
+  const handleEditProject = (formData) => {
+    startTransition(async () => {
+      await editProject(project.id, formData);
+      setIsEditingProject(false);
+    });
+  };
+
+  const handleDeleteProject = () => {
+    if (!window.confirm(`「${project.title}」を削除しますか？支払い記録もすべて削除されます。`)) return;
+    startTransition(async () => {
+      await deleteProject(project.id);
+      router.push("/projects");
+    });
+  };
+
   const { transfers: settlements, balances } = calculateSettlements(
     project.participants,
     project.payments
@@ -206,9 +295,27 @@ export default function PaymentsClient({ project, currentUserName }) {
           ← 一覧に戻る
         </Link>
 
-        <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight mb-2 break-words">
-          {project.title}
-        </h1>
+        <div className="flex items-start justify-between gap-3 mb-2">
+          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight break-words">
+            {project.title}
+          </h1>
+          {isOwner && (
+            <div className="flex gap-3 shrink-0 pt-1 sm:pt-2">
+              <button
+                onClick={() => setIsEditingProject(true)}
+                disabled={isPending}
+                className="text-xs font-bold text-gray-400 hover:text-blue-600 transition disabled:opacity-50">
+                編集
+              </button>
+              <button
+                onClick={handleDeleteProject}
+                disabled={isPending}
+                className="text-xs font-bold text-gray-400 hover:text-red-600 transition disabled:opacity-50">
+                削除
+              </button>
+            </div>
+          )}
+        </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm sm:text-base text-gray-500 mb-6">
           <p>目的地：{project.destination || "未定"}</p>
           <p>
@@ -254,6 +361,15 @@ export default function PaymentsClient({ project, currentUserName }) {
           onCancel={() => setEditingPayment(null)}
           isPending={isPending}
           submitLabel="更新する"
+        />
+      )}
+
+      {isEditingProject && (
+        <ProjectFormModal
+          project={project}
+          onSubmit={handleEditProject}
+          onCancel={() => setIsEditingProject(false)}
+          isPending={isPending}
         />
       )}
 

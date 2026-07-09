@@ -32,6 +32,10 @@ export default async function ProjectDetailPage({ params }) {
   );
 
   return (
-    <PaymentsClient project={project} currentUserName={currentParticipant?.name} />
+    <PaymentsClient
+      project={project}
+      currentUserName={currentParticipant?.name}
+      isOwner={project.ownerId === session.user.id}
+    />
   );
 }

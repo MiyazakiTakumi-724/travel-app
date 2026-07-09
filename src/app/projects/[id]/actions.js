@@ -16,6 +16,42 @@ async function assertMember(projectId, userId) {
   );
 }
 
+async function assertOwner(projectId, userId) {
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  return Boolean(project && project.ownerId === userId);
+}
+
+export async function editProject(projectId, formData) {
+  const session = await auth();
+  if (!session?.user?.id) return;
+  if (!(await assertOwner(projectId, session.user.id))) return;
+
+  const title = formData.get("title")?.toString().trim();
+  const destination = formData.get("destination")?.toString().trim();
+  const startDate = formData.get("startDate")?.toString().trim();
+  const endDate = formData.get("endDate")?.toString().trim();
+
+  if (!title) return;
+
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { title, destination, startDate, endDate },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+}
+
+export async function deleteProject(projectId) {
+  const session = await auth();
+  if (!session?.user?.id) return;
+  if (!(await assertOwner(projectId, session.user.id))) return;
+
+  await prisma.project.delete({ where: { id: projectId } });
+
+  revalidatePath("/projects");
+}
+
 export async function addPayment(projectId, formData) {
   const session = await auth();
   if (!session?.user?.id) return;
