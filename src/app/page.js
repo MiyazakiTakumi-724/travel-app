@@ -18,7 +18,7 @@ export default async function Home({ searchParams }) {
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-b from-blue-50 to-gray-100">
       <div className="w-full max-w-sm flex flex-col items-center bg-white rounded-2xl shadow-lg shadow-gray-200/60 p-8 sm:p-10">
         <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 text-center tracking-tight">
-          旅行割り勘サイト
+          旅行清算アプリ
         </p>
         <p className="text-sm text-gray-500 mb-8 text-center leading-relaxed">
           Googleアカウントでログインして、旅費の記録・清算を始めましょう
