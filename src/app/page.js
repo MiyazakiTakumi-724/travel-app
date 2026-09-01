@@ -14,8 +14,27 @@ export default async function Home({ searchParams }) {
     redirect(redirectTarget);
   }
 
+  const steps = [
+    {
+      title: "Googleでログイン",
+      description: "アカウント登録は不要。Googleアカウントですぐに始められます。",
+    },
+    {
+      title: "旅行を作って友達を招待",
+      description: "プロジェクトを作成し、招待リンクを送るだけでメンバーが参加できます。",
+    },
+    {
+      title: "支払いを記録",
+      description: "誰が何にいくら払ったかを記録。複数人での割り勘もOK。",
+    },
+    {
+      title: "精算方法が自動で分かる",
+      description: "最終的に「誰が誰にいくら払うか」を自動で計算して表示します。",
+    },
+  ];
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-b from-blue-50 to-gray-100">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-gradient-to-b from-blue-50 to-gray-100">
       <div className="w-full max-w-sm flex flex-col items-center bg-white rounded-2xl shadow-lg shadow-gray-200/60 p-8 sm:p-10">
         <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 text-center tracking-tight">
           旅行清算アプリ
@@ -44,6 +63,25 @@ export default async function Home({ searchParams }) {
             Googleでログイン
           </button>
         </form>
+      </div>
+
+      <div className="w-full max-w-sm mt-6 bg-white rounded-2xl shadow-lg shadow-gray-200/60 p-8 sm:p-10">
+        <p className="text-sm font-bold text-gray-900 mb-5 text-center">使い方</p>
+        <ol className="flex flex-col gap-4">
+          {steps.map((step, index) => (
+            <li key={step.title} className="flex items-start gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+                {index + 1}
+              </span>
+              <div>
+                <p className="text-sm font-bold text-gray-900">{step.title}</p>
+                <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
+                  {step.description}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   );
