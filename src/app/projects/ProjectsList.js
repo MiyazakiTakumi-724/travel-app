@@ -3,6 +3,12 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { createProject } from "./actions";
+import SiteHeader from "@/components/SiteHeader";
+import Modal, { ModalActions } from "@/components/Modal";
+import ProjectFormFields from "@/components/ProjectFormFields";
+import { PlusIcon } from "@/components/icons";
+import { primaryButtonClass } from "@/components/ui";
+import { formatPeriod } from "@/lib/format";
 
 export default function ProjectsList({ projects }) {
 
@@ -18,121 +24,92 @@ export default function ProjectsList({ projects }) {
         });
     };
 
+    const addTripButtonClass =
+        "flex flex-col items-center justify-center gap-2.5 border-[1.5px] border-dashed border-[#6FAFD0] font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary";
+
     return (
-        <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-8 sm:py-10 lg:px-12">
-            <div className="max-w-6xl mx-auto">
-                <div className="flex items-center justify-between gap-4 mb-6 sm:mb-8">
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                        マイプロジェクト
-                    </h1>
+        <div className="flex min-h-screen flex-col">
+            <SiteHeader logoHref="/projects">
+                <button
+                    onClick={() => signOut({ redirectTo: "/" })}
+                    className="min-h-11 px-1 text-sm font-medium text-ink-muted transition-colors hover:text-ink">
+                    ログアウト
+                </button>
+            </SiteHeader>
+
+            <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col gap-10 px-6 pt-10 pb-24 sm:pt-14">
+                <div className="flex flex-wrap items-end justify-between gap-5">
+                    <div className="flex flex-col gap-2">
+                        <span className="font-mono text-[13px] font-bold tracking-[0.14em] text-primary">MY TRIPS</span>
+                        <h1 className="text-[32px] font-extrabold tracking-[-0.01em] sm:text-[40px]">
+                            マイプロジェクト
+                        </h1>
+                    </div>
                     <button
-                        onClick={() => signOut({ redirectTo: "/" })}
-                        className="text-gray-400 text-sm font-medium hover:text-gray-600 transition">
-                        ログアウト
+                        onClick={() => setisOpen(true)}
+                        className={`${primaryButtonClass} min-h-[52px] gap-2.5 px-6 text-base`}>
+                        <PlusIcon />
+                        新しい旅行を作成
                     </button>
                 </div>
 
-                <button
-                    onClick={() => setisOpen(!isOpen)}
-                    className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-sm transition hover:bg-blue-700 hover:shadow-md active:scale-[0.99] mb-8 sm:mb-10">
-                    ＋ プロジェクト新規作成
-                </button>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-
-                    {/* プロジェクトが0の時文字を表示する */}
-                    {projects.length === 0 ? (
-
-                        <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
-                            <p className="text-xl sm:text-2xl font-bold mb-2 text-gray-500">プロジェクト無し</p>
-                            <p className="text-sm">上のボタンから新しいプロジェクトを作成してください</p>
-                        </div>
-                    ) : (
-                        // プロジェクトが1個以上ある時の表示
-                        projects.map((project) => (
+                {/* プロジェクトが0の時は大きな作成ボタンを表示する */}
+                {projects.length === 0 ? (
+                    <button
+                        onClick={() => setisOpen(true)}
+                        className={`${addTripButtonClass} min-h-[260px] w-full text-lg`}>
+                        <PlusIcon size={28} strokeWidth={2} />
+                        最初の旅行を作成
+                        <span className="text-sm font-medium text-ink-sub">まだ旅行がありません</span>
+                    </button>
+                ) : (
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-6">
+                        {projects.map((project, index) => (
                             <Link
                                 key={project.id}
                                 href={`/projects/${project.id}`}
-                                className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm text-left transition hover:shadow-md hover:-translate-y-0.5 block"
+                                className="flex flex-col border-t-4 border-primary bg-paper text-ink shadow-card transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
                             >
-                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 truncate">
-                                    {project.title}
-                                </h2>
-                                <p className="text-sm text-gray-500 mb-1">
-                                    目的地：{project.destination || "未定"}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    期間：
-                                    {project.startDate || project.endDate
-                                        ? `${project.startDate || "未定"} 〜 ${project.endDate || "未定"}`
-                                        : "未定"}
-                                </p>
+                                <div className="flex flex-col gap-1.5 px-6 pt-6 pb-[18px]">
+                                    <span className="font-mono text-xs tracking-[0.1em] text-ink-muted">
+                                        TRIP · {String(index + 1).padStart(2, "0")}
+                                    </span>
+                                    <h2 className="truncate text-[22px] font-extrabold">{project.title}</h2>
+                                </div>
+                                <div className="mx-6 border-t border-dashed border-line-dashed" />
+                                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 px-6 pt-[18px] pb-[22px] text-sm">
+                                    <dt className="text-ink-muted">目的地</dt>
+                                    <dd className="min-w-0 truncate font-bold">{project.destination || "未定"}</dd>
+                                    <dt className="text-ink-muted">期間</dt>
+                                    <dd className="font-mono">{formatPeriod(project.startDate, project.endDate)}</dd>
+                                    <dt className="text-ink-muted">メンバー</dt>
+                                    <dd className="font-mono">{project.participants.length}名</dd>
+                                </dl>
                             </Link>
-                        ))
-                    )}
+                        ))}
 
-                    {isOpen && (
-                        // オーバーレイ
-                        <>
-                            <div className="fixed inset-0 bg-black/50 z-40"
-                                onClick={() => setisOpen(false)} />
+                        <button
+                            onClick={() => setisOpen(true)}
+                            className={`${addTripButtonClass} min-h-[210px] text-[15px]`}>
+                            <PlusIcon size={28} strokeWidth={2} />
+                            旅行を追加
+                        </button>
+                    </div>
+                )}
+            </main>
 
-                            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 sm:p-8 bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md">
-                                <h2 className="text-lg font-bold text-gray-900 mb-4">新規プロジェクト</h2>
-
-                                <form action={handleCreateProject} className="flex flex-col gap-3">
-                                    <input
-                                        // 新規プロジェクト入力フォーム
-                                        type="text"
-                                        name="title"
-                                        required
-                                        className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="タイトル"
-                                    />
-                                    <input
-                                        type="text"
-                                        name="destination"
-                                        className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="目的地"
-                                    />
-                                    <div>
-                                        <p className="text-xs font-bold text-gray-500 mb-1">期間</p>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="date"
-                                                name="startDate"
-                                                aria-label="開始日"
-                                                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            />
-                                            <span className="text-gray-400 shrink-0">〜</span>
-                                            <input
-                                                type="date"
-                                                name="endDate"
-                                                aria-label="終了日"
-                                                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-2 mt-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setisOpen(false)}
-                                            className="text-gray-500 px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
-                                            キャンセル
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={isPending}
-                                            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
-                                            確定する
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </>
-                    )}
-                </div>
-            </div>
+            {isOpen && (
+                <Modal title="新しい旅行を作成" onClose={() => setisOpen(false)}>
+                    <form action={handleCreateProject} className="flex flex-col gap-5">
+                        <ProjectFormFields />
+                        <ModalActions
+                            submitLabel="作成する"
+                            onCancel={() => setisOpen(false)}
+                            disabled={isPending}
+                        />
+                    </form>
+                </Modal>
+            )}
         </div>
     );
 }

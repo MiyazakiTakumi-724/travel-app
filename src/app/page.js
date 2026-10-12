@@ -1,5 +1,40 @@
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
+import SiteHeader from "@/components/SiteHeader";
+import Stamp from "@/components/Stamp";
+import { GoogleIcon } from "@/components/icons";
+import { primaryButtonClass, secondaryButtonClass } from "@/components/ui";
+
+const steps = [
+  {
+    title: "Googleでログイン",
+    description: "アカウント登録は不要。Googleアカウントですぐに始められます。",
+  },
+  {
+    title: "旅行を作って友達を招待",
+    description: "プロジェクトを作成し、招待リンクを送るだけでメンバーが参加できます。",
+  },
+  {
+    title: "支払いを記録",
+    description: "誰が何にいくら払ったかを記録。複数人での割り勘もOK。",
+  },
+  {
+    title: "精算方法が自動で分かる",
+    description: "最終的に「誰が誰にいくら払うか」を自動で計算して表示します。",
+  },
+];
+
+// ヒーロー右側のレシートは装飾用のダミー（4人で76,000円を割った場合の計算例）
+const sampleExpenses = [
+  ["宿泊", "¥40,000"],
+  ["レンタカー", "¥24,000"],
+  ["夕食", "¥12,000"],
+];
+const sampleTransfers = [
+  ["D → B", "¥19,000"],
+  ["C → A", "¥5,000"],
+  ["C → B", "¥2,000"],
+];
 
 export default async function Home({ searchParams }) {
   const { callbackUrl } = await searchParams;
@@ -14,75 +49,108 @@ export default async function Home({ searchParams }) {
     redirect(redirectTarget);
   }
 
-  const steps = [
-    {
-      title: "Googleでログイン",
-      description: "アカウント登録は不要。Googleアカウントですぐに始められます。",
-    },
-    {
-      title: "旅行を作って友達を招待",
-      description: "プロジェクトを作成し、招待リンクを送るだけでメンバーが参加できます。",
-    },
-    {
-      title: "支払いを記録",
-      description: "誰が何にいくら払ったかを記録。複数人での割り勘もOK。",
-    },
-    {
-      title: "精算方法が自動で分かる",
-      description: "最終的に「誰が誰にいくら払うか」を自動で計算して表示します。",
-    },
-  ];
+  async function signInWithGoogle() {
+    "use server";
+    await signIn("google", { redirectTo: redirectTarget });
+  }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-gradient-to-b from-blue-50 to-gray-100">
-      <div className="w-full max-w-sm flex flex-col items-center bg-white rounded-2xl shadow-lg shadow-gray-200/60 p-8 sm:p-10">
-        <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 text-center tracking-tight">
-          旅行清算アプリ
-        </p>
-        <p className="text-sm text-gray-500 mb-8 text-center leading-relaxed">
-          Googleアカウントでログインして、旅費の記録・清算を始めましょう
-        </p>
-
-        <form
-          className="w-full"
-          action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: redirectTarget });
-          }}
-        >
-          <button
-            type="submit"
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 px-6 py-3.5 rounded-full text-base font-semibold shadow-sm transition hover:shadow-md active:bg-gray-50"
-          >
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
-              <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.8 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />
-              <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4c-7.4 0-13.8 4.2-17 10.3z" />
-              <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.3 35.4 26.8 36 24 36c-5.3 0-9.8-3.1-11.3-7.5l-6.5 5C9.9 39.6 16.4 44 24 44z" />
-              <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.9 2.6-2.6 4.8-4.9 6.3l6.3 5.3C40.3 36.5 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z" />
-            </svg>
-            Googleでログイン
+    <div className="flex min-h-screen flex-col">
+      <SiteHeader>
+        <form action={signInWithGoogle}>
+          <button type="submit" className={`${secondaryButtonClass} min-h-11 px-[18px] text-sm`}>
+            ログイン
           </button>
         </form>
-      </div>
+      </SiteHeader>
 
-      <div className="w-full max-w-sm mt-6 bg-white rounded-2xl shadow-lg shadow-gray-200/60 p-8 sm:p-10">
-        <p className="text-sm font-bold text-gray-900 mb-5 text-center">使い方</p>
-        <ol className="flex flex-col gap-4">
-          {steps.map((step, index) => (
-            <li key={step.title} className="flex items-start gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
-                {index + 1}
-              </span>
-              <div>
-                <p className="text-sm font-bold text-gray-900">{step.title}</p>
-                <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
-                  {step.description}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
+      <main className="flex-1">
+        <section className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center gap-16 px-6 pt-14 pb-20 sm:pt-[72px] sm:pb-24">
+          <div className="flex min-w-0 flex-[1_1_460px] flex-col gap-8">
+            <span className="self-start border-[1.5px] border-primary px-3 py-1.5 font-mono text-[13px] font-bold tracking-[0.14em] text-primary">
+              SPLIT · SETTLE · DONE
+            </span>
+            <h1 className="text-[clamp(44px,6vw,84px)] leading-[1.08] font-extrabold tracking-[-0.02em]">
+              割り勘は、
+              <br />
+              アプリに
+              <br />
+              <span className="text-primary">任せよう。</span>
+            </h1>
+            <p className="max-w-[28em] text-lg leading-[1.85] text-ink-sub">
+              Googleアカウントでログインして、旅費の記録・精算を始めましょう。
+            </p>
+            <div className="flex flex-wrap items-center gap-3.5">
+              <form action={signInWithGoogle}>
+                <button
+                  type="submit"
+                  className={`${primaryButtonClass} min-h-[58px] gap-3 pr-8 pl-3.5 text-[17px] shadow-offset-lg`}
+                >
+                  <span className="flex size-7 items-center justify-center bg-paper">
+                    <GoogleIcon />
+                  </span>
+                  Googleでログイン →
+                </button>
+              </form>
+              <span className="font-mono text-[13px] text-ink-sub">登録不要 / FREE</span>
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-[1_1_360px] justify-center">
+            <div
+              role="img"
+              aria-label="レシート風の精算表示例"
+              className="flex w-full max-w-[380px] rotate-[1.5deg] flex-col gap-3.5 bg-paper px-[30px] pt-8 pb-10 font-mono text-sm shadow-[0_28px_48px_-28px_rgba(11,116,181,0.45)]"
+            >
+              <div className="text-center font-bold tracking-[0.2em]">*** 精算明細 · 例 ***</div>
+              <div className="text-center text-ink-muted">沖縄旅行 / 4名</div>
+              <div className="border-t border-dashed border-ink" />
+              {sampleExpenses.map(([label, amount]) => (
+                <div key={label} className="flex justify-between">
+                  <span>{label}</span>
+                  <span>{amount}</span>
+                </div>
+              ))}
+              <div className="border-t border-dashed border-ink" />
+              <div className="font-bold text-primary">送金</div>
+              {sampleTransfers.map(([label, amount]) => (
+                <div key={label} className="flex justify-between">
+                  <span>{label}</span>
+                  <span>{amount}</span>
+                </div>
+              ))}
+              <div className="border-t border-dashed border-ink" />
+              <Stamp className="self-end" />
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="how-heading" className="border-t-[1.5px] border-ink bg-paper">
+          <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-10 px-6 pt-[72px] pb-24">
+            <h2 id="how-heading" className="text-[32px] font-extrabold">
+              使い方
+            </h2>
+            <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-x-6 border-t-[1.5px] border-ink">
+              {steps.map((step, index) => (
+                <li
+                  key={step.title}
+                  className="flex flex-col gap-3 border-b border-line-soft py-7"
+                >
+                  <span className="font-mono text-sm font-bold text-primary">
+                    STEP {String(index + 1).padStart(2, "0")}
+                  </span>
+                  <h3 className="text-[19px] font-bold">{step.title}</h3>
+                  <p className="text-[15px] leading-[1.8] text-ink-sub">{step.description}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      </main>
+
+      <footer className="mx-auto w-full max-w-[1180px] px-6 py-6 font-mono text-xs text-ink-muted">
+        © 旅行清算アプリ
+      </footer>
     </div>
   );
 }

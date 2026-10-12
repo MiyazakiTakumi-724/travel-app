@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -10,6 +10,26 @@ import {
   editProject,
   toggleSettled,
 } from "./actions";
+import SiteHeader from "@/components/SiteHeader";
+import Modal, { ModalActions } from "@/components/Modal";
+import ProjectFormFields from "@/components/ProjectFormFields";
+import Stamp from "@/components/Stamp";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  LinkIcon,
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+} from "@/components/icons";
+import {
+  fieldLabelClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+  textButtonClass,
+  textFieldClass,
+} from "@/components/ui";
+import { formatPeriod, formatSignedYen, formatYen } from "@/lib/format";
 
 // 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
 // balances は各参加者の収支（プラス=最終的に受け取る、マイナス=最終的に支払う）
@@ -67,168 +87,114 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
     );
   };
 
+  const noPayerSelected = allowMultiplePayers && selectedPayers.length === 0;
+
   return (
-    <>
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={onCancel} />
+    <Modal title={title} onClose={onCancel}>
+      <form action={onSubmit} className="flex flex-col gap-5">
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass}>金額</span>
+          <span className="flex items-center gap-2 border-b-2 border-ink pb-1.5 focus-within:border-primary">
+            <span aria-hidden="true" className="font-mono text-[28px] font-bold text-primary">¥</span>
+            <input
+              type="number"
+              name="amount"
+              inputMode="numeric"
+              defaultValue={defaultValues?.amount}
+              required
+              min="1"
+              placeholder="0"
+              className="min-w-0 flex-1 bg-transparent p-0 font-mono text-[34px] font-bold text-ink outline-none placeholder:text-line-dashed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+          </span>
+        </label>
 
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 sm:p-8 bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">{title}</h2>
-
-        <form action={onSubmit} className="flex flex-col gap-3">
-          {allowMultiplePayers ? (
-            <div className="border border-gray-300 rounded-lg p-3">
-              <p className="text-xs font-bold text-gray-500 mb-2">支払者（複数選択可・均等割り）</p>
-              <div className="flex flex-col gap-2 max-h-40 overflow-y-auto">
-                {participants.map((participant) => (
-                  <label key={participant.id} className="flex items-center gap-2 text-sm text-gray-800">
-                    <input
-                      type="checkbox"
-                      name="payer"
-                      value={participant.name}
-                      checked={selectedPayers.includes(participant.name)}
-                      onChange={() => togglePayer(participant.name)}
-                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-                    />
-                    {participant.name}
-                  </label>
-                ))}
-              </div>
-              {selectedPayers.length === 0 && (
-                <p className="text-xs text-red-500 mt-2">支払者を1人以上選択してください</p>
-              )}
-            </div>
-          ) : (
-            <select
-              // 支払い入力フォーム（参加者から選択）
-              name="payer"
-              className="border border-gray-300 p-3 rounded-lg w-full text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={payer}
-              onChange={(e) => setPayer(e.target.value)}
-            >
-              {participants.map((participant) => (
-                <option key={participant.id} value={participant.name}>
-                  {participant.name}
-                </option>
-              ))}
-            </select>
-          )}
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass}>支払い内容</span>
           <input
             type="text"
             name="memo"
             defaultValue={defaultValues?.memo}
-            className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="支払い内容"
+            className={textFieldClass}
+            placeholder="例：夕食、レンタカー"
           />
-          <input
-            type="number"
-            name="amount"
-            defaultValue={defaultValues?.amount}
-            required
-            min="1"
-            className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="金額"
-          />
-          <div className="flex justify-end gap-2 mt-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="text-gray-500 px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              disabled={isPending || (allowMultiplePayers && selectedPayers.length === 0)}
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
-              {submitLabel}
-            </button>
+        </label>
+
+        {/* 支払者（新規は複数選択のチェックボックス、編集は単一選択のラジオ）。見た目はチップ */}
+        <fieldset className="flex min-w-0 flex-col">
+          <legend className={`${fieldLabelClass} mb-2.5`}>
+            {allowMultiplePayers ? "支払者（複数選択で均等割り）" : "支払者"}
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {participants.map((participant) => {
+              const selected = allowMultiplePayers
+                ? selectedPayers.includes(participant.name)
+                : payer === participant.name;
+              return (
+                <label
+                  key={participant.id}
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 border-[1.5px] border-line-dashed bg-paper px-4 text-[15px] font-bold text-ink transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+                >
+                  <input
+                    type={allowMultiplePayers ? "checkbox" : "radio"}
+                    name="payer"
+                    value={participant.name}
+                    checked={selected}
+                    required={!allowMultiplePayers}
+                    onChange={() =>
+                      allowMultiplePayers ? togglePayer(participant.name) : setPayer(participant.name)
+                    }
+                    className="sr-only"
+                  />
+                  {selected && <CheckIcon />}
+                  {participant.name}
+                </label>
+              );
+            })}
           </div>
-        </form>
-      </div>
-    </>
+          {noPayerSelected && (
+            <p role="alert" className="mt-2 text-xs text-pay">支払者を1人以上選択してください</p>
+          )}
+        </fieldset>
+
+        <ModalActions
+          submitLabel={submitLabel}
+          onCancel={onCancel}
+          disabled={isPending || noPayerSelected}
+        />
+      </form>
+    </Modal>
   );
 }
 
-function ProjectFormModal({ project, onSubmit, onCancel, isPending }) {
+function SettlementRow({ transfer, currentUserName }) {
+  const label = (name) => (name === currentUserName ? "あなた" : name);
   return (
-    <>
-      <div className="fixed inset-0 bg-black/50 z-40" onClick={onCancel} />
-
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 sm:p-8 bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">プロジェクトを編集</h2>
-
-        <form action={onSubmit} className="flex flex-col gap-3">
-          <input
-            type="text"
-            name="title"
-            defaultValue={project.title}
-            required
-            className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="タイトル"
-          />
-          <input
-            type="text"
-            name="destination"
-            defaultValue={project.destination}
-            className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="目的地"
-          />
-          <div>
-            <p className="text-xs font-bold text-gray-500 mb-1">期間</p>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                name="startDate"
-                defaultValue={project.startDate}
-                aria-label="開始日"
-                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <span className="text-gray-400 shrink-0">〜</span>
-              <input
-                type="date"
-                name="endDate"
-                defaultValue={project.endDate}
-                aria-label="終了日"
-                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-2 mt-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="text-gray-500 px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
-              更新する
-            </button>
-          </div>
-        </form>
-      </div>
-    </>
+    <li className="flex justify-between gap-3 font-mono text-[15px]">
+      <span className="min-w-0 break-words">
+        {label(transfer.from)} → {label(transfer.to)}
+      </span>
+      <b className="shrink-0">{formatYen(transfer.amount)}</b>
+    </li>
   );
 }
 
-function SettlementRow({ transfer }) {
+function SettlementGroup({ label, labelClass, transfers, currentUserName }) {
   return (
-    <div className="flex items-center justify-between text-sm bg-white rounded-lg px-4 py-3 shadow-sm">
-      <p className="font-bold text-gray-900">
-        {transfer.from}
-        <span className="mx-2 text-blue-500">→</span>
-        {transfer.to}
-      </p>
-      <p className="font-bold text-blue-600">
-        ¥{transfer.amount.toLocaleString()}
-      </p>
+    <div className="flex flex-col gap-2.5">
+      <span className={`text-[13px] font-bold ${labelClass}`}>{label}</span>
+      <ul className="flex flex-col gap-2.5">
+        {transfers.map((transfer, index) => (
+          <SettlementRow key={index} transfer={transfer} currentUserName={currentUserName} />
+        ))}
+      </ul>
     </div>
   );
 }
 
 export default function PaymentsClient({ project, currentUserName, isOwner }) {
   const router = useRouter();
+  const othersListId = useId();
 
   // useState初期値設定
   const [isOpen, setisOpen] = useState(false);
@@ -285,58 +251,178 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
   );
 
   const myBalance = Math.round(balances.get(currentUserName) ?? 0);
+  const totalAmount = project.payments.reduce((sum, payment) => sum + payment.amount, 0);
+
+  const balanceLabel =
+    myBalance > 0 ? "あなたの受取額" : myBalance < 0 ? "あなたの支払額" : "あなたの収支";
+  const receiptBalanceClass =
+    myBalance > 0 ? "text-primary" : myBalance < 0 ? "text-pay" : "text-ink-muted";
+  const barBalanceClass =
+    myBalance > 0 ? "text-sky-shadow" : myBalance < 0 ? "text-[#F6B28A]" : "text-line-soft";
 
   return (
-    <div className="bg-gray-50 min-h-screen pb-28 relative">
-      <div className="max-w-3xl mx-auto px-4 pt-6 sm:px-8 sm:pt-10">
+    <div className="flex min-h-screen flex-col">
+      <SiteHeader logoHref="/projects">
         <Link
           href="/projects"
-          className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 transition mb-3">
+          className="inline-flex min-h-11 items-center text-sm font-medium text-ink-muted transition-colors hover:text-primary">
           ← 一覧に戻る
         </Link>
+      </SiteHeader>
 
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 tracking-tight break-words">
-            {project.title}
-          </h1>
-          {isOwner && (
-            <div className="flex gap-3 shrink-0 pt-1 sm:pt-2">
-              <button
-                onClick={() => setIsEditingProject(true)}
-                disabled={isPending}
-                className="text-xs font-bold text-gray-400 hover:text-blue-600 transition disabled:opacity-50">
-                編集
-              </button>
-              <button
-                onClick={handleDeleteProject}
-                disabled={isPending}
-                className="text-xs font-bold text-gray-400 hover:text-red-600 transition disabled:opacity-50">
-                削除
-              </button>
+      <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col gap-9 px-6 pt-10 pb-12 sm:pt-12">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <h1 className="min-w-0 break-words text-[clamp(32px,4vw,48px)] font-extrabold tracking-[-0.01em]">
+                {project.title}
+              </h1>
+              {isOwner && (
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setIsEditingProject(true)}
+                    disabled={isPending}
+                    className={`${textButtonClass} hover:text-primary`}>
+                    編集
+                  </button>
+                  <button
+                    onClick={handleDeleteProject}
+                    disabled={isPending}
+                    className={`${textButtonClass} hover:text-pay`}>
+                    削除
+                  </button>
+                </div>
+              )}
             </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-[15px] text-ink-sub">
+              <span>
+                目的地 <b className="text-ink">{project.destination || "未定"}</b>
+              </span>
+              <span>
+                期間 <b className="font-mono text-ink">{formatPeriod(project.startDate, project.endDate)}</b>
+              </span>
+              <span>
+                メンバー <b className="font-mono text-ink">{project.participants.length}名</b>
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleCopyInviteLink}
+              className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
+              <LinkIcon />
+              <span aria-live="polite">{copied ? "コピーしました！" : "招待リンクをコピー"}</span>
+            </button>
+            <button
+              onClick={() => setisOpen(true)}
+              className={`${primaryButtonClass} min-h-12 text-[15px]`}>
+              <PlusIcon />
+              支払いを記録
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-start gap-8">
+          <section aria-labelledby="payments-heading" className="flex min-w-0 flex-[999_1_560px] flex-col">
+            <div className="flex items-baseline justify-between gap-4 border-b-[1.5px] border-ink pb-3">
+              <h2 id="payments-heading" className="text-xl font-extrabold">支払い記録</h2>
+              <span className="font-mono text-[13px] text-ink-muted">合計 {formatYen(totalAmount)}</span>
+            </div>
+
+            {project.payments.length === 0 ? (
+              <p className="py-12 text-center text-sm text-ink-muted">
+                まだ支払いの記録がありません
+              </p>
+            ) : (
+              <ul>
+                {project.payments.map((payment) => (
+                  <PaymentRow
+                    key={payment.id}
+                    projectId={project.id}
+                    payment={payment}
+                    onEdit={setEditingPayment}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* 精算方法レシート。スマホでは支払い記録より上に表示する */}
+          {project.payments.length > 0 && (
+            <aside
+              aria-labelledby="settlement-heading"
+              className="order-first flex min-w-0 flex-[1_1_340px] flex-col gap-4 bg-paper px-[26px] pt-7 pb-8 shadow-[0_24px_40px_-28px_rgba(11,116,181,0.5)] lg:order-none"
+            >
+              <h2 id="settlement-heading" className="text-center font-mono text-sm font-bold tracking-[0.2em]">
+                *** 精算方法 ***
+              </h2>
+              <div className="border-t border-dashed border-ink" />
+
+              {settlements.length === 0 ? (
+                <p className="text-sm text-ink-sub">精算の必要はありません</p>
+              ) : (
+                <>
+                  {iReceive.length > 0 && (
+                    <SettlementGroup
+                      label="あなたが受け取る"
+                      labelClass="text-primary"
+                      transfers={iReceive}
+                      currentUserName={currentUserName}
+                    />
+                  )}
+
+                  {iPay.length > 0 && (
+                    <SettlementGroup
+                      label="あなたが支払う"
+                      labelClass="text-pay"
+                      transfers={iPay}
+                      currentUserName={currentUserName}
+                    />
+                  )}
+
+                  {others.length > 0 && (
+                    <div className="flex flex-col gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowOthers(!showOthers)}
+                        aria-expanded={showOthers}
+                        aria-controls={othersListId}
+                        className="inline-flex min-h-10 items-center gap-1.5 self-start text-[13px] font-bold text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
+                        その他の精算（{others.length}件）
+                        <ChevronDownIcon className={`transition-transform ${showOthers ? "rotate-180" : ""}`} />
+                      </button>
+                      {showOthers && (
+                        <ul id={othersListId} className="flex flex-col gap-2.5">
+                          {others.map((transfer, index) => (
+                            <SettlementRow key={index} transfer={transfer} currentUserName={currentUserName} />
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="border-t border-dashed border-ink" />
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-bold">あなたの収支</span>
+                <span className={`font-mono text-[30px] font-bold ${receiptBalanceClass}`}>
+                  {formatSignedYen(myBalance)}
+                </span>
+              </div>
+            </aside>
           )}
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm sm:text-base text-gray-500 mb-6">
-          <p>目的地：{project.destination || "未定"}</p>
-          <p>
-            期間：
-            {project.startDate || project.endDate
-              ? `${project.startDate || "未定"} 〜 ${project.endDate || "未定"}`
-              : "未定"}
-          </p>
-        </div>
+      </main>
 
-        <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 mb-6">
-          <button
-            onClick={handleCopyInviteLink}
-            className="w-full sm:w-auto bg-white text-blue-600 border border-blue-600 px-5 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-50 active:scale-[0.99]">
-            {copied ? "コピーしました！" : "招待リンクをコピー"}
-          </button>
-          <button
-            onClick={() => setisOpen(!isOpen)}
-            className="w-full sm:w-auto bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 active:scale-[0.99]">
-            支払い入力
-          </button>
+      {/* 精算後の自分の収支（PCでは精算レシートと重複するのでスマホのみ） */}
+      <div className="sticky bottom-0 bg-ink text-white lg:hidden">
+        <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-4 px-6 py-4">
+          <span className="text-sm text-line-soft">{balanceLabel}</span>
+          <span className={`font-mono text-[26px] font-bold ${barBalanceClass}`}>
+            {formatSignedYen(myBalance)}
+          </span>
         </div>
       </div>
 
@@ -347,7 +433,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
           onSubmit={handleAddPayment}
           onCancel={() => setisOpen(false)}
           isPending={isPending}
-          submitLabel="確定する"
+          submitLabel="記録する"
           allowMultiplePayers
         />
       )}
@@ -365,98 +451,17 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
       )}
 
       {isEditingProject && (
-        <ProjectFormModal
-          project={project}
-          onSubmit={handleEditProject}
-          onCancel={() => setIsEditingProject(false)}
-          isPending={isPending}
-        />
-      )}
-
-      {project.payments.length > 0 && (
-        <div className="max-w-3xl mx-auto px-4 sm:px-8 mb-6">
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 sm:p-5">
-            <h2 className="text-sm font-bold text-blue-900 mb-3">精算方法</h2>
-            {settlements.length === 0 ? (
-              <p className="text-sm text-blue-700">精算の必要はありません</p>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {iReceive.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold text-green-700 mb-2">あなたが受け取る</p>
-                    <div className="flex flex-col gap-2">
-                      {iReceive.map((transfer, index) => (
-                        <SettlementRow key={index} transfer={transfer} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {iPay.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold text-orange-700 mb-2">あなたが支払う</p>
-                    <div className="flex flex-col gap-2">
-                      {iPay.map((transfer, index) => (
-                        <SettlementRow key={index} transfer={transfer} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {others.length > 0 && (
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => setShowOthers(!showOthers)}
-                      className="flex items-center gap-1 text-xs font-bold text-blue-700">
-                      その他の精算（{others.length}件）
-                      <span className="text-blue-400">{showOthers ? "▲" : "▼"}</span>
-                    </button>
-                    {showOthers && (
-                      <div className="flex flex-col gap-2 mt-2">
-                        {others.map((transfer, index) => (
-                          <SettlementRow key={index} transfer={transfer} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-8 flex flex-col gap-2">
-        {project.payments.length === 0 ? (
-          <p className="text-center text-gray-400 text-sm py-12">
-            まだ支払いの記録がありません
-          </p>
-        ) : (
-          project.payments.map((payment) => (
-            <PaymentRow
-              key={payment.id}
-              projectId={project.id}
-              payment={payment}
-              onEdit={setEditingPayment}
+        <Modal title="旅行を編集" onClose={() => setIsEditingProject(false)}>
+          <form action={handleEditProject} className="flex flex-col gap-5">
+            <ProjectFormFields project={project} />
+            <ModalActions
+              submitLabel="更新する"
+              onCancel={() => setIsEditingProject(false)}
+              disabled={isPending}
             />
-          ))
-        )}
-      </div>
-
-      {/* 精算後の自分の収支 */}
-      <div className="fixed bottom-0 w-full bg-white border-t border-gray-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] px-4 py-4 sm:px-8">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            {myBalance > 0 ? "あなたの受取額" : myBalance < 0 ? "あなたの支払額" : "あなたの収支"}
-          </p>
-          <p
-            className={`text-2xl font-bold ${myBalance > 0 ? "text-green-600" : myBalance < 0 ? "text-orange-600" : "text-gray-500"
-              }`}>
-            {myBalance > 0 ? "+" : myBalance < 0 ? "-" : ""}¥{Math.abs(myBalance).toLocaleString()}
-          </p>
-        </div>
-      </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -478,53 +483,59 @@ function PaymentRow({ projectId, payment, onEdit }) {
     });
   };
 
+  const iconButtonClass =
+    "flex size-10 items-center justify-center text-ink-muted transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60";
+
   return (
-    <div className={`p-4 border rounded-lg transition-colors ${isSettled ? 'bg-gray-50 border-gray-100 opacity-60' : 'bg-white border-gray-200'
-      }`}>
-      <div className="flex items-center justify-between">
-        {/*チェックボックス*/}
-        <div className="shrink-0 mr-4">
-          <input
-            type="checkbox"
-            checked={isSettled}
-            disabled={isPending}
-            onChange={handleToggle}
-            className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-          />
-        </div>
+    <li className="flex items-center gap-3 border-b border-line-soft px-1 py-[18px] sm:gap-4">
+      <label className="flex size-11 flex-none cursor-pointer items-center justify-center">
+        <input
+          type="checkbox"
+          checked={isSettled}
+          disabled={isPending}
+          onChange={handleToggle}
+          aria-label={isSettled ? "精算済みを解除" : "精算済みにする"}
+          className="size-[22px] cursor-pointer accent-primary"
+        />
+      </label>
 
-        {/*支払者+メモ*/}
-        <div className="flex-1 min-w-0 pr-4">
-          <p className={`font-bold truncate ${isSettled ? 'text-gray-400 line-through' : 'text-gray-900'
-            }`}>
-            {payer}
-          </p>
-          <p className="text-sm text-gray-500 truncate">{memo}</p>
-        </div>
-
-        {/* 支払金額 */}
-        <div className="shrink-0 text-right">
-          <p className={`text-lg font-bold ${isSettled ? 'text-gray-400' : 'text-blue-600'
-            }`}>
-            ¥{Number(amount).toLocaleString()}
-          </p>
-        </div>
+      {/* 支払い内容が主、支払者が従。内容が空なら支払者を主にする */}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className={`break-words text-base font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
+          {memo || payer}
+        </span>
+        {memo && (
+          <span className={`text-[13px] ${isSettled ? "text-ink-faint" : "text-ink-muted"}`}>
+            支払者 {payer}
+          </span>
+        )}
       </div>
 
-      <div className="flex justify-end gap-4 mt-2 pt-2 border-t border-gray-100">
+      {isSettled && (
+        <span className="hidden shrink-0 sm:inline-flex">
+          <Stamp small />
+        </span>
+      )}
+      <span className={`shrink-0 font-mono text-base font-bold sm:text-lg ${isSettled ? "text-ink-faint" : ""}`}>
+        {formatYen(amount)}
+      </span>
+
+      <div className="flex gap-0.5">
         <button
           onClick={() => onEdit(payment)}
           disabled={isPending}
-          className="text-xs font-bold text-gray-400 hover:text-blue-600 transition disabled:opacity-50">
-          編集
+          aria-label="支払いを編集"
+          className={`${iconButtonClass} hover:text-primary`}>
+          <PencilIcon />
         </button>
         <button
           onClick={handleDelete}
           disabled={isPending}
-          className="text-xs font-bold text-gray-400 hover:text-red-600 transition disabled:opacity-50">
-          削除
+          aria-label="支払いを削除"
+          className={`${iconButtonClass} hover:text-pay`}>
+          <TrashIcon />
         </button>
       </div>
-    </div>
+    </li>
   );
 }
