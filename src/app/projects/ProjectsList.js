@@ -3,8 +3,23 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { createProject } from "./actions";
+import SiteHeader from "@/components/SiteHeader";
+import Modal, { SubmitButton } from "@/components/Modal";
+import ProjectFormFields from "@/components/ProjectFormFields";
+import { PlusIcon } from "@/components/icons";
+import { cardClass } from "@/components/ui";
+import { calculateSettlements } from "@/lib/settlement";
+import { balanceColorClass, formatPeriod, formatSignedYen } from "@/lib/format";
 
-export default function ProjectsList({ projects }) {
+// 一覧のカードに出す「自分の収支」
+function myBalanceIn(project, currentUserId) {
+    const me = project.participants.find((p) => p.userId === currentUserId);
+    if (!me) return 0;
+    const { balances } = calculateSettlements(project.participants, project.payments);
+    return Math.round(balances.get(me.name) ?? 0);
+}
+
+export default function ProjectsList({ projects, currentUserId }) {
 
     // useStateの初期値設定
     const [isOpen, setisOpen] = useState(false);
@@ -19,120 +34,62 @@ export default function ProjectsList({ projects }) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-8 sm:py-10 lg:px-12">
-            <div className="max-w-6xl mx-auto">
-                <div className="flex items-center justify-between gap-4 mb-6 sm:mb-8">
-                    <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                        マイプロジェクト
-                    </h1>
-                    <button
-                        onClick={() => signOut({ redirectTo: "/" })}
-                        className="text-gray-400 text-sm font-medium hover:text-gray-600 transition">
-                        ログアウト
-                    </button>
-                </div>
-
+        <div className="min-h-screen bg-gray-50">
+            <SiteHeader logoHref="/projects">
                 <button
-                    onClick={() => setisOpen(!isOpen)}
-                    className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-lg font-bold shadow-sm transition hover:bg-blue-700 hover:shadow-md active:scale-[0.99] mb-8 sm:mb-10">
-                    ＋ プロジェクト新規作成
+                    onClick={() => signOut({ redirectTo: "/" })}
+                    className="min-h-11 px-1 text-sm text-gray-500 transition hover:text-gray-700">
+                    ログアウト
                 </button>
+            </SiteHeader>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+                <h1 className="mb-6 text-2xl font-bold text-gray-900">旅行</h1>
 
-                    {/* プロジェクトが0の時文字を表示する */}
-                    {projects.length === 0 ? (
-
-                        <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400">
-                            <p className="text-xl sm:text-2xl font-bold mb-2 text-gray-500">プロジェクト無し</p>
-                            <p className="text-sm">上のボタンから新しいプロジェクトを作成してください</p>
-                        </div>
-                    ) : (
-                        // プロジェクトが1個以上ある時の表示
-                        projects.map((project) => (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {projects.map((project) => {
+                        const balance = myBalanceIn(project, currentUserId);
+                        const meta = [
+                            formatPeriod(project.startDate, project.endDate),
+                            `${project.participants.length}名`,
+                        ].filter(Boolean).join("　");
+                        return (
                             <Link
                                 key={project.id}
                                 href={`/projects/${project.id}`}
-                                className="bg-white p-5 sm:p-6 rounded-xl border border-gray-100 shadow-sm text-left transition hover:shadow-md hover:-translate-y-0.5 block"
+                                className={`${cardClass} flex min-h-40 flex-col p-5 transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600`}
                             >
-                                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 truncate">
-                                    {project.title}
-                                </h2>
-                                <p className="text-sm text-gray-500 mb-1">
-                                    目的地：{project.destination || "未定"}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    期間：
-                                    {project.startDate || project.endDate
-                                        ? `${project.startDate || "未定"} 〜 ${project.endDate || "未定"}`
-                                        : "未定"}
-                                </p>
+                                <h2 className="truncate text-lg font-bold text-gray-900">{project.title}</h2>
+                                {project.destination && (
+                                    <p className="truncate text-sm text-gray-500">{project.destination}</p>
+                                )}
+                                <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+                                    <span className="truncate text-sm tabular-nums text-gray-500">{meta}</span>
+                                    <span className={`shrink-0 text-xl font-bold tabular-nums ${balanceColorClass(balance)}`}>
+                                        {formatSignedYen(balance)}
+                                    </span>
+                                </div>
                             </Link>
-                        ))
-                    )}
+                        );
+                    })}
 
-                    {isOpen && (
-                        // オーバーレイ
-                        <>
-                            <div className="fixed inset-0 bg-black/50 z-40"
-                                onClick={() => setisOpen(false)} />
-
-                            <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 p-6 sm:p-8 bg-white rounded-2xl shadow-xl w-[calc(100%-2rem)] max-w-md">
-                                <h2 className="text-lg font-bold text-gray-900 mb-4">新規プロジェクト</h2>
-
-                                <form action={handleCreateProject} className="flex flex-col gap-3">
-                                    <input
-                                        // 新規プロジェクト入力フォーム
-                                        type="text"
-                                        name="title"
-                                        required
-                                        className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="タイトル"
-                                    />
-                                    <input
-                                        type="text"
-                                        name="destination"
-                                        className="border border-gray-300 p-3 rounded-lg w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="目的地"
-                                    />
-                                    <div>
-                                        <p className="text-xs font-bold text-gray-500 mb-1">期間</p>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="date"
-                                                name="startDate"
-                                                aria-label="開始日"
-                                                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            />
-                                            <span className="text-gray-400 shrink-0">〜</span>
-                                            <input
-                                                type="date"
-                                                name="endDate"
-                                                aria-label="終了日"
-                                                className="border border-gray-300 p-3 rounded-lg w-full text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-2 mt-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => setisOpen(false)}
-                                            className="text-gray-500 px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-100 transition">
-                                            キャンセル
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={isPending}
-                                            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-bold text-sm shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
-                                            確定する
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </>
-                    )}
+                    <button
+                        onClick={() => setisOpen(true)}
+                        aria-label="新しい旅行を作成"
+                        className="flex min-h-40 items-center justify-center rounded-xl border-2 border-dashed border-gray-300 text-gray-400 transition hover:border-blue-400 hover:text-blue-600 focus-visible:outline-2 focus-visible:outline-blue-600">
+                        <PlusIcon size={32} />
+                    </button>
                 </div>
-            </div>
+            </main>
+
+            {isOpen && (
+                <Modal title="新しい旅行" onClose={() => setisOpen(false)}>
+                    <form action={handleCreateProject} className="flex flex-col gap-3">
+                        <ProjectFormFields />
+                        <SubmitButton disabled={isPending}>作成</SubmitButton>
+                    </form>
+                </Modal>
+            )}
         </div>
     );
 }

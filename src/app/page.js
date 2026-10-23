@@ -1,5 +1,16 @@
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
+import SiteHeader from "@/components/SiteHeader";
+import { GoogleIcon } from "@/components/icons";
+import { cardClass } from "@/components/ui";
+
+const steps = ["旅行を作る", "招待リンクを送る", "支払いを記録", "精算額が出る"];
+
+// ログイン後に見られる精算画面の見本（ダミーの数値）
+const sampleTransfers = [
+  ["けんた → あなた", "¥23,250"],
+  ["さくら → あなた", "¥4,500"],
+];
 
 export default async function Home({ searchParams }) {
   const { callbackUrl } = await searchParams;
@@ -14,75 +25,67 @@ export default async function Home({ searchParams }) {
     redirect(redirectTarget);
   }
 
-  const steps = [
-    {
-      title: "Googleでログイン",
-      description: "アカウント登録は不要。Googleアカウントですぐに始められます。",
-    },
-    {
-      title: "旅行を作って友達を招待",
-      description: "プロジェクトを作成し、招待リンクを送るだけでメンバーが参加できます。",
-    },
-    {
-      title: "支払いを記録",
-      description: "誰が何にいくら払ったかを記録。複数人での割り勘もOK。",
-    },
-    {
-      title: "精算方法が自動で分かる",
-      description: "最終的に「誰が誰にいくら払うか」を自動で計算して表示します。",
-    },
-  ];
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-gradient-to-b from-blue-50 to-gray-100">
-      <div className="w-full max-w-sm flex flex-col items-center bg-white rounded-2xl shadow-lg shadow-gray-200/60 p-8 sm:p-10">
-        <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 text-center tracking-tight">
-          旅行清算アプリ
-        </p>
-        <p className="text-sm text-gray-500 mb-8 text-center leading-relaxed">
-          Googleアカウントでログインして、旅費の記録・清算を始めましょう
-        </p>
+    <div className="min-h-screen bg-gray-50">
+      <SiteHeader />
 
-        <form
-          className="w-full"
-          action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: redirectTarget });
-          }}
-        >
-          <button
-            type="submit"
-            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 px-6 py-3.5 rounded-full text-base font-semibold shadow-sm transition hover:shadow-md active:bg-gray-50"
+      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-20">
+        <div className="flex flex-wrap items-center gap-12">
+          <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-6">
+            <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">旅行清算アプリ</h1>
+            <form
+              className="w-full max-w-sm"
+              action={async () => {
+                "use server";
+                await signIn("google", { redirectTo: redirectTarget });
+              }}
+            >
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 px-6 py-3.5 rounded-full text-base font-semibold shadow-sm transition hover:shadow-md active:bg-gray-50"
+              >
+                <GoogleIcon />
+                Googleでログイン
+              </button>
+            </form>
+          </div>
+
+          <div
+            role="img"
+            aria-label="精算画面の見本"
+            className="min-w-0 flex-[1_1_320px] rounded-2xl bg-gray-100 p-4 sm:p-6"
           >
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48" aria-hidden="true">
-              <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.8 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z" />
-              <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4c-7.4 0-13.8 4.2-17 10.3z" />
-              <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.3 35.4 26.8 36 24 36c-5.3 0-9.8-3.1-11.3-7.5l-6.5 5C9.9 39.6 16.4 44 24 44z" />
-              <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.9 2.6-2.6 4.8-4.9 6.3l6.3 5.3C40.3 36.5 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z" />
-            </svg>
-            Googleでログイン
-          </button>
-        </form>
-      </div>
+            <p className="mb-3 text-lg font-bold text-gray-900">
+              沖縄旅行 <span className="text-sm font-normal text-gray-500">4名</span>
+            </p>
+            <div className={`${cardClass} p-5 sm:p-6`}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm text-gray-500">あなたの収支</span>
+                <span className="text-3xl font-bold tabular-nums text-blue-600">+¥27,750</span>
+              </div>
+              <ul className="mt-4 divide-y divide-gray-100 border-t border-gray-100 text-sm">
+                {sampleTransfers.map(([label, amount]) => (
+                  <li key={label} className="flex justify-between py-2.5">
+                    <span>{label}</span>
+                    <b className="tabular-nums text-blue-600">{amount}</b>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
 
-      <div className="w-full max-w-sm mt-6 bg-white rounded-2xl shadow-lg shadow-gray-200/60 p-8 sm:p-10">
-        <p className="text-sm font-bold text-gray-900 mb-5 text-center">使い方</p>
-        <ol className="flex flex-col gap-4">
+        <ol className="mt-16 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {steps.map((step, index) => (
-            <li key={step.title} className="flex items-start gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+            <li key={step} className={`${cardClass} flex items-center gap-3 p-4`}>
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
                 {index + 1}
               </span>
-              <div>
-                <p className="text-sm font-bold text-gray-900">{step.title}</p>
-                <p className="text-xs text-gray-500 leading-relaxed mt-0.5">
-                  {step.description}
-                </p>
-              </div>
+              <span className="text-sm font-bold text-gray-900">{step}</span>
             </li>
           ))}
         </ol>
-      </div>
+      </main>
     </div>
   );
 }
