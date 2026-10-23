@@ -381,7 +381,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
               <div className="border-t border-dashed border-ink" />
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm font-bold">あなたの収支</span>
-                <span className={`font-mono text-[30px] font-bold ${receiptBalanceClass}`}>
+                <span className={`whitespace-nowrap font-mono text-[26px] font-bold sm:text-[30px] ${receiptBalanceClass}`}>
                   {formatSignedYen(myBalance)}
                 </span>
               </div>
@@ -393,8 +393,8 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
       {/* 精算後の自分の収支（PCでは精算レシートと重複するのでスマホのみ） */}
       <div className="sticky bottom-0 bg-ink text-white lg:hidden">
         <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-4 px-6 py-4">
-          <span className="text-sm text-line-soft">あなたの収支</span>
-          <span className={`font-mono text-[26px] font-bold ${barBalanceClass}`}>
+          <span className="whitespace-nowrap text-sm text-line-soft">あなたの収支</span>
+          <span className={`whitespace-nowrap font-mono text-[22px] font-bold sm:text-[26px] ${barBalanceClass}`}>
             {formatSignedYen(myBalance)}
           </span>
         </div>

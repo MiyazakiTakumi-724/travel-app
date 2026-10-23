@@ -44,7 +44,7 @@ export default async function Home({ searchParams }) {
       <main className="flex-1">
         <section className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center gap-16 px-6 pt-14 pb-20 sm:pt-[72px] sm:pb-24">
           <div className="flex min-w-0 flex-[1_1_460px] flex-col gap-10">
-            <h1 className="text-[clamp(44px,6vw,84px)] leading-[1.08] font-extrabold tracking-[-0.02em]">
+            <h1 className="text-[clamp(36px,10vw,84px)] leading-[1.08] font-extrabold tracking-[-0.02em] break-keep whitespace-nowrap">
               割り勘は、
               <br />
               アプリに
@@ -54,7 +54,7 @@ export default async function Home({ searchParams }) {
             <form action={signInWithGoogle}>
               <button
                 type="submit"
-                className={`${primaryButtonClass} min-h-[58px] gap-3 pr-8 pl-3.5 text-[17px] shadow-offset-lg`}
+                className={`${primaryButtonClass} min-h-[58px] gap-3 pr-6 pl-3.5 text-[17px] whitespace-nowrap shadow-offset-lg sm:pr-8`}
               >
                 <span className="flex size-7 items-center justify-center bg-paper">
                   <GoogleIcon />
