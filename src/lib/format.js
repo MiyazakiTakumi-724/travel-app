@@ -1,5 +1,5 @@
 export function formatPeriod(startDate, endDate) {
-  if (!startDate && !endDate) return "未定";
+  if (!startDate && !endDate) return "";
   return `${startDate || "未定"} 〜 ${endDate || "未定"}`;
 }
 

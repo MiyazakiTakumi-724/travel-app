@@ -1,12 +1,12 @@
 "use client";
 
 import { setNickname } from "./actions";
-import Modal, { ModalActions } from "@/components/Modal";
+import Modal, { SubmitButton } from "@/components/Modal";
 import { textFieldClass } from "@/components/ui";
 
 export default function NicknameOverlay() {
   return (
-    <Modal title="ニックネームを設定してください" description="他のメンバーに表示される名前です">
+    <Modal title="ニックネーム">
       <form action={setNickname} className="flex flex-col gap-5">
         <input
           type="text"
@@ -14,10 +14,10 @@ export default function NicknameOverlay() {
           required
           maxLength={20}
           aria-label="ニックネーム"
-          className={textFieldClass}
+          className={`${textFieldClass} text-lg font-bold`}
           placeholder="例：たろう"
         />
-        <ModalActions submitLabel="決定する" />
+        <SubmitButton>決定</SubmitButton>
       </form>
     </Modal>
   );

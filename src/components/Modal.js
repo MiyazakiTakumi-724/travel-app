@@ -8,7 +8,7 @@ const FIRST_FIELD =
 
 // スマホは下から出るボトムシート、sm以上は中央モーダル。
 // onClose を渡さない場合は閉じられないモーダルになる（ニックネーム設定など）。
-export default function Modal({ title, description, onClose, children }) {
+export default function Modal({ title, onClose, children }) {
   const titleId = useId();
   const panelRef = useRef(null);
 
@@ -62,35 +62,20 @@ export default function Modal({ title, description, onClose, children }) {
           )}
         </div>
 
-        {description && (
-          <p className="-mt-3 mb-5 text-sm leading-relaxed text-ink-sub">{description}</p>
-        )}
-
         {children}
       </div>
     </>
   );
 }
 
-export function ModalActions({ submitLabel, onCancel, disabled }) {
+export function SubmitButton({ children, disabled }) {
   return (
-    <div className="flex items-center gap-3 pt-1">
-      {onCancel && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="hidden min-h-[54px] items-center px-4 text-sm font-bold text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-primary sm:inline-flex"
-        >
-          キャンセル
-        </button>
-      )}
-      <button
-        type="submit"
-        disabled={disabled}
-        className={`${primaryButtonClass} min-h-[54px] flex-1 text-base`}
-      >
-        {submitLabel}
-      </button>
-    </div>
+    <button
+      type="submit"
+      disabled={disabled}
+      className={`${primaryButtonClass} mt-1 min-h-[54px] w-full text-base`}
+    >
+      {children}
+    </button>
   );
 }

@@ -4,10 +4,9 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { createProject } from "./actions";
 import SiteHeader from "@/components/SiteHeader";
-import Modal, { ModalActions } from "@/components/Modal";
+import Modal, { SubmitButton } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import { PlusIcon } from "@/components/icons";
-import { primaryButtonClass } from "@/components/ui";
 import { formatPeriod } from "@/lib/format";
 
 export default function ProjectsList({ projects }) {
@@ -24,9 +23,6 @@ export default function ProjectsList({ projects }) {
         });
     };
 
-    const addTripButtonClass =
-        "flex flex-col items-center justify-center gap-2.5 border-[1.5px] border-dashed border-[#6FAFD0] font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary";
-
     return (
         <div className="flex min-h-screen flex-col">
             <SiteHeader logoHref="/projects">
@@ -37,76 +33,47 @@ export default function ProjectsList({ projects }) {
                 </button>
             </SiteHeader>
 
-            <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col gap-10 px-6 pt-10 pb-24 sm:pt-14">
-                <div className="flex flex-wrap items-end justify-between gap-5">
-                    <div className="flex flex-col gap-2">
-                        <span className="font-mono text-[13px] font-bold tracking-[0.14em] text-primary">MY TRIPS</span>
-                        <h1 className="text-[32px] font-extrabold tracking-[-0.01em] sm:text-[40px]">
-                            マイプロジェクト
-                        </h1>
-                    </div>
-                    <button
-                        onClick={() => setisOpen(true)}
-                        className={`${primaryButtonClass} min-h-[52px] gap-2.5 px-6 text-base`}>
-                        <PlusIcon />
-                        新しい旅行を作成
-                    </button>
-                </div>
+            <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col gap-8 px-6 pt-10 pb-24 sm:pt-14">
+                <h1 className="text-[32px] font-extrabold tracking-[-0.01em] sm:text-[40px]">旅行</h1>
 
-                {/* プロジェクトが0の時は大きな作成ボタンを表示する */}
-                {projects.length === 0 ? (
-                    <button
-                        onClick={() => setisOpen(true)}
-                        className={`${addTripButtonClass} min-h-[260px] w-full text-lg`}>
-                        <PlusIcon size={28} strokeWidth={2} />
-                        最初の旅行を作成
-                        <span className="text-sm font-medium text-ink-sub">まだ旅行がありません</span>
-                    </button>
-                ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-6">
-                        {projects.map((project, index) => (
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-6">
+                    {projects.map((project) => {
+                        const period = formatPeriod(project.startDate, project.endDate);
+                        return (
                             <Link
                                 key={project.id}
                                 href={`/projects/${project.id}`}
-                                className="flex flex-col border-t-4 border-primary bg-paper text-ink shadow-card transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                                className="flex min-h-[180px] flex-col border-t-4 border-primary bg-paper text-ink shadow-card transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
                             >
-                                <div className="flex flex-col gap-1.5 px-6 pt-6 pb-[18px]">
-                                    <span className="font-mono text-xs tracking-[0.1em] text-ink-muted">
-                                        TRIP · {String(index + 1).padStart(2, "0")}
-                                    </span>
+                                <div className="flex flex-1 flex-col gap-1 px-6 pt-6 pb-5">
                                     <h2 className="truncate text-[22px] font-extrabold">{project.title}</h2>
+                                    {project.destination && (
+                                        <p className="truncate text-sm text-ink-sub">{project.destination}</p>
+                                    )}
                                 </div>
-                                <div className="mx-6 border-t border-dashed border-line-dashed" />
-                                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 px-6 pt-[18px] pb-[22px] text-sm">
-                                    <dt className="text-ink-muted">目的地</dt>
-                                    <dd className="min-w-0 truncate font-bold">{project.destination || "未定"}</dd>
-                                    <dt className="text-ink-muted">期間</dt>
-                                    <dd className="font-mono">{formatPeriod(project.startDate, project.endDate)}</dd>
-                                    <dt className="text-ink-muted">メンバー</dt>
-                                    <dd className="font-mono">{project.participants.length}名</dd>
-                                </dl>
+                                <div className="mx-6 flex items-center justify-between gap-4 border-t border-dashed border-line-dashed py-4 font-mono text-sm">
+                                    <span className="truncate">{period}</span>
+                                    <span className="shrink-0 text-ink-muted">{project.participants.length}名</span>
+                                </div>
                             </Link>
-                        ))}
+                        );
+                    })}
 
-                        <button
-                            onClick={() => setisOpen(true)}
-                            className={`${addTripButtonClass} min-h-[210px] text-[15px]`}>
-                            <PlusIcon size={28} strokeWidth={2} />
-                            旅行を追加
-                        </button>
-                    </div>
-                )}
+                    {/* 末尾のタイルから新しい旅行を作成する（0件のときはこれだけが並ぶ） */}
+                    <button
+                        onClick={() => setisOpen(true)}
+                        aria-label="新しい旅行を作成"
+                        className="flex min-h-[180px] items-center justify-center border-[1.5px] border-dashed border-[#6FAFD0] text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary">
+                        <PlusIcon size={32} strokeWidth={2} />
+                    </button>
+                </div>
             </main>
 
             {isOpen && (
-                <Modal title="新しい旅行を作成" onClose={() => setisOpen(false)}>
-                    <form action={handleCreateProject} className="flex flex-col gap-5">
+                <Modal title="新しい旅行" onClose={() => setisOpen(false)}>
+                    <form action={handleCreateProject} className="flex flex-col gap-4">
                         <ProjectFormFields />
-                        <ModalActions
-                            submitLabel="作成する"
-                            onCancel={() => setisOpen(false)}
-                            disabled={isPending}
-                        />
+                        <SubmitButton disabled={isPending}>作成</SubmitButton>
                     </form>
                 </Modal>
             )}
