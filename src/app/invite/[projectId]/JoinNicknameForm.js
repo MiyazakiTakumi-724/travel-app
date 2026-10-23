@@ -2,36 +2,36 @@
 
 import { setNicknameAndJoin } from "./actions";
 import SiteHeader from "@/components/SiteHeader";
-import { cardClass, primaryButtonClass, textFieldClass } from "@/components/ui";
+import { primaryButtonClass, textFieldClass } from "@/components/ui";
 
-export default function JoinNicknameForm({ projectId, projectTitle, memberNames = [] }) {
+export default function JoinNicknameForm({ projectId, projectTitle }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-screen flex-col">
       <SiteHeader />
 
-      <main className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-10">
-        <form
-          action={setNicknameAndJoin.bind(null, projectId)}
-          className={`${cardClass} flex w-full max-w-sm flex-col p-7`}
-        >
-          <h1 className="break-words text-2xl font-bold text-gray-900">{projectTitle}</h1>
-          {memberNames.length > 0 && (
-            <p className="mt-1 text-sm text-gray-500">{memberNames.join("・")} が参加中</p>
-          )}
-          <input
-            type="text"
-            name="nickname"
-            required
-            maxLength={20}
-            autoFocus
-            aria-label="ニックネーム"
-            placeholder="ニックネーム"
-            className={`${textFieldClass} mt-6`}
-          />
-          <button type="submit" className={`${primaryButtonClass} mt-4 min-h-12 w-full`}>
-            参加する
-          </button>
-        </form>
+      <main className="flex flex-1 items-center justify-center px-6 py-12">
+        <div className="w-full max-w-sm border-t-4 border-primary bg-paper p-8 shadow-card">
+          <h1 className="break-words text-xl font-extrabold">「{projectTitle}」に参加</h1>
+          <p className="mt-2 mb-6 text-sm leading-relaxed text-ink-sub">
+            他のメンバーに表示されるニックネームを設定してください
+          </p>
+
+          <form action={setNicknameAndJoin.bind(null, projectId)} className="flex flex-col gap-5">
+            <input
+              type="text"
+              name="nickname"
+              required
+              maxLength={20}
+              aria-label="ニックネーム"
+              autoFocus
+              className={textFieldClass}
+              placeholder="例：たろう"
+            />
+            <button type="submit" className={`${primaryButtonClass} min-h-[54px] text-base`}>
+              参加する
+            </button>
+          </form>
+        </div>
       </main>
     </div>
   );

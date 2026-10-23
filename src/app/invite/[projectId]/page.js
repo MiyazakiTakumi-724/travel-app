@@ -12,23 +12,14 @@ export default async function InvitePage({ params }) {
     redirect(`/?callbackUrl=${encodeURIComponent(`/invite/${projectId}`)}`);
   }
 
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    include: { participants: { select: { name: true } } },
-  });
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
 
   if (!project) {
     notFound();
   }
 
   if (!session.user.nickname) {
-    return (
-      <JoinNicknameForm
-        projectId={projectId}
-        projectTitle={project.title}
-        memberNames={project.participants.map((p) => p.name)}
-      />
-    );
+    return <JoinNicknameForm projectId={projectId} projectTitle={project.title} />;
   }
 
   await joinProject(projectId);

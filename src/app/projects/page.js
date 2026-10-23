@@ -18,13 +18,13 @@ export default async function ProjectsPage() {
         { participants: { some: { userId: session.user.id } } },
       ],
     },
-    include: { participants: true, payments: true },
+    include: { participants: true },
     orderBy: { createdAt: "desc" },
   });
 
   return (
     <>
-      <ProjectsList projects={projects} currentUserId={session.user.id} />
+      <ProjectsList projects={projects} />
       {!session.user.nickname && <NicknameOverlay />}
     </>
   );
