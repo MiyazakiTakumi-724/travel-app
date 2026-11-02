@@ -9,14 +9,19 @@ export default function JoinNicknameForm({ projectId, projectTitle }) {
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
 
-      <main className="flex flex-1 items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm border-t-4 border-primary bg-paper p-8 shadow-card">
-          <h1 className="break-words text-xl font-extrabold">「{projectTitle}」に参加</h1>
-          <p className="mt-2 mb-6 text-sm leading-relaxed text-ink-sub">
-            他のメンバーに表示されるニックネームを設定してください
-          </p>
+      <main className="flex flex-1 items-center justify-center px-5 py-12">
+        <div className="w-full max-w-sm drop-shadow-[0_16px_24px_rgb(21_128_196/0.15)]">
+          <div className="ticket-top px-7 pt-7 pb-6">
+            <h1 className="break-words font-display text-2xl leading-snug">「{projectTitle}」に参加</h1>
+            <p className="mt-2 text-sm leading-relaxed text-ink-sub">
+              他のメンバーに表示されるニックネームを設定してください
+            </p>
+          </div>
 
-          <form action={setNicknameAndJoin.bind(null, projectId)} className="flex flex-col gap-5">
+          <form
+            action={setNicknameAndJoin.bind(null, projectId)}
+            className="ticket-bottom flex flex-col gap-5 px-7 pt-6 pb-7"
+          >
             <input
               type="text"
               name="nickname"

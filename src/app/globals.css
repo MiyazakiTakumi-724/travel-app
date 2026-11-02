@@ -1,27 +1,57 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-mplus), "Hiragino Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jbmono), ui-monospace, monospace;
+  --font-sans: "Zen Kaku Gothic New", "Hiragino Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
 
-  --color-sky-ground: #EAF5FB;
-  --color-paper: #FFFFFF;
-  --color-ink: #0E2A3A;
-  --color-ink-sub: #34505F;
-  --color-ink-muted: #456272;
-  --color-ink-faint: #6E8794;
-  --color-primary: #0B74B5;
-  --color-primary-hover: #085A8C;
-  --color-sky-shadow: #9ED8F2;
-  --color-line-soft: #BFE0F0;
-  --color-line-dashed: #9CC3D6;
-  --color-pay: #B4470F;
-
-  --shadow-offset: 5px 5px 0 #9ED8F2;
-  --shadow-offset-lg: 6px 6px 0 #9ED8F2;
-  --shadow-card: 0 18px 32px -24px rgba(11, 116, 181, 0.5);
+  --color-sky-ground: #E2F4FC;
+  --color-paper: #FAFDFF;
+  --color-ink: #10354A;
+  --color-ink-sub: #3B5F72;
+  --color-ink-muted: #527284;
+  --color-ink-faint: #7C97A6;
+  --color-primary: #1580C4;
+  --color-primary-hover: #0E68A1;
+  --color-primary-light: #8FD6F7;
+  --color-line-soft: #CDE8F5;
+  --color-line-dashed: #96C8E0;
+  --color-pay: #C9452E;
+  --color-pay-light: #FFB4A2;
 }
 
 body {
   font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* きっぷ風の券面。上下2枚を重ねると、境目の両端に切り欠きができる */
+@utility ticket-top {
+  background-color: var(--color-paper);
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, rgb(21 128 196 / 0.05) 7px 8px);
+  border-radius: 8px 8px 0 0;
+  -webkit-mask: radial-gradient(circle 11px at 0 100%, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 100%, #0000 98%, #000) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle 11px at 0 100%, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 100%, #0000 98%, #000) right / 51% 100% no-repeat;
+}
+
+@utility ticket-bottom {
+  position: relative;
+  background-color: var(--color-paper);
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, rgb(21 128 196 / 0.05) 7px 8px);
+  border-radius: 0 0 8px 8px;
+  -webkit-mask: radial-gradient(circle 11px at 0 0, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 0, #0000 98%, #000) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle 11px at 0 0, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle 11px at 100% 0, #0000 98%, #000) right / 51% 100% no-repeat;
+
+  /* ミシン目 */
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 16px;
+    right: 16px;
+    border-top: 2px dashed var(--color-line-dashed);
+  }
 }

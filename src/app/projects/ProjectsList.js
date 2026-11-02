@@ -25,7 +25,7 @@ export default function ProjectsList({ projects }) {
     };
 
     const addTripButtonClass =
-        "flex flex-col items-center justify-center gap-2.5 border-[1.5px] border-dashed border-[#6FAFD0] font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary";
+        "flex flex-col items-center justify-center gap-2.5 rounded-lg border-2 border-dashed border-line-dashed font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary";
 
     return (
         <div className="flex min-h-screen flex-col">
@@ -37,9 +37,9 @@ export default function ProjectsList({ projects }) {
                 </button>
             </SiteHeader>
 
-            <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col gap-10 px-6 pt-10 pb-24 sm:pt-14">
+            <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-8 px-5 pt-8 pb-24 sm:px-6 sm:pt-12">
                 <div className="flex flex-wrap items-end justify-between gap-5">
-                    <h1 className="text-[32px] font-extrabold tracking-[-0.01em] sm:text-[40px]">
+                    <h1 className="font-display text-[clamp(30px,4vw,40px)]">
                         マイプロジェクト
                     </h1>
                     <button
@@ -60,31 +60,30 @@ export default function ProjectsList({ projects }) {
                         <span className="text-sm font-medium text-ink-sub">まだ旅行がありません</span>
                     </button>
                 ) : (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-6">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-6">
+                        {/* 旅行ごとにきっぷの形で表示。上段がタイトルと目的地、下段が期間と人数 */}
                         {projects.map((project) => (
                             <Link
                                 key={project.id}
                                 href={`/projects/${project.id}`}
-                                className="flex flex-col border-t-4 border-primary bg-paper text-ink shadow-card transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                                className="group flex flex-col text-ink drop-shadow-[0_12px_16px_rgb(21_128_196/0.12)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
                             >
-                                <div className="px-6 pt-6 pb-[18px]">
-                                    <h2 className="truncate text-[22px] font-extrabold">{project.title}</h2>
+                                <div className="ticket-top px-7 pt-6 pb-[18px]">
+                                    <h2 className="truncate text-2xl font-black transition-colors group-hover:text-primary">
+                                        {project.title}
+                                    </h2>
+                                    <p className="mt-1 truncate font-medium text-ink-sub">{project.destination || "目的地未定"}</p>
                                 </div>
-                                <div className="mx-6 border-t border-dashed border-line-dashed" />
-                                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 px-6 pt-[18px] pb-[22px] text-sm">
-                                    <dt className="text-ink-muted">目的地</dt>
-                                    <dd className="min-w-0 truncate font-bold">{project.destination || "未定"}</dd>
-                                    <dt className="text-ink-muted">期間</dt>
-                                    <dd className="font-mono">{formatPeriod(project.startDate, project.endDate)}</dd>
-                                    <dt className="text-ink-muted">メンバー</dt>
-                                    <dd className="font-mono">{project.participants.length}名</dd>
-                                </dl>
+                                <div className="ticket-bottom flex justify-between gap-4 px-7 pt-3.5 pb-5 text-sm text-ink-sub">
+                                    <span className="font-bold text-ink">{formatPeriod(project.startDate, project.endDate)}</span>
+                                    <span><b className="text-ink">{project.participants.length}</b>人</span>
+                                </div>
                             </Link>
                         ))}
 
                         <button
                             onClick={() => setisOpen(true)}
-                            className={`${addTripButtonClass} min-h-[210px] text-[15px]`}>
+                            className={`${addTripButtonClass} min-h-[150px] text-[15px]`}>
                             <PlusIcon size={28} strokeWidth={2} />
                             旅行を追加
                         </button>

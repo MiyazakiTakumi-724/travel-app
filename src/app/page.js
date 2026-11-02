@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
 import SiteHeader from "@/components/SiteHeader";
-import Stamp from "@/components/Stamp";
 import { GoogleIcon } from "@/components/icons";
-import { primaryButtonClass, secondaryButtonClass } from "@/components/ui";
+import { secondaryButtonClass } from "@/components/ui";
 
 const steps = [
   {
@@ -12,7 +11,7 @@ const steps = [
   },
   {
     title: "旅行を作って友達を招待",
-    description: "プロジェクトを作成し、招待リンクを送るだけでメンバーが参加できます。",
+    description: "招待リンクを送るだけでメンバーが参加できます。",
   },
   {
     title: "支払いを記録",
@@ -20,20 +19,14 @@ const steps = [
   },
   {
     title: "精算方法が自動で分かる",
-    description: "最終的に「誰が誰にいくら払うか」を自動で計算して表示します。",
+    description: "誰が誰にいくら払うかを自動で計算して表示します。",
   },
 ];
 
-// ヒーロー右側のレシートは装飾用のダミー（4人で76,000円を割った場合の計算例）
-const sampleExpenses = [
-  ["宿泊", "¥40,000"],
-  ["レンタカー", "¥24,000"],
-  ["夕食", "¥12,000"],
-];
+// ヒーロー右側の精算券は装飾用のダミー（4人で76,000円を割った場合の計算例）
 const sampleTransfers = [
-  ["D → B", "¥19,000"],
-  ["C → A", "¥5,000"],
-  ["C → B", "¥2,000"],
+  ["さくら → はなこ", "¥8,000"],
+  ["さくら → たろう", "¥5,000"],
 ];
 
 export default async function Home({ searchParams }) {
@@ -65,83 +58,84 @@ export default async function Home({ searchParams }) {
       </SiteHeader>
 
       <main className="flex-1">
-        <section className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center gap-16 px-6 pt-14 pb-20 sm:pt-[72px] sm:pb-24">
-          <div className="flex min-w-0 flex-[1_1_460px] flex-col gap-8">
-            <h1 className="text-[clamp(36px,6vw,64px)] leading-[1.15] font-extrabold tracking-[-0.02em]">
+        <section className="mx-auto grid w-full max-w-[1120px] items-center gap-12 px-5 pt-10 pb-20 sm:px-6 md:grid-cols-[1.1fr_1fr] md:gap-14 md:pt-16 md:pb-24">
+          <div className="flex min-w-0 flex-col gap-6">
+            <h1 className="font-display text-[clamp(40px,6.4vw,76px)] leading-[1.12]">
               旅行清算アプリ
             </h1>
-            <p className="max-w-[28em] text-lg leading-[1.85] text-ink-sub">
+            <p className="max-w-[26em] text-lg leading-[1.8] text-ink-sub">
               Googleアカウントでログインして、旅費の記録・精算を始めましょう。
             </p>
-            <div className="flex flex-wrap items-center gap-3.5">
-              <form action={signInWithGoogle}>
-                <button
-                  type="submit"
-                  className={`${primaryButtonClass} min-h-[58px] gap-3 pr-8 pl-3.5 text-[17px] shadow-offset-lg`}
-                >
-                  <span className="flex size-7 items-center justify-center bg-paper">
-                    <GoogleIcon />
-                  </span>
-                  Googleでログイン →
-                </button>
-              </form>
-              <span className="font-mono text-[13px] text-ink-sub">登録不要</span>
-            </div>
+            <form action={signInWithGoogle} className="mt-3">
+              <button
+                type="submit"
+                className="inline-flex min-h-[52px] items-center gap-3 rounded-md border border-[#747775] bg-white pr-6 pl-4 font-medium text-[#1F1F1F] transition-colors hover:bg-[#F7F8F8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <GoogleIcon size={20} />
+                Googleでログイン
+              </button>
+            </form>
           </div>
 
-          <div className="flex min-w-0 flex-[1_1_360px] justify-center">
-            <div
-              role="img"
-              aria-label="レシート風の精算表示例"
-              className="flex w-full max-w-[380px] rotate-[1.5deg] flex-col gap-3.5 bg-paper px-[30px] pt-8 pb-10 font-mono text-sm shadow-[0_28px_48px_-28px_rgba(11,116,181,0.45)]"
-            >
-              <div className="text-center font-bold tracking-[0.2em]">*** 精算明細 · 例 ***</div>
-              <div className="text-center text-ink-muted">沖縄旅行 / 4名</div>
-              <div className="border-t border-dashed border-ink" />
-              {sampleExpenses.map(([label, amount]) => (
-                <div key={label} className="flex justify-between">
-                  <span>{label}</span>
-                  <span>{amount}</span>
-                </div>
-              ))}
-              <div className="border-t border-dashed border-ink" />
-              <div className="font-bold text-primary">送金</div>
+          <div
+            role="img"
+            aria-label="精算の例：じろうさんがはなこさんに13,000円支払う"
+            className="mx-auto w-full max-w-[440px] -rotate-2 drop-shadow-[0_24px_28px_rgb(21_128_196/0.18)]"
+          >
+            <div className="ticket-top px-6 pt-5 pb-6 sm:px-[30px]">
+              <div className="flex items-baseline justify-between gap-3 border-b-2 border-dashed border-line-dashed pb-4">
+                <span className="font-bold">沖縄旅行</span>
+                <span className="text-sm text-ink-sub">4人で精算</span>
+              </div>
+              <div className="mt-5 flex items-center gap-3.5 font-display text-[26px] leading-tight sm:text-[34px]">
+                <span>じろう</span>
+                <span aria-hidden="true" className="relative h-0.5 min-w-7 flex-1 bg-pay after:absolute after:-top-1.5 after:-right-0.5 after:border-y-[7px] after:border-l-[10px] after:border-y-transparent after:border-l-pay" />
+                <span>はなこ</span>
+              </div>
+              <div className="mt-2 font-display text-[38px] text-pay sm:text-[48px]">¥13,000</div>
+            </div>
+            <div className="ticket-bottom grid gap-1 px-6 pt-4 pb-5 text-[15px] sm:px-[30px]">
               {sampleTransfers.map(([label, amount]) => (
                 <div key={label} className="flex justify-between">
                   <span>{label}</span>
                   <span>{amount}</span>
                 </div>
               ))}
-              <div className="border-t border-dashed border-ink" />
-              <Stamp className="self-end" />
             </div>
           </div>
         </section>
 
-        <section aria-labelledby="how-heading" className="border-t-[1.5px] border-ink bg-paper">
-          <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-10 px-6 pt-[72px] pb-24">
-            <h2 id="how-heading" className="text-[32px] font-extrabold">
+        <section aria-labelledby="how-heading" className="bg-paper">
+          <div className="mx-auto w-full max-w-[1120px] px-5 pt-[72px] pb-24 sm:px-6">
+            <h2 id="how-heading" className="font-display text-3xl">
               使い方
             </h2>
-            <ol className="grid grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-x-6 border-t-[1.5px] border-ink">
-              {steps.map((step, index) => (
-                <li
-                  key={step.title}
-                  className="flex flex-col gap-3 border-b border-line-soft py-7"
-                >
-                  <span className="font-mono text-sm font-bold text-primary">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <h3 className="text-[19px] font-bold">{step.title}</h3>
-                  <p className="text-[15px] leading-[1.8] text-ink-sub">{step.description}</p>
-                </li>
-              ))}
-            </ol>
+            {/* 手順を路線図の駅に見立てて並べる */}
+            <div className="relative mt-11">
+              <div
+                aria-hidden="true"
+                className="absolute top-3 bottom-3 left-[11px] w-1.5 rounded-full bg-primary md:top-[11px] md:right-3 md:bottom-auto md:left-3 md:h-1.5 md:w-auto"
+              />
+              <ol className="relative grid gap-7 md:grid-cols-4 md:gap-0">
+                {steps.map((step, index) => (
+                  <li key={step.title} className="relative pl-12 md:pl-0 md:pr-6">
+                    <span
+                      aria-hidden="true"
+                      className={`absolute top-0 left-0 block size-7 rounded-full border-[6px] bg-paper md:relative ${
+                        index === steps.length - 1 ? "border-pay" : "border-primary"
+                      }`}
+                    />
+                    <h3 className="text-lg font-black md:mt-[18px]">{step.title}</h3>
+                    <p className="mt-1.5 max-w-[18em] text-[15px] leading-[1.8] text-ink-sub">{step.description}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </div>
         </section>
       </main>
 
-      <footer className="mx-auto w-full max-w-[1180px] px-6 py-6 font-mono text-xs text-ink-muted">
+      <footer className="mx-auto w-full max-w-[1120px] px-5 py-6 text-[13px] text-ink-muted sm:px-6">
         © 旅行清算アプリ
       </footer>
     </div>

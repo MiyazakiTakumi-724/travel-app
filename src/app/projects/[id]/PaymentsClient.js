@@ -1,5 +1,5 @@
 "use client";
-import { useId, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -13,10 +13,8 @@ import {
 import SiteHeader from "@/components/SiteHeader";
 import Modal, { ModalActions } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
-import Stamp from "@/components/Stamp";
 import {
   CheckIcon,
-  ChevronDownIcon,
   LinkIcon,
   PencilIcon,
   PlusIcon,
@@ -95,7 +93,7 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass}>金額</span>
           <span className="flex items-center gap-2 border-b-2 border-ink pb-1.5 focus-within:border-primary">
-            <span aria-hidden="true" className="font-mono text-[28px] font-bold text-primary">¥</span>
+            <span aria-hidden="true" className="font-display text-[28px] text-primary">¥</span>
             <input
               type="number"
               name="amount"
@@ -104,7 +102,7 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
               required
               min="1"
               placeholder="0"
-              className="min-w-0 flex-1 bg-transparent p-0 font-mono text-[34px] font-bold text-ink outline-none placeholder:text-line-dashed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="min-w-0 flex-1 bg-transparent p-0 font-display text-[34px] text-ink outline-none placeholder:text-line-dashed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </span>
         </label>
@@ -133,7 +131,7 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
               return (
                 <label
                   key={participant.id}
-                  className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 border-[1.5px] border-line-dashed bg-paper px-4 text-[15px] font-bold text-ink transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-line-dashed bg-paper px-4 text-[15px] font-bold text-ink transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
                 >
                   <input
                     type={allowMultiplePayers ? "checkbox" : "radio"}
@@ -167,34 +165,23 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
   );
 }
 
-function SettlementRow({ transfer, currentUserName }) {
-  const label = (name) => (name === currentUserName ? "あなた" : name);
+// 自分が関わる送金を「〇〇さんへ／〇〇さんから」の形で表示する
+function MySettlementRow({ transfer, currentUserName }) {
+  const isPaying = transfer.from === currentUserName;
   return (
-    <li className="flex justify-between gap-3 font-mono text-[15px]">
+    <li className="flex justify-between gap-3 font-bold">
       <span className="min-w-0 break-words">
-        {label(transfer.from)} → {label(transfer.to)}
+        {isPaying ? `${transfer.to}さんへ` : `${transfer.from}さんから`}
       </span>
-      <b className="shrink-0">{formatYen(transfer.amount)}</b>
+      <span className={`shrink-0 ${isPaying ? "text-pay" : "text-primary"}`}>
+        {formatYen(transfer.amount)}
+      </span>
     </li>
-  );
-}
-
-function SettlementGroup({ label, labelClass, transfers, currentUserName }) {
-  return (
-    <div className="flex flex-col gap-2.5">
-      <span className={`text-[13px] font-bold ${labelClass}`}>{label}</span>
-      <ul className="flex flex-col gap-2.5">
-        {transfers.map((transfer, index) => (
-          <SettlementRow key={index} transfer={transfer} currentUserName={currentUserName} />
-        ))}
-      </ul>
-    </div>
   );
 }
 
 export default function PaymentsClient({ project, currentUserName, isOwner }) {
   const router = useRouter();
-  const othersListId = useId();
 
   // useState初期値設定
   const [isOpen, setisOpen] = useState(false);
@@ -202,7 +189,6 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
-  const [showOthers, setShowOthers] = useState(false);
 
   const handleCopyInviteLink = async () => {
     const inviteUrl = `${window.location.origin}/invite/${project.id}`;
@@ -244,8 +230,9 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
     project.participants,
     project.payments
   );
-  const iReceive = settlements.filter((t) => t.to === currentUserName);
-  const iPay = settlements.filter((t) => t.from === currentUserName);
+  const mine = settlements.filter(
+    (t) => t.from === currentUserName || t.to === currentUserName
+  );
   const others = settlements.filter(
     (t) => t.from !== currentUserName && t.to !== currentUserName
   );
@@ -254,11 +241,11 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
   const totalAmount = project.payments.reduce((sum, payment) => sum + payment.amount, 0);
 
   const balanceLabel =
-    myBalance > 0 ? "あなたの受取額" : myBalance < 0 ? "あなたの支払額" : "あなたの収支";
-  const receiptBalanceClass =
-    myBalance > 0 ? "text-primary" : myBalance < 0 ? "text-pay" : "text-ink-muted";
+    myBalance > 0 ? "あなたが受け取る金額" : myBalance < 0 ? "あなたが支払う金額" : "あなたの精算";
+  const ticketBalanceClass =
+    myBalance > 0 ? "text-primary" : myBalance < 0 ? "text-pay" : "text-ink-faint";
   const barBalanceClass =
-    myBalance > 0 ? "text-sky-shadow" : myBalance < 0 ? "text-[#F6B28A]" : "text-line-soft";
+    myBalance > 0 ? "text-primary-light" : myBalance < 0 ? "text-pay-light" : "text-line-soft";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -270,11 +257,11 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
         </Link>
       </SiteHeader>
 
-      <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col gap-9 px-6 pt-10 pb-12 sm:pt-12">
+      <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-8 px-5 pt-6 pb-12 sm:px-6 sm:pt-10">
         <div className="flex flex-wrap items-end justify-between gap-6">
-          <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-2">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <h1 className="min-w-0 break-words text-[clamp(32px,4vw,48px)] font-extrabold tracking-[-0.01em]">
+              <h1 className="min-w-0 break-words font-display text-[clamp(32px,5vw,48px)] leading-tight">
                 {project.title}
               </h1>
               {isOwner && (
@@ -294,17 +281,21 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
                 </div>
               )}
             </div>
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-[15px] text-ink-sub">
-              <span>
-                目的地 <b className="text-ink">{project.destination || "未定"}</b>
-              </span>
-              <span>
-                期間 <b className="font-mono text-ink">{formatPeriod(project.startDate, project.endDate)}</b>
-              </span>
-              <span>
-                メンバー <b className="font-mono text-ink">{project.participants.length}名</b>
-              </span>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 font-medium text-ink-sub">
+              <span>{project.destination || "目的地未定"}</span>
+              <span>{formatPeriod(project.startDate, project.endDate)}</span>
             </div>
+            <ul aria-label="メンバー" className="mt-2 flex flex-wrap gap-2">
+              {project.participants.map((participant) => (
+                <li
+                  key={participant.id}
+                  className={`rounded-full px-3 py-0.5 text-sm font-medium ${
+                    participant.name === currentUserName ? "bg-primary text-white" : "bg-paper"
+                  }`}>
+                  {participant.name === currentUserName ? `${participant.name}（あなた）` : participant.name}
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -323,19 +314,22 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-start gap-8">
-          <section aria-labelledby="payments-heading" className="flex min-w-0 flex-[999_1_560px] flex-col">
-            <div className="flex items-baseline justify-between gap-4 border-b-[1.5px] border-ink pb-3">
-              <h2 id="payments-heading" className="text-xl font-extrabold">支払い記録</h2>
-              <span className="font-mono text-[13px] text-ink-muted">合計 {formatYen(totalAmount)}</span>
+        <div className="grid items-start gap-8 lg:grid-cols-[1fr_380px] lg:gap-10">
+          <section aria-labelledby="payments-heading" className="flex min-w-0 flex-col gap-3.5">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 id="payments-heading" className="text-xl font-black">支払い記録</h2>
+              <span className="text-sm text-ink-sub">合計 {formatYen(totalAmount)}</span>
             </div>
 
             {project.payments.length === 0 ? (
-              <p className="py-12 text-center text-sm text-ink-muted">
-                まだ支払いの記録がありません
-              </p>
+              <button
+                onClick={() => setisOpen(true)}
+                className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line-dashed font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary">
+                <PlusIcon size={24} />
+                最初の支払いを記録
+              </button>
             ) : (
-              <ul>
+              <ul className="divide-y divide-sky-ground rounded-xl bg-paper">
                 {project.payments.map((payment) => (
                   <PaymentRow
                     key={payment.id}
@@ -348,79 +342,56 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
             )}
           </section>
 
-          {/* 精算方法レシート。スマホでは支払い記録より上に表示する */}
+          {/* 自分の精算をきっぷ風に表示。スマホでは支払い記録より上に出す */}
           {project.payments.length > 0 && (
-            <aside
-              aria-labelledby="settlement-heading"
-              className="order-first flex min-w-0 flex-[1_1_340px] flex-col gap-4 bg-paper px-[26px] pt-7 pb-8 shadow-[0_24px_40px_-28px_rgba(11,116,181,0.5)] lg:order-none"
-            >
-              <h2 id="settlement-heading" className="text-center font-mono text-sm font-bold tracking-[0.2em]">
-                *** 精算方法 ***
-              </h2>
-              <div className="border-t border-dashed border-ink" />
-
-              {settlements.length === 0 ? (
-                <p className="text-sm text-ink-sub">精算の必要はありません</p>
-              ) : (
-                <>
-                  {iReceive.length > 0 && (
-                    <SettlementGroup
-                      label="あなたが受け取る"
-                      labelClass="text-primary"
-                      transfers={iReceive}
-                      currentUserName={currentUserName}
-                    />
+            <aside aria-labelledby="settlement-heading" className="order-first flex min-w-0 flex-col gap-7 lg:order-none">
+              <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
+                <div className="ticket-top px-[26px] pt-[22px] pb-4">
+                  <h2 id="settlement-heading" className="text-sm font-bold text-ink-sub">{balanceLabel}</h2>
+                  <p className={`mt-0.5 font-display text-[44px] leading-tight ${ticketBalanceClass}`}>
+                    {formatYen(Math.abs(myBalance))}
+                  </p>
+                </div>
+                <div className="ticket-bottom px-[26px] pt-4 pb-5">
+                  {mine.length > 0 ? (
+                    <ul className="flex flex-col gap-1.5">
+                      {mine.map((transfer, index) => (
+                        <MySettlementRow key={index} transfer={transfer} currentUserName={currentUserName} />
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-ink-sub">
+                      {settlements.length === 0 ? "精算の必要はありません" : "あなたの送金・受け取りはありません"}
+                    </p>
                   )}
-
-                  {iPay.length > 0 && (
-                    <SettlementGroup
-                      label="あなたが支払う"
-                      labelClass="text-pay"
-                      transfers={iPay}
-                      currentUserName={currentUserName}
-                    />
-                  )}
-
-                  {others.length > 0 && (
-                    <div className="flex flex-col gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setShowOthers(!showOthers)}
-                        aria-expanded={showOthers}
-                        aria-controls={othersListId}
-                        className="inline-flex min-h-10 items-center gap-1.5 self-start text-[13px] font-bold text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
-                        その他の精算（{others.length}件）
-                        <ChevronDownIcon className={`transition-transform ${showOthers ? "rotate-180" : ""}`} />
-                      </button>
-                      {showOthers && (
-                        <ul id={othersListId} className="flex flex-col gap-2.5">
-                          {others.map((transfer, index) => (
-                            <SettlementRow key={index} transfer={transfer} currentUserName={currentUserName} />
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-
-              <div className="border-t border-dashed border-ink" />
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-bold">あなたの収支</span>
-                <span className={`font-mono text-[30px] font-bold ${receiptBalanceClass}`}>
-                  {formatSignedYen(myBalance)}
-                </span>
+                </div>
               </div>
+
+              {others.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <h3 className="font-black">ほかのメンバーの精算</h3>
+                  <ul className="flex flex-col gap-0.5 overflow-hidden rounded-lg">
+                    {others.map((transfer, index) => (
+                      <li key={index} className="flex justify-between gap-3 bg-paper px-4 py-3 text-[15px]">
+                        <span className="min-w-0 break-words">
+                          {transfer.from} <span className="text-pay">→</span> {transfer.to}
+                        </span>
+                        <b className="shrink-0">{formatYen(transfer.amount)}</b>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </aside>
           )}
         </div>
       </main>
 
-      {/* 精算後の自分の収支（PCでは精算レシートと重複するのでスマホのみ） */}
+      {/* 自分の収支（PCでは精算券と重複するのでスマホのみ） */}
       <div className="sticky bottom-0 bg-ink text-white lg:hidden">
-        <div className="mx-auto flex w-full max-w-[1180px] items-center justify-between gap-4 px-6 py-4">
-          <span className="text-sm text-line-soft">{balanceLabel}</span>
-          <span className={`font-mono text-[26px] font-bold ${barBalanceClass}`}>
+        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
+          <span className="min-w-0 text-sm font-bold text-line-soft">{balanceLabel}</span>
+          <span className={`shrink-0 font-display text-2xl ${barBalanceClass}`}>
             {formatSignedYen(myBalance)}
           </span>
         </div>
@@ -484,10 +455,10 @@ function PaymentRow({ projectId, payment, onEdit }) {
   };
 
   const iconButtonClass =
-    "flex size-10 items-center justify-center text-ink-muted transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60";
+    "flex size-10 items-center justify-center rounded-lg text-ink-muted transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60";
 
   return (
-    <li className="flex items-center gap-3 border-b border-line-soft px-1 py-[18px] sm:gap-4">
+    <li className="flex items-center gap-2 px-2 py-4 sm:gap-3 sm:px-3">
       <label className="flex size-11 flex-none cursor-pointer items-center justify-center">
         <input
           type="checkbox"
@@ -501,26 +472,21 @@ function PaymentRow({ projectId, payment, onEdit }) {
 
       {/* 支払い内容が主、支払者が従。内容が空なら支払者を主にする */}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className={`break-words text-base font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
-          {memo || payer}
+        <span className={`break-words text-[17px] font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
+          {memo || `${payer}の支払い`}
         </span>
-        {memo && (
-          <span className={`text-[13px] ${isSettled ? "text-ink-faint" : "text-ink-muted"}`}>
-            支払者 {payer}
-          </span>
-        )}
+        <span className={`text-sm ${isSettled ? "text-ink-faint" : "text-ink-sub"}`}>
+          {memo ? `${payer}が支払い` : ""}
+          {memo && isSettled ? "／" : ""}
+          {isSettled ? "精算済み" : ""}
+        </span>
       </div>
 
-      {isSettled && (
-        <span className="hidden shrink-0 sm:inline-flex">
-          <Stamp small />
-        </span>
-      )}
-      <span className={`shrink-0 font-mono text-base font-bold sm:text-lg ${isSettled ? "text-ink-faint" : ""}`}>
+      <span className={`shrink-0 text-lg font-black ${isSettled ? "text-ink-faint line-through" : ""}`}>
         {formatYen(amount)}
       </span>
 
-      <div className="flex gap-0.5">
+      <div className="flex">
         <button
           onClick={() => onEdit(payment)}
           disabled={isPending}

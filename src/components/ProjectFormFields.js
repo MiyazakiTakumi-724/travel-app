@@ -35,7 +35,7 @@ export default function ProjectFormFields({ project }) {
             name="startDate"
             aria-label="開始日"
             defaultValue={project?.startDate}
-            className={`${textFieldClass} flex-1 px-2.5 font-mono text-sm`}
+            className={`${textFieldClass} flex-1 px-2.5 text-sm`}
           />
           <span aria-hidden="true" className="shrink-0 text-ink-muted">〜</span>
           <input
@@ -43,7 +43,7 @@ export default function ProjectFormFields({ project }) {
             name="endDate"
             aria-label="終了日"
             defaultValue={project?.endDate}
-            className={`${textFieldClass} flex-1 px-2.5 font-mono text-sm`}
+            className={`${textFieldClass} flex-1 px-2.5 text-sm`}
           />
         </div>
       </fieldset>

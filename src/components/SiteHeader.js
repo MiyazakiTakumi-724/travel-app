@@ -1,12 +1,12 @@
 import Link from "next/link";
 
-const logoClass = "font-mono text-[15px] font-bold tracking-[0.06em] text-ink";
+const logoClass = "font-display text-lg text-ink";
 
 export default function SiteHeader({ logoHref, children }) {
   const logo = "旅行清算アプリ";
 
   return (
-    <header className="mx-auto flex w-full max-w-[1180px] flex-wrap items-center justify-between gap-4 border-b-[1.5px] border-ink px-6 py-[18px]">
+    <header className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-4 px-5 py-[18px] sm:px-6">
       {logoHref ? (
         <Link href={logoHref} className={`${logoClass} hover:text-primary`}>
           {logo}
