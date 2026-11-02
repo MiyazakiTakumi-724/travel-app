@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -28,6 +28,7 @@ import {
   textFieldClass,
 } from "@/components/ui";
 import { formatPeriod, formatSignedYen, formatYen } from "@/lib/format";
+import { splitAmount } from "@/lib/split";
 
 // 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
 // balances は各参加者の収支（プラス=最終的に受け取る、マイナス=最終的に支払う）
@@ -89,7 +90,14 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
 
   return (
     <Modal title={title} onClose={onCancel}>
-      <form action={onSubmit} className="flex flex-col gap-5">
+      {/* action だと送信全体がトランジションになり、閉じるのがサーバー処理の完了まで遅れるので onSubmit で受ける */}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit(new FormData(event.currentTarget));
+        }}
+        className="flex flex-col gap-5"
+      >
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass}>金額</span>
           <span className="flex items-center gap-2 border-b-2 border-ink pb-1.5 focus-within:border-primary">
@@ -165,6 +173,21 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
   );
 }
 
+function applyPaymentChange(payments, change) {
+  switch (change.type) {
+    case "add":
+      return [...payments, ...change.payments];
+    case "edit":
+      return payments.map((payment) =>
+        payment.id === change.id ? { ...payment, ...change.changes } : payment
+      );
+    case "delete":
+      return payments.filter((payment) => payment.id !== change.id);
+    default:
+      return payments;
+  }
+}
+
 // 自分が関わる送金を「〇〇さんへ／〇〇さんから」の形で表示する
 function MySettlementRow({ transfer, currentUserName }) {
   const isPaying = transfer.from === currentUserName;
@@ -197,17 +220,60 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // サーバーの返事を待たずに支払い一覧へ先に反映する。処理が終わると最新のデータに置き換わる
+  const [payments, applyOptimistic] = useOptimistic(project.payments, applyPaymentChange);
+
   const handleAddPayment = (formData) => {
+    const payers = formData.getAll("payer").map(String);
+    const amount = Number(formData.get("amount"));
+    const memo = formData.get("memo")?.toString().trim();
+    const amounts = splitAmount(amount, payers.length);
+    setisOpen(false);
     startTransition(async () => {
+      applyOptimistic({
+        type: "add",
+        payments: payers.map((payer, index) => ({
+          id: `pending-${Date.now()}-${index}`,
+          payer,
+          memo,
+          amount: amounts[index],
+          isSettled: false,
+        })),
+      });
       await addPayment(project.id, formData);
-      setisOpen(false);
     });
   };
 
   const handleEditPayment = (formData) => {
+    // React Compiler が依存値として描画時に読むので、編集中でないとき（null）でも落ちないようにする
+    const paymentId = editingPayment?.id;
+    setEditingPayment(null);
     startTransition(async () => {
-      await editPayment(project.id, editingPayment.id, formData);
-      setEditingPayment(null);
+      applyOptimistic({
+        type: "edit",
+        id: paymentId,
+        changes: {
+          payer: formData.get("payer")?.toString(),
+          memo: formData.get("memo")?.toString().trim(),
+          amount: Number(formData.get("amount")),
+        },
+      });
+      await editPayment(project.id, paymentId, formData);
+    });
+  };
+
+  const handleToggleSettled = (paymentId, isSettled) => {
+    startTransition(async () => {
+      applyOptimistic({ type: "edit", id: paymentId, changes: { isSettled } });
+      await toggleSettled(project.id, paymentId, isSettled);
+    });
+  };
+
+  const handleDeletePayment = (paymentId) => {
+    if (!window.confirm("この支払い記録を削除しますか？")) return;
+    startTransition(async () => {
+      applyOptimistic({ type: "delete", id: paymentId });
+      await deletePayment(project.id, paymentId);
     });
   };
 
@@ -228,7 +294,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
 
   const { transfers: settlements, balances } = calculateSettlements(
     project.participants,
-    project.payments
+    payments
   );
   const mine = settlements.filter(
     (t) => t.from === currentUserName || t.to === currentUserName
@@ -238,7 +304,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
   );
 
   const myBalance = Math.round(balances.get(currentUserName) ?? 0);
-  const totalAmount = project.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const totalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
   const balanceLabel =
     myBalance > 0 ? "あなたが受け取る金額" : myBalance < 0 ? "あなたが支払う金額" : "あなたの精算";
@@ -321,7 +387,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
               <span className="text-sm text-ink-sub">合計 {formatYen(totalAmount)}</span>
             </div>
 
-            {project.payments.length === 0 ? (
+            {payments.length === 0 ? (
               <button
                 onClick={() => setisOpen(true)}
                 className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line-dashed font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary">
@@ -330,12 +396,13 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
               </button>
             ) : (
               <ul className="divide-y divide-sky-ground rounded-xl bg-paper">
-                {project.payments.map((payment) => (
+                {payments.map((payment) => (
                   <PaymentRow
                     key={payment.id}
-                    projectId={project.id}
                     payment={payment}
                     onEdit={setEditingPayment}
+                    onToggle={handleToggleSettled}
+                    onDelete={handleDeletePayment}
                   />
                 ))}
               </ul>
@@ -343,7 +410,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
           </section>
 
           {/* 自分の精算をきっぷ風に表示。スマホでは支払い記録より上に出す */}
-          {project.payments.length > 0 && (
+          {payments.length > 0 && (
             <aside aria-labelledby="settlement-heading" className="order-first flex min-w-0 flex-col gap-7 lg:order-none">
               <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
                 <div className="ticket-top px-[26px] pt-[22px] pb-4">
@@ -437,22 +504,13 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
   );
 }
 
-function PaymentRow({ projectId, payment, onEdit }) {
+function PaymentRow({ payment, onEdit, onToggle, onDelete }) {
   const { id: paymentId, payer, memo, amount, isSettled } = payment;
-  const [isPending, startTransition] = useTransition();
+  // 保存中の仮の行はまだIDが確定していないので操作できない
+  const isPending = String(paymentId).startsWith("pending-");
 
-  const handleToggle = () => {
-    startTransition(async () => {
-      await toggleSettled(projectId, paymentId, !isSettled);
-    });
-  };
-
-  const handleDelete = () => {
-    if (!window.confirm("この支払い記録を削除しますか？")) return;
-    startTransition(async () => {
-      await deletePayment(projectId, paymentId);
-    });
-  };
+  const handleToggle = () => onToggle(paymentId, !isSettled);
+  const handleDelete = () => onDelete(paymentId);
 
   const iconButtonClass =
     "flex size-10 items-center justify-center rounded-lg text-ink-muted transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60";

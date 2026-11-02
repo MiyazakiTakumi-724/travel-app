@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { splitAmount } from "@/lib/split";
 
 async function assertMember(projectId, userId) {
   const project = await prisma.project.findUnique({
@@ -66,15 +67,14 @@ export async function addPayment(projectId, formData) {
 
   if (payers.length === 0 || !amount || amount <= 0) return;
 
-  // 複数人が支払者の場合は金額を均等割りし、端数は先頭の支払者から順に1円ずつ乗せる
-  const base = Math.floor(amount / payers.length);
-  const remainder = amount - base * payers.length;
+  // 複数人が支払者の場合は金額を均等割りする
+  const amounts = splitAmount(amount, payers.length);
 
   await prisma.payment.createMany({
     data: payers.map((payer, index) => ({
       payer,
       memo,
-      amount: base + (index < remainder ? 1 : 0),
+      amount: amounts[index],
       projectId,
     })),
   });
