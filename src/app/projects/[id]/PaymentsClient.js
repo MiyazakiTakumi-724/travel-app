@@ -191,7 +191,7 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
               return (
                 <label
                   key={participant.id}
-                  className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-line-dashed bg-paper px-4 text-[15px] font-bold text-ink transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-white has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ink"
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-line-dashed bg-paper px-4 text-[15px] font-bold text-ink transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-white has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink"
                 >
                   <input
                     type={allowMultiplePayers ? "checkbox" : "radio"}
@@ -259,7 +259,7 @@ function MySettlementRow({ transfer, currentParticipantId, displayNames }) {
   const isPaying = transfer.from === currentParticipantId;
   return (
     <li className="flex justify-between gap-3 font-bold">
-      <span className="min-w-0 break-words">
+      <span className="min-w-0 wrap-break-word">
         {isPaying
           ? `${displayNames.get(transfer.to)}さんへ`
           : `${displayNames.get(transfer.from)}さんから`}
@@ -458,7 +458,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         <div className="flex flex-wrap items-end justify-between gap-4 sm:gap-6">
           <div className="flex min-w-0 flex-col gap-1.5">
             {/* スマホでは小さめにして、すぐ下の中身が最初の画面に入るようにする */}
-            <h1 className="min-w-0 break-words heading text-[clamp(26px,5vw,42px)] leading-tight">
+            <h1 className="min-w-0 wrap-break-word heading text-[clamp(26px,5vw,42px)] leading-tight">
               {project.title}
             </h1>
             <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm font-medium text-ink-sub sm:text-base">
@@ -567,7 +567,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                   <ul className="flex flex-col gap-0.5 overflow-hidden rounded-lg">
                     {others.map((transfer, index) => (
                       <li key={index} className="flex justify-between gap-3 bg-paper px-4 py-3 text-[15px]">
-                        <span className="min-w-0 break-words">
+                        <span className="min-w-0 wrap-break-word">
                           {displayNames.get(transfer.from)} <span className="text-pay">→</span>{" "}
                           {displayNames.get(transfer.to)}
                         </span>
@@ -749,7 +749,7 @@ function PaymentRow({ payment, payerName, onEdit, onToggle }) {
         className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-4 pr-2 pl-1 text-left transition-colors hover:bg-sky-ground/60 focus-visible:outline-2 focus-visible:outline-primary active:bg-sky-ground disabled:opacity-60">
         {/* 支払い内容が主、支払者が従。内容が空なら支払者を主にする */}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className={`break-words text-[17px] font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
+          <span className={`wrap-break-word text-[17px] font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
             {title}
           </span>
           <span className={`text-sm ${isSettled ? "text-ink-faint" : "text-ink-sub"}`}>
