@@ -8,6 +8,16 @@ const fontsHref =
 export const metadata = {
   title: "旅行清算アプリ",
   description: "旅行の立て替えを記録して、誰が誰にいくら払うかを自動計算する割り勘アプリ",
+  // iPhone でホーム画面に追加したときの名前と、全画面表示の設定
+  appleWebApp: {
+    capable: true,
+    title: "旅行清算",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport = {
+  themeColor: "#E2F4FC",
 };
 
 export default function RootLayout({ children }) {
