@@ -5,9 +5,11 @@ Googleでログインして旅行を作り、招待URLで友人を招くと、�
 
 **公開URL**：https://travel-app-xi-seven.vercel.app/
 
-| 旅行の一覧 | 支払い記録と精算 |
+スマホでの表示です。
+
+| プロジェクトの一覧 | 支払い記録と精算 |
 |---|---|
-| ![旅行の一覧画面](docs/projects.png) | ![支払い記録と精算の画面](docs/settlement.png) |
+| <img src="docs/projects.png" alt="プロジェクトの一覧画面" width="280"> | <img src="docs/settlement.png" alt="支払い記録と精算の画面" width="280"> |
 
 ## 主な機能
 
