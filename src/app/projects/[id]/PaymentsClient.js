@@ -87,11 +87,26 @@ function calculateSettlements(participants, payments) {
   return { transfers, balances };
 }
 
-function PaymentFormModal({ title, participants, displayNames, defaultValues, onSubmit, onCancel, isPending, submitLabel, allowMultiplePayers }) {
-  const [payer, setPayer] = useState(defaultValues?.payerId ?? participants[0]?.id ?? "");
-  const [selectedPayers, setSelectedPayers] = useState(
-    defaultValues?.payerId ? [defaultValues.payerId] : participants[0] ? [participants[0].id] : []
+// 支払い内容の候補。「その他」を選ぶと自由に入力できる
+const MEMO_OPTIONS = ["食事", "宿", "交通費", "ガソリン", "観光", "買い物"];
+const OTHER = "その他";
+
+// 編集時は保存済みの内容から、どのチップを選んだ状態にするかを決める
+function initialMemoChoice(memo) {
+  if (!memo) return null;
+  return MEMO_OPTIONS.includes(memo) ? memo : OTHER;
+}
+
+function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, isPending, submitLabel, allowMultiplePayers }) {
+  // 新規のときは自分を支払者にしておく（自分で払った分を記録することが一番多いため）
+  const initialPayerId = defaultValues?.payerId ?? defaultPayerId ?? participants[0]?.id ?? "";
+  const [payer, setPayer] = useState(initialPayerId);
+  const [selectedPayers, setSelectedPayers] = useState(initialPayerId ? [initialPayerId] : []);
+  const [memoChoice, setMemoChoice] = useState(initialMemoChoice(defaultValues?.memo));
+  const [otherMemo, setOtherMemo] = useState(
+    initialMemoChoice(defaultValues?.memo) === OTHER ? defaultValues.memo : ""
   );
+  const memo = memoChoice === OTHER ? otherMemo : memoChoice ?? "";
 
   const togglePayer = (id) => {
     setSelectedPayers((current) =>
@@ -128,16 +143,39 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, on
           </span>
         </label>
 
-        <label className="flex flex-col gap-1.5">
-          <span className={fieldLabelClass}>支払い内容</span>
-          <input
-            type="text"
-            name="memo"
-            defaultValue={defaultValues?.memo}
-            className={textFieldClass}
-            placeholder="例：夕食、レンタカー"
-          />
-        </label>
+        {/* 支払い内容はチップから選ぶ。もう一度押すと選択を外せる */}
+        <fieldset className="flex min-w-0 flex-col">
+          <legend className={`${fieldLabelClass} mb-2.5`}>支払い内容</legend>
+          <input type="hidden" name="memo" value={memo} />
+          <div className="flex flex-wrap gap-2">
+            {[...MEMO_OPTIONS, OTHER].map((option) => {
+              const selected = memoChoice === option;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setMemoChoice(selected ? null : option)}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-line-dashed bg-paper px-4 text-[15px] font-bold text-ink transition-colors aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+                >
+                  {selected && <CheckIcon />}
+                  {option}
+                </button>
+              );
+            })}
+          </div>
+          {memoChoice === OTHER && (
+            <input
+              type="text"
+              aria-label="支払い内容（自由入力）"
+              value={otherMemo}
+              onChange={(event) => setOtherMemo(event.target.value)}
+              autoFocus
+              className={`${textFieldClass} mt-2.5`}
+              placeholder="例：レンタカー、スキー場のリフト券"
+            />
+          )}
+        </fieldset>
 
         {/* 支払者（新規は複数選択のチェックボックス、編集は単一選択のラジオ）。見た目はチップ */}
         <fieldset className="flex min-w-0 flex-col">
@@ -502,6 +540,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           title="支払いを記録"
           participants={project.participants}
           displayNames={displayNames}
+          defaultPayerId={currentParticipantId}
           onSubmit={handleAddPayment}
           onCancel={() => setisOpen(false)}
           isPending={isPending}
