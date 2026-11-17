@@ -17,7 +17,6 @@ import {
   CheckIcon,
   LinkIcon,
   PlusIcon,
-  ReceiptIcon,
   TicketIcon,
   UsersIcon,
 } from "@/components/icons";
@@ -274,8 +273,7 @@ function MySettlementRow({ transfer, currentParticipantId, displayNames }) {
 
 // スマホで下に並べるタブ（PCは画面が広いのでタブにせず全部並べる）
 const TABS = [
-  { id: "payments", label: "支払い", Icon: ReceiptIcon },
-  { id: "settle", label: "精算", Icon: TicketIcon },
+  { id: "main", label: "支払い・精算", Icon: TicketIcon },
   { id: "members", label: "メンバー", Icon: UsersIcon },
 ];
 
@@ -284,11 +282,9 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const searchParams = useSearchParams();
 
   // 開いているタブ。URL（?tab=）にも残して、再読み込みしても同じタブに戻れるようにする。
-  // 指定がなければ、支払いがあるときは精算、まだないときは支払いから始める
   const [tab, setTab] = useState(() => {
     const fromUrl = searchParams.get("tab");
-    if (TABS.some((t) => t.id === fromUrl)) return fromUrl;
-    return project.payments.length > 0 ? "settle" : "payments";
+    return TABS.some((t) => t.id === fromUrl) ? fromUrl : "main";
   });
   const selectTab = (id) => {
     setTab(id);
@@ -502,10 +498,10 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
 
         <div className="grid items-start gap-8 lg:grid-cols-[1fr_380px] lg:gap-10">
           <section
-            id="panel-payments"
+            id="panel-main"
             role="tabpanel"
             aria-labelledby="payments-heading"
-            className={`flex min-w-0 flex-col gap-3.5 ${panelClass("payments")}`}>
+            className={`flex min-w-0 flex-col gap-3.5 ${panelClass("main")}`}>
             <div className="flex items-baseline justify-between gap-4">
               <h2 id="payments-heading" className="text-xl font-black">支払い記録</h2>
               <span className="text-sm text-ink-sub">合計 {formatYen(totalAmount)}</span>
@@ -533,73 +529,56 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             )}
           </section>
 
-          {/* 自分の精算をきっぷ風に表示 */}
-          <aside
-            id="panel-settle"
-            role="tabpanel"
-            aria-labelledby="settlement-heading"
-            className={`flex min-w-0 flex-col gap-7 ${panelClass("settle")} ${payments.length === 0 ? "lg:hidden" : ""}`}>
-            {payments.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl bg-paper px-6 py-10 text-center">
-                <h2 id="settlement-heading" className="font-black">まだ支払いがありません</h2>
-                <p className="text-sm leading-relaxed text-ink-sub">
-                  支払いを記録すると、誰が誰にいくら払えばいいかがここに表示されます。
-                </p>
-                <button
-                  onClick={() => setisOpen(true)}
-                  className={`${primaryButtonClass} mt-2 min-h-12 text-[15px]`}>
-                  <PlusIcon />
-                  支払いを記録
-                </button>
-              </div>
-            ) : (
-              <>
-                <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
-                  <div className="ticket-top px-6.5 pt-5.5 pb-4">
-                    <h2 id="settlement-heading" className="text-sm font-bold text-ink-sub">{balanceLabel}</h2>
-                    <p className={`mt-0.5 amount text-[48px] leading-tight ${ticketBalanceClass}`}>
-                      {formatYen(Math.abs(myBalance))}
-                    </p>
-                  </div>
-                  <div className="ticket-bottom px-6.5 pt-4 pb-5">
-                    {mine.length > 0 ? (
-                      <ul className="flex flex-col gap-1.5">
-                        {mine.map((transfer, index) => (
-                          <MySettlementRow
-                            key={index}
-                            transfer={transfer}
-                            currentParticipantId={currentParticipantId}
-                            displayNames={displayNames}
-                          />
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-ink-sub">
-                        {settlements.length === 0 ? "精算の必要はありません" : "あなたの送金・受け取りはありません"}
-                      </p>
-                    )}
-                  </div>
+          {/* 自分の精算をきっぷ風に表示。スマホでは支払い記録より上に出す */}
+          {payments.length > 0 && (
+            <aside
+              aria-labelledby="settlement-heading"
+              className={`flex min-w-0 flex-col gap-7 max-lg:order-first ${panelClass("main")}`}>
+              <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
+                <div className="ticket-top px-6.5 pt-5.5 pb-4">
+                  <h2 id="settlement-heading" className="text-sm font-bold text-ink-sub">{balanceLabel}</h2>
+                  <p className={`mt-0.5 amount text-[48px] leading-tight ${ticketBalanceClass}`}>
+                    {formatYen(Math.abs(myBalance))}
+                  </p>
                 </div>
-
-                {others.length > 0 && (
-                  <div className="flex flex-col gap-3">
-                    <h3 className="font-black">ほかのメンバーの精算</h3>
-                    <ul className="flex flex-col gap-0.5 overflow-hidden rounded-lg">
-                      {others.map((transfer, index) => (
-                        <li key={index} className="flex justify-between gap-3 bg-paper px-4 py-3 text-[15px]">
-                          <span className="min-w-0 break-words">
-                            {displayNames.get(transfer.from)} <span className="text-pay">→</span>{" "}
-                            {displayNames.get(transfer.to)}
-                          </span>
-                          <b className="shrink-0">{formatYen(transfer.amount)}</b>
-                        </li>
+                <div className="ticket-bottom px-6.5 pt-4 pb-5">
+                  {mine.length > 0 ? (
+                    <ul className="flex flex-col gap-1.5">
+                      {mine.map((transfer, index) => (
+                        <MySettlementRow
+                          key={index}
+                          transfer={transfer}
+                          currentParticipantId={currentParticipantId}
+                          displayNames={displayNames}
+                        />
                       ))}
                     </ul>
-                  </div>
-                )}
-              </>
-            )}
-          </aside>
+                  ) : (
+                    <p className="text-sm text-ink-sub">
+                      {settlements.length === 0 ? "精算の必要はありません" : "あなたの送金・受け取りはありません"}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {others.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <h3 className="font-black">ほかのメンバーの精算</h3>
+                  <ul className="flex flex-col gap-0.5 overflow-hidden rounded-lg">
+                    {others.map((transfer, index) => (
+                      <li key={index} className="flex justify-between gap-3 bg-paper px-4 py-3 text-[15px]">
+                        <span className="min-w-0 break-words">
+                          {displayNames.get(transfer.from)} <span className="text-pay">→</span>{" "}
+                          {displayNames.get(transfer.to)}
+                        </span>
+                        <b className="shrink-0">{formatYen(transfer.amount)}</b>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </aside>
+          )}
 
           {/* メンバー（スマホのタブ専用。PCは上の見出しの下に並べている） */}
           <section
