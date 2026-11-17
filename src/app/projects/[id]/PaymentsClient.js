@@ -388,9 +388,10 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
               <LinkIcon />
               <span aria-live="polite">{copied ? "コピーしました！" : "招待リンクをコピー"}</span>
             </button>
+            {/* スマホでは画面下のバーに同じボタンがあるので、PCのときだけ出す */}
             <button
               onClick={() => setisOpen(true)}
-              className={`${primaryButtonClass} min-h-12 text-[15px]`}>
+              className={`${primaryButtonClass} min-h-12 text-[15px] max-lg:hidden`}>
               <PlusIcon />
               支払いを記録
             </button>
@@ -478,13 +479,21 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         </div>
       </main>
 
-      {/* 自分の収支（PCでは精算券と重複するのでスマホのみ） */}
+      {/* スマホ用の下部バー。自分の収支と、一番よく使う「記録」ボタンを親指の届く位置に置く（PCでは精算券と上のボタンがあるので出さない） */}
       <div className="sticky bottom-0 bg-ink text-white lg:hidden">
-        <div className="mx-auto flex w-full max-w-280 items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
-          <span className="min-w-0 text-sm font-bold text-line-soft">{balanceLabel}</span>
-          <span className={`shrink-0 amount text-[28px] leading-none ${barBalanceClass}`}>
-            {formatSignedYen(myBalance)}
-          </span>
+        <div className="mx-auto flex w-full max-w-280 items-center justify-between gap-3 px-5 py-3 sm:px-6">
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-xs font-bold text-line-soft">{balanceLabel}</span>
+            <span className={`amount text-[26px] leading-none ${barBalanceClass}`}>
+              {formatSignedYen(myBalance)}
+            </span>
+          </div>
+          <button
+            onClick={() => setisOpen(true)}
+            className={`${primaryButtonClass} min-h-12 shrink-0 rounded-full px-5 text-[15px]`}>
+            <PlusIcon />
+            記録
+          </button>
         </div>
       </div>
 
