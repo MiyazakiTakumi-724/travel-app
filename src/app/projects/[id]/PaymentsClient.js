@@ -11,7 +11,6 @@ import {
   restorePayment,
   toggleSettled,
 } from "./actions";
-import SiteHeader from "@/components/SiteHeader";
 import Modal, { ModalActions } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import {
@@ -404,43 +403,44 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
 
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader logoHref="/projects">
+      {/* スマホアプリと同じく、戻るは左上・プロジェクトの操作は右上に置く */}
+      <header className="mx-auto flex w-full max-w-280 items-center justify-between gap-2 px-2.5 pt-2 sm:px-6 sm:pt-4">
         <Link
           href="/projects"
-          className="inline-flex min-h-11 items-center text-sm font-medium text-ink-muted transition-colors hover:text-primary">
-          ← 一覧に戻る
+          className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2.5 text-[15px] font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary">
+          <span aria-hidden="true" className="text-xl leading-none">‹</span>
+          一覧
         </Link>
-      </SiteHeader>
+        {isOwner && (
+          <div className="flex">
+            <button
+              onClick={() => setIsEditingProject(true)}
+              disabled={isPending}
+              className={`${textButtonClass} hover:text-primary`}>
+              編集
+            </button>
+            <button
+              onClick={handleDeleteProject}
+              disabled={isPending}
+              className={`${textButtonClass} hover:text-pay`}>
+              削除
+            </button>
+          </div>
+        )}
+      </header>
 
-      <main className="mx-auto flex w-full max-w-280 flex-1 flex-col gap-8 px-5 pt-6 pb-12 sm:px-6 sm:pt-10">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div className="flex min-w-0 flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <h1 className="min-w-0 break-words heading text-[clamp(30px,5vw,44px)] leading-tight">
-                {project.title}
-              </h1>
-              {isOwner && (
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setIsEditingProject(true)}
-                    disabled={isPending}
-                    className={`${textButtonClass} hover:text-primary`}>
-                    編集
-                  </button>
-                  <button
-                    onClick={handleDeleteProject}
-                    disabled={isPending}
-                    className={`${textButtonClass} hover:text-pay`}>
-                    削除
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-1 font-medium text-ink-sub">
+      <main className="mx-auto flex w-full max-w-280 flex-1 flex-col gap-6 px-5 pt-2 pb-12 sm:gap-8 sm:px-6 sm:pt-6">
+        <div className="flex flex-wrap items-end justify-between gap-4 sm:gap-6">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            {/* スマホでは小さめにして、すぐ下の精算券が最初の画面に入るようにする */}
+            <h1 className="min-w-0 break-words heading text-[clamp(26px,5vw,42px)] leading-tight">
+              {project.title}
+            </h1>
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm font-medium text-ink-sub sm:text-base">
               <span>{project.destination || "目的地未定"}</span>
               <span>{formatPeriod(project.startDate, project.endDate)}</span>
             </div>
-            <ul aria-label="メンバー" className="mt-2 flex flex-wrap gap-2">
+            <ul aria-label="メンバー" className="mt-1.5 flex flex-wrap gap-1.5">
               {project.participants.map((participant) => (
                 <li
                   key={participant.id}
@@ -457,7 +457,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           <div className="flex flex-wrap gap-3">
             <button
               onClick={handleCopyInviteLink}
-              className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
+              className={`${secondaryButtonClass} min-h-11 text-sm sm:min-h-12 sm:text-[15px]`}>
               <LinkIcon />
               <span aria-live="polite">{copied ? "コピーしました！" : "招待リンクをコピー"}</span>
             </button>
@@ -552,7 +552,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
       </main>
 
       {/* スマホ用の下部バー。自分の収支と、一番よく使う「記録」ボタンを親指の届く位置に置く（PCでは精算券と上のボタンがあるので出さない） */}
-      <div className="sticky bottom-0 bg-ink text-white lg:hidden">
+      <div className="sticky bottom-0 bg-ink pb-[env(safe-area-inset-bottom)] text-white lg:hidden">
         <div className="mx-auto flex w-full max-w-280 items-center justify-between gap-3 px-5 py-3 sm:px-6">
           <div className="flex min-w-0 flex-col gap-1">
             <span className="text-xs font-bold text-line-soft">{balanceLabel}</span>
@@ -600,7 +600,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
       {deletedPayment && (
         <div
           role="status"
-          className="fixed inset-x-4 bottom-24 z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink py-2 pr-2 pl-4.5 text-sm text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)] lg:bottom-8">
+          className="fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink py-2 pr-2 pl-4.5 text-sm text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)] lg:bottom-8">
           <span className="min-w-0 truncate">
             「{deletedPayment.memo || `${displayNames.get(deletedPayment.payerId)}の支払い`}」を削除しました
           </span>
@@ -613,7 +613,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
       )}
 
       {isEditingProject && (
-        <Modal title="旅行を編集" onClose={() => setIsEditingProject(false)}>
+        <Modal title="プロジェクトを編集" onClose={() => setIsEditingProject(false)}>
           <form action={handleEditProject} className="flex flex-col gap-5">
             <ProjectFormFields project={project} />
             <ModalActions

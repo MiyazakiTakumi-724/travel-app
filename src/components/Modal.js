@@ -42,7 +42,7 @@ export default function Modal({ title, description, onClose, children }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-2xl bg-paper px-5 pt-3 pb-7 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:w-[calc(100%-2rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-8 sm:shadow-[0_24px_48px_-24px_rgb(16_53_74_/_0.45)]"
+        className="fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-2xl bg-paper px-5 pt-3 pb-[calc(1.75rem+env(safe-area-inset-bottom))] sm:inset-auto sm:top-1/2 sm:left-1/2 sm:w-[calc(100%-2rem)] sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-8 sm:shadow-[0_24px_48px_-24px_rgb(16_53_74_/_0.45)]"
       >
         <div className="mx-auto mb-3 h-1 w-10 rounded-sm bg-line-soft sm:hidden" aria-hidden="true" />
 

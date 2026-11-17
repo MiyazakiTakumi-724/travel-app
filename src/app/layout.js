@@ -18,6 +18,8 @@ export const metadata = {
 
 export const viewport = {
   themeColor: "#E2F4FC",
+  // iPhone の切り欠きやホームバーの位置まで画面を使い、重なる部分は env(safe-area-inset-*) で避ける
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }) {
