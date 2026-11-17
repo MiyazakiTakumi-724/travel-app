@@ -50,14 +50,6 @@ export function TrashIcon(props) {
   );
 }
 
-export function ChevronDownIcon(props) {
-  return (
-    <Icon size={14} strokeWidth={2.4} {...props}>
-      <path d="M6 9l6 6 6-6" />
-    </Icon>
-  );
-}
-
 export function CloseIcon(props) {
   return (
     <Icon size={20} strokeWidth={2.2} {...props}>
