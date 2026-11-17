@@ -17,6 +17,16 @@ async function assertMember(projectId, userId) {
   );
 }
 
+// 送られてきた支払者IDのうち、このプロジェクトの参加者のものだけを残す
+async function filterParticipantIds(projectId, ids) {
+  const participants = await prisma.participant.findMany({
+    where: { projectId, id: { in: ids } },
+    select: { id: true },
+  });
+  const valid = new Set(participants.map((p) => p.id));
+  return ids.filter((id) => valid.has(id));
+}
+
 async function assertOwner(projectId, userId) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   return Boolean(project && project.ownerId === userId);
@@ -58,21 +68,22 @@ export async function addPayment(projectId, formData) {
   if (!session?.user?.id) return;
   if (!(await assertMember(projectId, session.user.id))) return;
 
-  const payers = formData
-    .getAll("payer")
-    .map((payer) => payer.toString().trim())
-    .filter(Boolean);
+  const requestedPayerIds = [
+    ...new Set(formData.getAll("payerId").map((id) => id.toString()).filter(Boolean)),
+  ];
+  const payerIds = await filterParticipantIds(projectId, requestedPayerIds);
   const memo = formData.get("memo")?.toString().trim();
   const amount = Number(formData.get("amount"));
 
-  if (payers.length === 0 || !amount || amount <= 0) return;
+  if (payerIds.length === 0 || payerIds.length !== requestedPayerIds.length) return;
+  if (!amount || amount <= 0) return;
 
   // 複数人が支払者の場合は金額を均等割りする
-  const amounts = splitAmount(amount, payers.length);
+  const amounts = splitAmount(amount, payerIds.length);
 
   await prisma.payment.createMany({
-    data: payers.map((payer, index) => ({
-      payer,
+    data: payerIds.map((payerId, index) => ({
+      payerId,
       memo,
       amount: amounts[index],
       projectId,
@@ -100,15 +111,16 @@ export async function editPayment(projectId, paymentId, formData) {
   if (!session?.user?.id) return;
   if (!(await assertMember(projectId, session.user.id))) return;
 
-  const payer = formData.get("payer")?.toString().trim();
+  const payerId = formData.get("payerId")?.toString();
   const memo = formData.get("memo")?.toString().trim();
   const amount = Number(formData.get("amount"));
 
-  if (!payer || !amount || amount <= 0) return;
+  if (!payerId || !amount || amount <= 0) return;
+  if ((await filterParticipantIds(projectId, [payerId])).length === 0) return;
 
   await prisma.payment.updateMany({
     where: { id: paymentId, projectId },
-    data: { payer, memo, amount },
+    data: { payerId, memo, amount },
   });
 
   revalidatePath(`/projects/${projectId}`);

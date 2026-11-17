@@ -14,7 +14,7 @@ export default async function ProjectDetailPage({ params }) {
   const project = await prisma.project.findUnique({
     where: { id },
     include: {
-      participants: true,
+      participants: { orderBy: { id: "asc" } },
       payments: { orderBy: { createdAt: "asc" } },
     },
   });
@@ -34,7 +34,7 @@ export default async function ProjectDetailPage({ params }) {
   return (
     <PaymentsClient
       project={project}
-      currentUserName={currentParticipant?.name}
+      currentParticipantId={currentParticipant?.id}
       isOwner={project.ownerId === session.user.id}
     />
   );

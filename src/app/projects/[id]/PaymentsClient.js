@@ -30,8 +30,21 @@ import {
 import { formatPeriod, formatSignedYen, formatYen } from "@/lib/format";
 import { splitAmount } from "@/lib/split";
 
+// 同じニックネームの参加者がいても見分けられるよう、2人目以降に番号を付けた表示名を作る
+function buildDisplayNames(participants) {
+  const seen = new Map();
+  const names = new Map();
+  for (const participant of participants) {
+    const count = (seen.get(participant.name) ?? 0) + 1;
+    seen.set(participant.name, count);
+    names.set(participant.id, count === 1 ? participant.name : `${participant.name}（${count}）`);
+  }
+  return names;
+}
+
 // 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
-// balances は各参加者の収支（プラス=最終的に受け取る、マイナス=最終的に支払う）
+// balances は参加者IDごとの収支（プラス=最終的に受け取る、マイナス=最終的に支払う）
+// 名前をキーにすると同じニックネームの参加者が1人にまとまってしまうので、必ずIDで集計する
 function calculateSettlements(participants, payments) {
   if (participants.length === 0) return { transfers: [], balances: new Map() };
 
@@ -39,16 +52,16 @@ function calculateSettlements(participants, payments) {
   const total = unsettled.reduce((sum, payment) => sum + payment.amount, 0);
   const share = total / participants.length;
 
-  const balances = new Map(participants.map((p) => [p.name, -share]));
+  const balances = new Map(participants.map((p) => [p.id, -share]));
   for (const payment of unsettled) {
-    balances.set(payment.payer, (balances.get(payment.payer) ?? -share) + payment.amount);
+    balances.set(payment.payerId, (balances.get(payment.payerId) ?? -share) + payment.amount);
   }
 
   const creditors = [];
   const debtors = [];
-  for (const [name, balance] of balances) {
-    if (balance > 0.5) creditors.push({ name, amount: balance });
-    else if (balance < -0.5) debtors.push({ name, amount: -balance });
+  for (const [id, balance] of balances) {
+    if (balance > 0.5) creditors.push({ id, amount: balance });
+    else if (balance < -0.5) debtors.push({ id, amount: -balance });
   }
   creditors.sort((a, b) => b.amount - a.amount);
   debtors.sort((a, b) => b.amount - a.amount);
@@ -62,7 +75,7 @@ function calculateSettlements(participants, payments) {
     const amount = Math.min(debtor.amount, creditor.amount);
 
     if (amount > 0.5) {
-      transfers.push({ from: debtor.name, to: creditor.name, amount: Math.round(amount) });
+      transfers.push({ from: debtor.id, to: creditor.id, amount: Math.round(amount) });
     }
 
     debtor.amount -= amount;
@@ -74,15 +87,15 @@ function calculateSettlements(participants, payments) {
   return { transfers, balances };
 }
 
-function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCancel, isPending, submitLabel, allowMultiplePayers }) {
-  const [payer, setPayer] = useState(defaultValues?.payer ?? participants[0]?.name ?? "");
+function PaymentFormModal({ title, participants, displayNames, defaultValues, onSubmit, onCancel, isPending, submitLabel, allowMultiplePayers }) {
+  const [payer, setPayer] = useState(defaultValues?.payerId ?? participants[0]?.id ?? "");
   const [selectedPayers, setSelectedPayers] = useState(
-    defaultValues?.payer ? [defaultValues.payer] : participants[0] ? [participants[0].name] : []
+    defaultValues?.payerId ? [defaultValues.payerId] : participants[0] ? [participants[0].id] : []
   );
 
-  const togglePayer = (name) => {
+  const togglePayer = (id) => {
     setSelectedPayers((current) =>
-      current.includes(name) ? current.filter((n) => n !== name) : [...current, name]
+      current.includes(id) ? current.filter((n) => n !== id) : [...current, id]
     );
   };
 
@@ -134,8 +147,8 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
           <div className="flex flex-wrap gap-2">
             {participants.map((participant) => {
               const selected = allowMultiplePayers
-                ? selectedPayers.includes(participant.name)
-                : payer === participant.name;
+                ? selectedPayers.includes(participant.id)
+                : payer === participant.id;
               return (
                 <label
                   key={participant.id}
@@ -143,17 +156,17 @@ function PaymentFormModal({ title, participants, defaultValues, onSubmit, onCanc
                 >
                   <input
                     type={allowMultiplePayers ? "checkbox" : "radio"}
-                    name="payer"
-                    value={participant.name}
+                    name="payerId"
+                    value={participant.id}
                     checked={selected}
                     required={!allowMultiplePayers}
                     onChange={() =>
-                      allowMultiplePayers ? togglePayer(participant.name) : setPayer(participant.name)
+                      allowMultiplePayers ? togglePayer(participant.id) : setPayer(participant.id)
                     }
                     className="sr-only"
                   />
                   {selected && <CheckIcon />}
-                  {participant.name}
+                  {displayNames.get(participant.id)}
                 </label>
               );
             })}
@@ -189,12 +202,14 @@ function applyPaymentChange(payments, change) {
 }
 
 // 自分が関わる送金を「〇〇さんへ／〇〇さんから」の形で表示する
-function MySettlementRow({ transfer, currentUserName }) {
-  const isPaying = transfer.from === currentUserName;
+function MySettlementRow({ transfer, currentParticipantId, displayNames }) {
+  const isPaying = transfer.from === currentParticipantId;
   return (
     <li className="flex justify-between gap-3 font-bold">
       <span className="min-w-0 break-words">
-        {isPaying ? `${transfer.to}さんへ` : `${transfer.from}さんから`}
+        {isPaying
+          ? `${displayNames.get(transfer.to)}さんへ`
+          : `${displayNames.get(transfer.from)}さんから`}
       </span>
       <span className={`shrink-0 ${isPaying ? "text-pay" : "text-primary"}`}>
         {formatYen(transfer.amount)}
@@ -203,7 +218,7 @@ function MySettlementRow({ transfer, currentUserName }) {
   );
 }
 
-export default function PaymentsClient({ project, currentUserName, isOwner }) {
+export default function PaymentsClient({ project, currentParticipantId, isOwner }) {
   const router = useRouter();
 
   // useState初期値設定
@@ -224,17 +239,17 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
   const [payments, applyOptimistic] = useOptimistic(project.payments, applyPaymentChange);
 
   const handleAddPayment = (formData) => {
-    const payers = formData.getAll("payer").map(String);
+    const payerIds = formData.getAll("payerId").map(String);
     const amount = Number(formData.get("amount"));
     const memo = formData.get("memo")?.toString().trim();
-    const amounts = splitAmount(amount, payers.length);
+    const amounts = splitAmount(amount, payerIds.length);
     setisOpen(false);
     startTransition(async () => {
       applyOptimistic({
         type: "add",
-        payments: payers.map((payer, index) => ({
+        payments: payerIds.map((payerId, index) => ({
           id: `pending-${Date.now()}-${index}`,
-          payer,
+          payerId,
           memo,
           amount: amounts[index],
           isSettled: false,
@@ -253,7 +268,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
         type: "edit",
         id: paymentId,
         changes: {
-          payer: formData.get("payer")?.toString(),
+          payerId: formData.get("payerId")?.toString(),
           memo: formData.get("memo")?.toString().trim(),
           amount: Number(formData.get("amount")),
         },
@@ -292,18 +307,19 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
     });
   };
 
+  const displayNames = buildDisplayNames(project.participants);
   const { transfers: settlements, balances } = calculateSettlements(
     project.participants,
     payments
   );
   const mine = settlements.filter(
-    (t) => t.from === currentUserName || t.to === currentUserName
+    (t) => t.from === currentParticipantId || t.to === currentParticipantId
   );
   const others = settlements.filter(
-    (t) => t.from !== currentUserName && t.to !== currentUserName
+    (t) => t.from !== currentParticipantId && t.to !== currentParticipantId
   );
 
-  const myBalance = Math.round(balances.get(currentUserName) ?? 0);
+  const myBalance = Math.round(balances.get(currentParticipantId) ?? 0);
   const totalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
   const balanceLabel =
@@ -356,9 +372,10 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
                 <li
                   key={participant.id}
                   className={`rounded-full px-3 py-0.5 text-sm font-medium ${
-                    participant.name === currentUserName ? "bg-primary text-white" : "bg-paper"
+                    participant.id === currentParticipantId ? "bg-primary text-white" : "bg-paper"
                   }`}>
-                  {participant.name === currentUserName ? `${participant.name}（あなた）` : participant.name}
+                  {displayNames.get(participant.id)}
+                  {participant.id === currentParticipantId ? "（あなた）" : ""}
                 </li>
               ))}
             </ul>
@@ -400,6 +417,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
                   <PaymentRow
                     key={payment.id}
                     payment={payment}
+                    payerName={displayNames.get(payment.payerId) ?? "不明"}
                     onEdit={setEditingPayment}
                     onToggle={handleToggleSettled}
                     onDelete={handleDeletePayment}
@@ -423,7 +441,12 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
                   {mine.length > 0 ? (
                     <ul className="flex flex-col gap-1.5">
                       {mine.map((transfer, index) => (
-                        <MySettlementRow key={index} transfer={transfer} currentUserName={currentUserName} />
+                        <MySettlementRow
+                          key={index}
+                          transfer={transfer}
+                          currentParticipantId={currentParticipantId}
+                          displayNames={displayNames}
+                        />
                       ))}
                     </ul>
                   ) : (
@@ -441,7 +464,8 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
                     {others.map((transfer, index) => (
                       <li key={index} className="flex justify-between gap-3 bg-paper px-4 py-3 text-[15px]">
                         <span className="min-w-0 break-words">
-                          {transfer.from} <span className="text-pay">→</span> {transfer.to}
+                          {displayNames.get(transfer.from)} <span className="text-pay">→</span>{" "}
+                          {displayNames.get(transfer.to)}
                         </span>
                         <b className="shrink-0">{formatYen(transfer.amount)}</b>
                       </li>
@@ -468,6 +492,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
         <PaymentFormModal
           title="支払いを記録"
           participants={project.participants}
+          displayNames={displayNames}
           onSubmit={handleAddPayment}
           onCancel={() => setisOpen(false)}
           isPending={isPending}
@@ -480,6 +505,7 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
         <PaymentFormModal
           title="支払いを編集"
           participants={project.participants}
+          displayNames={displayNames}
           defaultValues={editingPayment}
           onSubmit={handleEditPayment}
           onCancel={() => setEditingPayment(null)}
@@ -504,8 +530,8 @@ export default function PaymentsClient({ project, currentUserName, isOwner }) {
   );
 }
 
-function PaymentRow({ payment, onEdit, onToggle, onDelete }) {
-  const { id: paymentId, payer, memo, amount, isSettled } = payment;
+function PaymentRow({ payment, payerName, onEdit, onToggle, onDelete }) {
+  const { id: paymentId, memo, amount, isSettled } = payment;
   // 保存中の仮の行はまだIDが確定していないので操作できない
   const isPending = String(paymentId).startsWith("pending-");
 
@@ -531,10 +557,10 @@ function PaymentRow({ payment, onEdit, onToggle, onDelete }) {
       {/* 支払い内容が主、支払者が従。内容が空なら支払者を主にする */}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className={`break-words text-[17px] font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
-          {memo || `${payer}の支払い`}
+          {memo || `${payerName}の支払い`}
         </span>
         <span className={`text-sm ${isSettled ? "text-ink-faint" : "text-ink-sub"}`}>
-          {memo ? `${payer}が支払い` : ""}
+          {memo ? `${payerName}が支払い` : ""}
           {memo && isSettled ? "／" : ""}
           {isSettled ? "精算済み" : ""}
         </span>
