@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   addPayment,
   deletePayment,
@@ -17,6 +17,9 @@ import {
   CheckIcon,
   LinkIcon,
   PlusIcon,
+  ReceiptIcon,
+  TicketIcon,
+  UsersIcon,
 } from "@/components/icons";
 import {
   fieldLabelClass,
@@ -269,8 +272,31 @@ function MySettlementRow({ transfer, currentParticipantId, displayNames }) {
   );
 }
 
+// スマホで下に並べるタブ（PCは画面が広いのでタブにせず全部並べる）
+const TABS = [
+  { id: "payments", label: "支払い", Icon: ReceiptIcon },
+  { id: "settle", label: "精算", Icon: TicketIcon },
+  { id: "members", label: "メンバー", Icon: UsersIcon },
+];
+
 export default function PaymentsClient({ project, currentParticipantId, isOwner }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // 開いているタブ。URL（?tab=）にも残して、再読み込みしても同じタブに戻れるようにする。
+  // 指定がなければ、支払いがあるときは精算、まだないときは支払いから始める
+  const [tab, setTab] = useState(() => {
+    const fromUrl = searchParams.get("tab");
+    if (TABS.some((t) => t.id === fromUrl)) return fromUrl;
+    return project.payments.length > 0 ? "settle" : "payments";
+  });
+  const selectTab = (id) => {
+    setTab(id);
+    window.history.replaceState(null, "", `?tab=${id}`);
+    window.scrollTo({ top: 0 });
+  };
+  // スマホで、選んでいないタブの中身を隠すためのクラス
+  const panelClass = (id) => (tab === id ? "" : "max-lg:hidden");
 
   // useState初期値設定
   const [isOpen, setisOpen] = useState(false);
@@ -435,7 +461,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
       <main className="mx-auto flex w-full max-w-280 flex-1 flex-col gap-6 px-5 pt-2 pb-12 sm:gap-8 sm:px-6 sm:pt-6">
         <div className="flex flex-wrap items-end justify-between gap-4 sm:gap-6">
           <div className="flex min-w-0 flex-col gap-1.5">
-            {/* スマホでは小さめにして、すぐ下の精算券が最初の画面に入るようにする */}
+            {/* スマホでは小さめにして、すぐ下の中身が最初の画面に入るようにする */}
             <h1 className="min-w-0 break-words heading text-[clamp(26px,5vw,42px)] leading-tight">
               {project.title}
             </h1>
@@ -443,7 +469,8 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
               <span>{project.destination || "目的地未定"}</span>
               <span>{formatPeriod(project.startDate, project.endDate)}</span>
             </div>
-            <ul aria-label="メンバー" className="mt-1.5 flex flex-wrap gap-1.5">
+            {/* メンバーはPCではここに、スマホでは「メンバー」タブに出す */}
+            <ul aria-label="メンバー" className="mt-1.5 flex flex-wrap gap-1.5 max-lg:hidden">
               {project.participants.map((participant) => (
                 <li
                   key={participant.id}
@@ -457,17 +484,16 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             </ul>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 max-lg:hidden">
             <button
               onClick={handleCopyInviteLink}
-              className={`${secondaryButtonClass} min-h-11 text-sm sm:min-h-12 sm:text-[15px]`}>
+              className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
               <LinkIcon />
               <span aria-live="polite">{copied ? "コピーしました！" : "招待リンクをコピー"}</span>
             </button>
-            {/* スマホでは画面下のバーに同じボタンがあるので、PCのときだけ出す */}
             <button
               onClick={() => setisOpen(true)}
-              className={`${primaryButtonClass} min-h-12 text-[15px] max-lg:hidden`}>
+              className={`${primaryButtonClass} min-h-12 text-[15px]`}>
               <PlusIcon />
               支払いを記録
             </button>
@@ -475,7 +501,11 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         </div>
 
         <div className="grid items-start gap-8 lg:grid-cols-[1fr_380px] lg:gap-10">
-          <section aria-labelledby="payments-heading" className="flex min-w-0 flex-col gap-3.5">
+          <section
+            id="panel-payments"
+            role="tabpanel"
+            aria-labelledby="payments-heading"
+            className={`flex min-w-0 flex-col gap-3.5 ${panelClass("payments")}`}>
             <div className="flex items-baseline justify-between gap-4">
               <h2 id="payments-heading" className="text-xl font-black">支払い記録</h2>
               <span className="text-sm text-ink-sub">合計 {formatYen(totalAmount)}</span>
@@ -503,73 +533,154 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             )}
           </section>
 
-          {/* 自分の精算をきっぷ風に表示。スマホでは支払い記録より上に出す */}
-          {payments.length > 0 && (
-            <aside aria-labelledby="settlement-heading" className="order-first flex min-w-0 flex-col gap-7 lg:order-none">
-              <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
-                <div className="ticket-top px-6.5 pt-5.5 pb-4">
-                  <h2 id="settlement-heading" className="text-sm font-bold text-ink-sub">{balanceLabel}</h2>
-                  <p className={`mt-0.5 amount text-[48px] leading-tight ${ticketBalanceClass}`}>
-                    {formatYen(Math.abs(myBalance))}
-                  </p>
+          {/* 自分の精算をきっぷ風に表示 */}
+          <aside
+            id="panel-settle"
+            role="tabpanel"
+            aria-labelledby="settlement-heading"
+            className={`flex min-w-0 flex-col gap-7 ${panelClass("settle")} ${payments.length === 0 ? "lg:hidden" : ""}`}>
+            {payments.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl bg-paper px-6 py-10 text-center">
+                <h2 id="settlement-heading" className="font-black">まだ支払いがありません</h2>
+                <p className="text-sm leading-relaxed text-ink-sub">
+                  支払いを記録すると、誰が誰にいくら払えばいいかがここに表示されます。
+                </p>
+                <button
+                  onClick={() => setisOpen(true)}
+                  className={`${primaryButtonClass} mt-2 min-h-12 text-[15px]`}>
+                  <PlusIcon />
+                  支払いを記録
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
+                  <div className="ticket-top px-6.5 pt-5.5 pb-4">
+                    <h2 id="settlement-heading" className="text-sm font-bold text-ink-sub">{balanceLabel}</h2>
+                    <p className={`mt-0.5 amount text-[48px] leading-tight ${ticketBalanceClass}`}>
+                      {formatYen(Math.abs(myBalance))}
+                    </p>
+                  </div>
+                  <div className="ticket-bottom px-6.5 pt-4 pb-5">
+                    {mine.length > 0 ? (
+                      <ul className="flex flex-col gap-1.5">
+                        {mine.map((transfer, index) => (
+                          <MySettlementRow
+                            key={index}
+                            transfer={transfer}
+                            currentParticipantId={currentParticipantId}
+                            displayNames={displayNames}
+                          />
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-ink-sub">
+                        {settlements.length === 0 ? "精算の必要はありません" : "あなたの送金・受け取りはありません"}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="ticket-bottom px-6.5 pt-4 pb-5">
-                  {mine.length > 0 ? (
-                    <ul className="flex flex-col gap-1.5">
-                      {mine.map((transfer, index) => (
-                        <MySettlementRow
-                          key={index}
-                          transfer={transfer}
-                          currentParticipantId={currentParticipantId}
-                          displayNames={displayNames}
-                        />
+
+                {others.length > 0 && (
+                  <div className="flex flex-col gap-3">
+                    <h3 className="font-black">ほかのメンバーの精算</h3>
+                    <ul className="flex flex-col gap-0.5 overflow-hidden rounded-lg">
+                      {others.map((transfer, index) => (
+                        <li key={index} className="flex justify-between gap-3 bg-paper px-4 py-3 text-[15px]">
+                          <span className="min-w-0 break-words">
+                            {displayNames.get(transfer.from)} <span className="text-pay">→</span>{" "}
+                            {displayNames.get(transfer.to)}
+                          </span>
+                          <b className="shrink-0">{formatYen(transfer.amount)}</b>
+                        </li>
                       ))}
                     </ul>
-                  ) : (
-                    <p className="text-sm text-ink-sub">
-                      {settlements.length === 0 ? "精算の必要はありません" : "あなたの送金・受け取りはありません"}
-                    </p>
-                  )}
-                </div>
-              </div>
+                  </div>
+                )}
+              </>
+            )}
+          </aside>
 
-              {others.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  <h3 className="font-black">ほかのメンバーの精算</h3>
-                  <ul className="flex flex-col gap-0.5 overflow-hidden rounded-lg">
-                    {others.map((transfer, index) => (
-                      <li key={index} className="flex justify-between gap-3 bg-paper px-4 py-3 text-[15px]">
-                        <span className="min-w-0 break-words">
-                          {displayNames.get(transfer.from)} <span className="text-pay">→</span>{" "}
-                          {displayNames.get(transfer.to)}
-                        </span>
-                        <b className="shrink-0">{formatYen(transfer.amount)}</b>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </aside>
-          )}
+          {/* メンバー（スマホのタブ専用。PCは上の見出しの下に並べている） */}
+          <section
+            id="panel-members"
+            role="tabpanel"
+            aria-labelledby="members-heading"
+            className={`flex min-w-0 flex-col gap-3.5 lg:hidden ${panelClass("members")}`}>
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 id="members-heading" className="text-xl font-black">メンバー</h2>
+              <span className="text-sm text-ink-sub">{project.participants.length}人</span>
+            </div>
+            <ul className="divide-y divide-sky-ground rounded-xl bg-paper">
+              {project.participants.map((participant) => (
+                <li key={participant.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <span
+                    aria-hidden="true"
+                    className={`grid size-9 shrink-0 place-items-center rounded-full font-bold ${
+                      participant.id === currentParticipantId ? "bg-primary text-white" : "bg-sky-ground text-primary"
+                    }`}>
+                    {participant.name.slice(0, 1)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-bold">{displayNames.get(participant.id)}</span>
+                  {participant.userId === project.ownerId && (
+                    <span className="shrink-0 rounded-full bg-sky-ground px-2.5 py-0.5 text-xs font-bold text-ink-sub">作成者</span>
+                  )}
+                  {participant.id === currentParticipantId && (
+                    <span className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-white">あなた</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="flex flex-col gap-2.5 rounded-xl border-2 border-dashed border-line-dashed px-4.5 py-4">
+              <p className="text-sm leading-relaxed text-ink-sub">
+                招待リンクを送ると、友達がログインしてメンバーになれます。
+              </p>
+              <button
+                onClick={handleCopyInviteLink}
+                className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
+                <LinkIcon />
+                <span aria-live="polite">{copied ? "コピーしました！" : "招待リンクをコピー"}</span>
+              </button>
+            </div>
+          </section>
         </div>
       </main>
 
-      {/* スマホ用の下部バー。自分の収支と、一番よく使う「記録」ボタンを親指の届く位置に置く（PCでは精算券と上のボタンがあるので出さない） */}
-      <div className="sticky bottom-0 bg-ink pb-[env(safe-area-inset-bottom)] text-white lg:hidden">
-        <div className="mx-auto flex w-full max-w-280 items-center justify-between gap-3 px-5 py-3 sm:px-6">
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-xs font-bold text-line-soft">{balanceLabel}</span>
-            <span className={`amount text-[26px] leading-none ${barBalanceClass}`}>
-              {formatSignedYen(myBalance)}
-            </span>
+      {/* スマホ用の下部。自分の収支と「記録」ボタンのバー、その下にタブ（PCでは出さない） */}
+      <div className="sticky bottom-0 z-20 lg:hidden">
+        <div className="bg-ink text-white">
+          <div className="mx-auto flex w-full max-w-280 items-center justify-between gap-3 px-5 py-2.5 sm:px-6">
+            <div className="flex min-w-0 flex-col gap-1">
+              <span className="text-xs font-bold text-line-soft">{balanceLabel}</span>
+              <span className={`amount text-[24px] leading-none ${barBalanceClass}`}>
+                {formatSignedYen(myBalance)}
+              </span>
+            </div>
+            <button
+              onClick={() => setisOpen(true)}
+              className={`${primaryButtonClass} min-h-11 shrink-0 rounded-full px-5 text-[15px]`}>
+              <PlusIcon />
+              記録
+            </button>
           </div>
-          <button
-            onClick={() => setisOpen(true)}
-            className={`${primaryButtonClass} min-h-12 shrink-0 rounded-full px-5 text-[15px]`}>
-            <PlusIcon />
-            記録
-          </button>
         </div>
+        <nav
+          role="tablist"
+          aria-label="表示の切り替え"
+          className="grid grid-cols-3 border-t border-line-soft bg-paper pb-[env(safe-area-inset-bottom)]">
+          {TABS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls={`panel-${id}`}
+              onClick={() => selectTab(id)}
+              className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-ink-faint transition-colors aria-selected:text-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
+              <Icon size={22} />
+              {label}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {isOpen && (
@@ -603,7 +714,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
       {deletedPayment && (
         <div
           role="status"
-          className="fixed inset-x-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink py-2 pr-2 pl-4.5 text-sm text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)] lg:bottom-8">
+          className="fixed inset-x-4 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink py-2 pr-2 pl-4.5 text-sm text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)] lg:bottom-8">
           <span className="min-w-0 truncate">
             「{deletedPayment.memo || `${displayNames.get(deletedPayment.payerId)}の支払い`}」を削除しました
           </span>

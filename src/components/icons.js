@@ -34,6 +34,34 @@ export function LinkIcon(props) {
   );
 }
 
+export function ReceiptIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6" />
+    </Icon>
+  );
+}
+
+export function TicketIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a3 3 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a3 3 0 0 0 0-6z" />
+      <path d="M13 5v2M13 11v2M13 17v2" />
+    </Icon>
+  );
+}
+
+export function UsersIcon(props) {
+  return (
+    <Icon {...props}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14a6.5 6.5 0 0 1 3.5 6" />
+    </Icon>
+  );
+}
+
 export function CloseIcon(props) {
   return (
     <Icon size={20} strokeWidth={2.2} {...props}>
