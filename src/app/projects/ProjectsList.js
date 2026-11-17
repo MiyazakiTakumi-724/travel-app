@@ -9,12 +9,15 @@ import ProjectFormFields from "@/components/ProjectFormFields";
 import { PlusIcon } from "@/components/icons";
 import { primaryButtonClass } from "@/components/ui";
 import { formatPeriod } from "@/lib/format";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 
 export default function ProjectsList({ projects }) {
 
     // useStateの初期値設定
     const [isOpen, setisOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
+    // 招待された旅行や、ほかのメンバーが作った変更を自動で反映する
+    useAutoRefresh({ paused: isPending });
 
     // プロジェクト作成時のデータ保管用関数
     const handleCreateProject = (formData) => {

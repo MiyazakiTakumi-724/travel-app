@@ -27,6 +27,7 @@ import {
 } from "@/components/ui";
 import { formatPeriod, formatSignedYen, formatYen } from "@/lib/format";
 import { splitAmount } from "@/lib/split";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 
 // 同じニックネームの参加者がいても見分けられるよう、2人目以降に番号を付けた表示名を作る
 function buildDisplayNames(participants) {
@@ -277,6 +278,8 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
+  // 保存中に読み直すと楽観的更新の表示が揺れるので、その間は止める
+  useAutoRefresh({ paused: isPending });
   // 直前に削除した支払い。「元に戻す」を出している間だけ持つ
   const [deletedPayment, setDeletedPayment] = useState(null);
 
