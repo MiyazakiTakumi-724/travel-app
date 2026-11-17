@@ -3,7 +3,7 @@ import "./globals.css";
 // 和文フォントは next/font だと全サブセットをビルド時に取得して重いので、
 // Google Fonts のスタイルシートから必要な文字範囲だけブラウザに読ませる
 const fontsHref =
-  "https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap";
+  "https://fonts.googleapis.com/css2?family=M+PLUS+1:wght@700;800&family=Barlow+Semi+Condensed:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap";
 
 export const metadata = {
   title: "旅行清算アプリ",

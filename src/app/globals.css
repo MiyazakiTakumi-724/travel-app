@@ -2,7 +2,8 @@
 
 @theme inline {
   --font-sans: "Zen Kaku Gothic New", "Hiragino Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Dela Gothic One", "Zen Kaku Gothic New", sans-serif;
+  --font-display: "M PLUS 1", "Zen Kaku Gothic New", sans-serif;
+  --font-num: "Barlow Semi Condensed", "Zen Kaku Gothic New", sans-serif;
 
   --color-sky-ground: #E2F4FC;
   --color-paper: #FAFDFF;
@@ -21,6 +22,20 @@
 
 body {
   font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 見出し用。M PLUS 1 の極太を少し字間を空けて使う */
+@utility heading {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+/* 金額用。きっぷの印字のような細身の数字 */
+@utility amount {
+  font-family: var(--font-num);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 

@@ -114,7 +114,7 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, on
         <label className="flex flex-col gap-1.5">
           <span className={fieldLabelClass}>金額</span>
           <span className="flex items-center gap-2 border-b-2 border-ink pb-1.5 focus-within:border-primary">
-            <span aria-hidden="true" className="font-display text-[28px] text-primary">¥</span>
+            <span aria-hidden="true" className="amount text-[28px] text-primary">¥</span>
             <input
               type="number"
               name="amount"
@@ -123,7 +123,7 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, on
               required
               min="1"
               placeholder="0"
-              className="min-w-0 flex-1 bg-transparent p-0 font-display text-[34px] text-ink outline-none placeholder:text-line-dashed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="min-w-0 flex-1 bg-transparent p-0 amount text-[34px] text-ink outline-none placeholder:text-line-dashed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
           </span>
         </label>
@@ -343,7 +343,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <h1 className="min-w-0 break-words font-display text-[clamp(32px,5vw,48px)] leading-tight">
+              <h1 className="min-w-0 break-words heading text-[clamp(30px,5vw,44px)] leading-tight">
                 {project.title}
               </h1>
               {isOwner && (
@@ -433,7 +433,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
               <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
                 <div className="ticket-top px-6.5 pt-5.5 pb-4">
                   <h2 id="settlement-heading" className="text-sm font-bold text-ink-sub">{balanceLabel}</h2>
-                  <p className={`mt-0.5 font-display text-[44px] leading-tight ${ticketBalanceClass}`}>
+                  <p className={`mt-0.5 amount text-[48px] leading-tight ${ticketBalanceClass}`}>
                     {formatYen(Math.abs(myBalance))}
                   </p>
                 </div>
@@ -482,7 +482,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
       <div className="sticky bottom-0 bg-ink text-white lg:hidden">
         <div className="mx-auto flex w-full max-w-280 items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
           <span className="min-w-0 text-sm font-bold text-line-soft">{balanceLabel}</span>
-          <span className={`shrink-0 font-display text-2xl ${barBalanceClass}`}>
+          <span className={`shrink-0 amount text-[28px] leading-none ${barBalanceClass}`}>
             {formatSignedYen(myBalance)}
           </span>
         </div>
@@ -566,7 +566,7 @@ function PaymentRow({ payment, payerName, onEdit, onToggle, onDelete }) {
         </span>
       </div>
 
-      <span className={`shrink-0 text-lg font-black ${isSettled ? "text-ink-faint line-through" : ""}`}>
+      <span className={`shrink-0 amount text-xl ${isSettled ? "text-ink-faint line-through" : ""}`}>
         {formatYen(amount)}
       </span>
 

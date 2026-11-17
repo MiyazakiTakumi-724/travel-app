@@ -3,7 +3,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { createProject } from "./actions";
-import SiteHeader from "@/components/SiteHeader";
+import SiteHeader, { GuideLink } from "@/components/SiteHeader";
 import Modal, { ModalActions } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import { PlusIcon } from "@/components/icons";
@@ -30,6 +30,7 @@ export default function ProjectsList({ projects }) {
     return (
         <div className="flex min-h-screen flex-col">
             <SiteHeader logoHref="/projects">
+                <GuideLink />
                 <button
                     onClick={() => signOut({ redirectTo: "/" })}
                     className="min-h-11 px-1 text-sm font-medium text-ink-muted transition-colors hover:text-ink">
@@ -39,14 +40,17 @@ export default function ProjectsList({ projects }) {
 
             <main className="mx-auto flex w-full max-w-280 flex-1 flex-col gap-8 px-5 pt-8 pb-24 sm:px-6 sm:pt-12">
                 <div className="flex flex-wrap items-end justify-between gap-5">
-                    <h1 className="font-display text-[clamp(30px,4vw,40px)]">
-                        マイプロジェクト
-                    </h1>
+                    <div className="flex flex-col gap-1">
+                        <h1 className="heading text-[clamp(30px,4vw,38px)] leading-tight">
+                            マイプロジェクト
+                        </h1>
+                        <p className="text-sm text-ink-sub">参加しているプロジェクトの一覧です</p>
+                    </div>
                     <button
                         onClick={() => setisOpen(true)}
                         className={`${primaryButtonClass} min-h-13 gap-2.5 px-6 text-base`}>
                         <PlusIcon />
-                        新しい旅行を作成
+                        新しいプロジェクトを作成
                     </button>
                 </div>
 
@@ -56,8 +60,8 @@ export default function ProjectsList({ projects }) {
                         onClick={() => setisOpen(true)}
                         className={`${addTripButtonClass} min-h-65 w-full text-lg`}>
                         <PlusIcon size={28} strokeWidth={2} />
-                        最初の旅行を作成
-                        <span className="text-sm font-medium text-ink-sub">まだ旅行がありません</span>
+                        最初のプロジェクトを作成
+                        <span className="text-sm font-medium text-ink-sub">まだプロジェクトがありません</span>
                     </button>
                 ) : (
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-6">
@@ -69,7 +73,7 @@ export default function ProjectsList({ projects }) {
                                 className="group flex flex-col text-ink drop-shadow-[0_12px_16px_rgb(21_128_196/0.12)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
                             >
                                 <div className="ticket-top px-7 pt-6 pb-4.5">
-                                    <h2 className="truncate text-2xl font-black transition-colors group-hover:text-primary">
+                                    <h2 className="truncate heading text-[22px] transition-colors group-hover:text-primary">
                                         {project.title}
                                     </h2>
                                     <p className="mt-1 truncate font-medium text-ink-sub">{project.destination || "目的地未定"}</p>
@@ -85,14 +89,21 @@ export default function ProjectsList({ projects }) {
                             onClick={() => setisOpen(true)}
                             className={`${addTripButtonClass} min-h-37.5 text-[15px]`}>
                             <PlusIcon size={28} strokeWidth={2} />
-                            旅行を追加
+                            プロジェクトを追加
                         </button>
                     </div>
                 )}
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-paper px-4.5 py-3.5 text-sm text-ink-sub">
+                    <span>はじめての方へ：プロジェクトを作ったら、招待リンクをコピーして友達に送りましょう。</span>
+                    <Link href="/guide" className="font-bold text-primary transition-colors hover:text-primary-hover sm:ml-auto">
+                        使い方を見る →
+                    </Link>
+                </div>
             </main>
 
             {isOpen && (
-                <Modal title="新しい旅行を作成" onClose={() => setisOpen(false)}>
+                <Modal title="新しいプロジェクトを作成" onClose={() => setisOpen(false)}>
                     <form action={handleCreateProject} className="flex flex-col gap-5">
                         <ProjectFormFields />
                         <ModalActions
