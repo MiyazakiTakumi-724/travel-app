@@ -1,5 +1,5 @@
 "use client";
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -8,6 +8,7 @@ import {
   deleteProject,
   editPayment,
   editProject,
+  restorePayment,
   toggleSettled,
 } from "./actions";
 import SiteHeader from "@/components/SiteHeader";
@@ -16,9 +17,7 @@ import ProjectFormFields from "@/components/ProjectFormFields";
 import {
   CheckIcon,
   LinkIcon,
-  PencilIcon,
   PlusIcon,
-  TrashIcon,
 } from "@/components/icons";
 import {
   fieldLabelClass,
@@ -97,7 +96,7 @@ function initialMemoChoice(memo) {
   return MEMO_OPTIONS.includes(memo) ? memo : OTHER;
 }
 
-function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, isPending, submitLabel, allowMultiplePayers }) {
+function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, onDelete, isPending, submitLabel, allowMultiplePayers }) {
   // 新規のときは自分を支払者にしておく（自分で払った分を記録することが一番多いため）
   const initialPayerId = defaultValues?.payerId ?? defaultPayerId ?? participants[0]?.id ?? "";
   const [payer, setPayer] = useState(initialPayerId);
@@ -219,6 +218,15 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
           onCancel={onCancel}
           disabled={isPending || noPayerSelected}
         />
+
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            className="-mt-1 inline-flex min-h-11 items-center justify-center self-center px-4 text-sm font-bold text-pay transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-pay">
+            この支払いを削除
+          </button>
+        )}
       </form>
     </Modal>
   );
@@ -228,6 +236,11 @@ function applyPaymentChange(payments, change) {
   switch (change.type) {
     case "add":
       return [...payments, ...change.payments];
+    case "restore":
+      // 作成日時の順に並べ直して、元の位置に戻す
+      return [...payments, change.payment].sort(
+        (a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0)
+      );
     case "edit":
       return payments.map((payment) =>
         payment.id === change.id ? { ...payment, ...change.changes } : payment
@@ -265,6 +278,14 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState(false);
+  // 直前に削除した支払い。「元に戻す」を出している間だけ持つ
+  const [deletedPayment, setDeletedPayment] = useState(null);
+
+  useEffect(() => {
+    if (!deletedPayment) return;
+    const timer = setTimeout(() => setDeletedPayment(null), 6000);
+    return () => clearTimeout(timer);
+  }, [deletedPayment]);
 
   const handleCopyInviteLink = async () => {
     const inviteUrl = `${window.location.origin}/invite/${project.id}`;
@@ -322,11 +343,25 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
     });
   };
 
-  const handleDeletePayment = (paymentId) => {
-    if (!window.confirm("この支払い記録を削除しますか？")) return;
+  // 確認ダイアログは出さずにすぐ消し、代わりに「元に戻す」を数秒間表示する
+  const handleDeletePayment = () => {
+    const payment = editingPayment;
+    if (!payment) return;
+    setEditingPayment(null);
+    setDeletedPayment(payment);
     startTransition(async () => {
-      applyOptimistic({ type: "delete", id: paymentId });
-      await deletePayment(project.id, paymentId);
+      applyOptimistic({ type: "delete", id: payment.id });
+      await deletePayment(project.id, payment.id);
+    });
+  };
+
+  const handleUndoDelete = () => {
+    const payment = deletedPayment;
+    if (!payment) return;
+    setDeletedPayment(null);
+    startTransition(async () => {
+      applyOptimistic({ type: "restore", payment });
+      await restorePayment(project.id, payment);
     });
   };
 
@@ -459,7 +494,6 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                     payerName={displayNames.get(payment.payerId) ?? "不明"}
                     onEdit={setEditingPayment}
                     onToggle={handleToggleSettled}
-                    onDelete={handleDeletePayment}
                   />
                 ))}
               </ul>
@@ -557,9 +591,25 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           defaultValues={editingPayment}
           onSubmit={handleEditPayment}
           onCancel={() => setEditingPayment(null)}
+          onDelete={handleDeletePayment}
           isPending={isPending}
           submitLabel="更新する"
         />
+      )}
+
+      {deletedPayment && (
+        <div
+          role="status"
+          className="fixed inset-x-4 bottom-24 z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink py-2 pr-2 pl-4.5 text-sm text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)] lg:bottom-8">
+          <span className="min-w-0 truncate">
+            「{deletedPayment.memo || `${displayNames.get(deletedPayment.payerId)}の支払い`}」を削除しました
+          </span>
+          <button
+            onClick={handleUndoDelete}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3.5 font-bold text-primary-light transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-primary-light">
+            元に戻す
+          </button>
+        </div>
       )}
 
       {isEditingProject && (
@@ -578,62 +628,49 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   );
 }
 
-function PaymentRow({ payment, payerName, onEdit, onToggle, onDelete }) {
+// チェックで精算済みを切り替え、それ以外の部分をタップすると編集シートが開く
+function PaymentRow({ payment, payerName, onEdit, onToggle }) {
   const { id: paymentId, memo, amount, isSettled } = payment;
   // 保存中の仮の行はまだIDが確定していないので操作できない
   const isPending = String(paymentId).startsWith("pending-");
-
-  const handleToggle = () => onToggle(paymentId, !isSettled);
-  const handleDelete = () => onDelete(paymentId);
-
-  const iconButtonClass =
-    "flex size-10 items-center justify-center rounded-lg text-ink-muted transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-60";
+  const title = memo || `${payerName}の支払い`;
 
   return (
-    <li className="flex items-center gap-2 px-2 py-4 sm:gap-3 sm:px-3">
+    <li className="flex items-center gap-1 px-2 sm:gap-2 sm:px-3">
       <label className="flex size-11 flex-none cursor-pointer items-center justify-center">
         <input
           type="checkbox"
           checked={isSettled}
           disabled={isPending}
-          onChange={handleToggle}
-          aria-label={isSettled ? "精算済みを解除" : "精算済みにする"}
+          onChange={() => onToggle(paymentId, !isSettled)}
+          aria-label={isSettled ? `「${title}」の精算済みを解除` : `「${title}」を精算済みにする`}
           className="size-5.5 cursor-pointer accent-primary"
         />
       </label>
 
-      {/* 支払い内容が主、支払者が従。内容が空なら支払者を主にする */}
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className={`break-words text-[17px] font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
-          {memo || `${payerName}の支払い`}
+      <button
+        type="button"
+        onClick={() => onEdit(payment)}
+        disabled={isPending}
+        aria-label={`「${title}」を編集`}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-4 pr-2 pl-1 text-left transition-colors hover:bg-sky-ground/60 focus-visible:outline-2 focus-visible:outline-primary active:bg-sky-ground disabled:opacity-60">
+        {/* 支払い内容が主、支払者が従。内容が空なら支払者を主にする */}
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className={`break-words text-[17px] font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
+            {title}
+          </span>
+          <span className={`text-sm ${isSettled ? "text-ink-faint" : "text-ink-sub"}`}>
+            {memo ? `${payerName}が支払い` : ""}
+            {memo && isSettled ? "／" : ""}
+            {isSettled ? "精算済み" : ""}
+          </span>
         </span>
-        <span className={`text-sm ${isSettled ? "text-ink-faint" : "text-ink-sub"}`}>
-          {memo ? `${payerName}が支払い` : ""}
-          {memo && isSettled ? "／" : ""}
-          {isSettled ? "精算済み" : ""}
+
+        <span className={`shrink-0 amount text-xl ${isSettled ? "text-ink-faint line-through" : ""}`}>
+          {formatYen(amount)}
         </span>
-      </div>
-
-      <span className={`shrink-0 amount text-xl ${isSettled ? "text-ink-faint line-through" : ""}`}>
-        {formatYen(amount)}
-      </span>
-
-      <div className="flex">
-        <button
-          onClick={() => onEdit(payment)}
-          disabled={isPending}
-          aria-label="支払いを編集"
-          className={`${iconButtonClass} hover:text-primary`}>
-          <PencilIcon />
-        </button>
-        <button
-          onClick={handleDelete}
-          disabled={isPending}
-          aria-label="支払いを削除"
-          className={`${iconButtonClass} hover:text-pay`}>
-          <TrashIcon />
-        </button>
-      </div>
+        <span aria-hidden="true" className="shrink-0 text-lg text-ink-faint">›</span>
+      </button>
     </li>
   );
 }

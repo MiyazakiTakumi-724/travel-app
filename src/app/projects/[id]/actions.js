@@ -126,6 +126,34 @@ export async function editPayment(projectId, paymentId, formData) {
   revalidatePath(`/projects/${projectId}`);
 }
 
+// 削除を「元に戻す」ときに、同じIDと作成日時のまま作り直す（一覧の並び順も元どおりになる）
+export async function restorePayment(projectId, payment) {
+  const session = await auth();
+  if (!session?.user?.id) return;
+  if (!(await assertMember(projectId, session.user.id))) return;
+
+  const amount = Number(payment?.amount);
+  if (!payment?.id || !amount || amount <= 0) return;
+  if ((await filterParticipantIds(projectId, [payment.payerId])).length === 0) return;
+
+  const exists = await prisma.payment.findUnique({ where: { id: payment.id } });
+  if (exists) return;
+
+  await prisma.payment.create({
+    data: {
+      id: payment.id,
+      payerId: payment.payerId,
+      memo: payment.memo ?? "",
+      amount,
+      isSettled: Boolean(payment.isSettled),
+      createdAt: payment.createdAt ? new Date(payment.createdAt) : undefined,
+      projectId,
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+}
+
 export async function deletePayment(projectId, paymentId) {
   const session = await auth();
   if (!session?.user?.id) return;
