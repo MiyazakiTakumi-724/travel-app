@@ -32,7 +32,7 @@ export default function JoinNicknameForm({ projectId, projectTitle }) {
               className={textFieldClass}
               placeholder="例：たろう"
             />
-            <button type="submit" className={`${primaryButtonClass} min-h-[54px] text-base`}>
+            <button type="submit" className={`${primaryButtonClass} min-h-13.5 text-base`}>
               参加する
             </button>
           </form>

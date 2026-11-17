@@ -79,7 +79,7 @@ export function ModalActions({ submitLabel, onCancel, disabled }) {
         <button
           type="button"
           onClick={onCancel}
-          className="hidden min-h-[54px] items-center px-4 text-sm font-bold text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-primary sm:inline-flex"
+          className="hidden min-h-13.5 items-center px-4 text-sm font-bold text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-primary sm:inline-flex"
         >
           キャンセル
         </button>
@@ -87,7 +87,7 @@ export function ModalActions({ submitLabel, onCancel, disabled }) {
       <button
         type="submit"
         disabled={disabled}
-        className={`${primaryButtonClass} min-h-[54px] flex-1 text-base`}
+        className={`${primaryButtonClass} min-h-13.5 flex-1 text-base`}
       >
         {submitLabel}
       </button>

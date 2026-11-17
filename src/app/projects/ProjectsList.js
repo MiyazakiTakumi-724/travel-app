@@ -37,14 +37,14 @@ export default function ProjectsList({ projects }) {
                 </button>
             </SiteHeader>
 
-            <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-8 px-5 pt-8 pb-24 sm:px-6 sm:pt-12">
+            <main className="mx-auto flex w-full max-w-280 flex-1 flex-col gap-8 px-5 pt-8 pb-24 sm:px-6 sm:pt-12">
                 <div className="flex flex-wrap items-end justify-between gap-5">
                     <h1 className="font-display text-[clamp(30px,4vw,40px)]">
                         マイプロジェクト
                     </h1>
                     <button
                         onClick={() => setisOpen(true)}
-                        className={`${primaryButtonClass} min-h-[52px] gap-2.5 px-6 text-base`}>
+                        className={`${primaryButtonClass} min-h-13 gap-2.5 px-6 text-base`}>
                         <PlusIcon />
                         新しい旅行を作成
                     </button>
@@ -54,7 +54,7 @@ export default function ProjectsList({ projects }) {
                 {projects.length === 0 ? (
                     <button
                         onClick={() => setisOpen(true)}
-                        className={`${addTripButtonClass} min-h-[260px] w-full text-lg`}>
+                        className={`${addTripButtonClass} min-h-65 w-full text-lg`}>
                         <PlusIcon size={28} strokeWidth={2} />
                         最初の旅行を作成
                         <span className="text-sm font-medium text-ink-sub">まだ旅行がありません</span>
@@ -68,7 +68,7 @@ export default function ProjectsList({ projects }) {
                                 href={`/projects/${project.id}`}
                                 className="group flex flex-col text-ink drop-shadow-[0_12px_16px_rgb(21_128_196/0.12)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
                             >
-                                <div className="ticket-top px-7 pt-6 pb-[18px]">
+                                <div className="ticket-top px-7 pt-6 pb-4.5">
                                     <h2 className="truncate text-2xl font-black transition-colors group-hover:text-primary">
                                         {project.title}
                                     </h2>
@@ -83,7 +83,7 @@ export default function ProjectsList({ projects }) {
 
                         <button
                             onClick={() => setisOpen(true)}
-                            className={`${addTripButtonClass} min-h-[150px] text-[15px]`}>
+                            className={`${addTripButtonClass} min-h-37.5 text-[15px]`}>
                             <PlusIcon size={28} strokeWidth={2} />
                             旅行を追加
                         </button>

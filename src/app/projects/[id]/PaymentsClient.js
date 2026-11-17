@@ -339,7 +339,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         </Link>
       </SiteHeader>
 
-      <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col gap-8 px-5 pt-6 pb-12 sm:px-6 sm:pt-10">
+      <main className="mx-auto flex w-full max-w-280 flex-1 flex-col gap-8 px-5 pt-6 pb-12 sm:px-6 sm:pt-10">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="flex min-w-0 flex-col gap-2">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -407,7 +407,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             {payments.length === 0 ? (
               <button
                 onClick={() => setisOpen(true)}
-                className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line-dashed font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary">
+                className="flex min-h-45 flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line-dashed font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary">
                 <PlusIcon size={24} />
                 最初の支払いを記録
               </button>
@@ -431,13 +431,13 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           {payments.length > 0 && (
             <aside aria-labelledby="settlement-heading" className="order-first flex min-w-0 flex-col gap-7 lg:order-none">
               <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
-                <div className="ticket-top px-[26px] pt-[22px] pb-4">
+                <div className="ticket-top px-6.5 pt-5.5 pb-4">
                   <h2 id="settlement-heading" className="text-sm font-bold text-ink-sub">{balanceLabel}</h2>
                   <p className={`mt-0.5 font-display text-[44px] leading-tight ${ticketBalanceClass}`}>
                     {formatYen(Math.abs(myBalance))}
                   </p>
                 </div>
-                <div className="ticket-bottom px-[26px] pt-4 pb-5">
+                <div className="ticket-bottom px-6.5 pt-4 pb-5">
                   {mine.length > 0 ? (
                     <ul className="flex flex-col gap-1.5">
                       {mine.map((transfer, index) => (
@@ -480,7 +480,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
 
       {/* 自分の収支（PCでは精算券と重複するのでスマホのみ） */}
       <div className="sticky bottom-0 bg-ink text-white lg:hidden">
-        <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
+        <div className="mx-auto flex w-full max-w-280 items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
           <span className="min-w-0 text-sm font-bold text-line-soft">{balanceLabel}</span>
           <span className={`shrink-0 font-display text-2xl ${barBalanceClass}`}>
             {formatSignedYen(myBalance)}
@@ -550,7 +550,7 @@ function PaymentRow({ payment, payerName, onEdit, onToggle, onDelete }) {
           disabled={isPending}
           onChange={handleToggle}
           aria-label={isSettled ? "精算済みを解除" : "精算済みにする"}
-          className="size-[22px] cursor-pointer accent-primary"
+          className="size-5.5 cursor-pointer accent-primary"
         />
       </label>
 

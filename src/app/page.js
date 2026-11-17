@@ -51,14 +51,14 @@ export default async function Home({ searchParams }) {
     <div className="flex min-h-screen flex-col">
       <SiteHeader>
         <form action={signInWithGoogle}>
-          <button type="submit" className={`${secondaryButtonClass} min-h-11 px-[18px] text-sm`}>
+          <button type="submit" className={`${secondaryButtonClass} min-h-11 px-4.5 text-sm`}>
             ログイン
           </button>
         </form>
       </SiteHeader>
 
       <main className="flex-1">
-        <section className="mx-auto grid w-full max-w-[1120px] items-center gap-12 px-5 pt-10 pb-20 sm:px-6 md:grid-cols-[1.1fr_1fr] md:gap-14 md:pt-16 md:pb-24">
+        <section className="mx-auto grid w-full max-w-280 items-center gap-12 px-5 pt-10 pb-20 sm:px-6 md:grid-cols-[1.1fr_1fr] md:gap-14 md:pt-16 md:pb-24">
           <div className="flex min-w-0 flex-col gap-6">
             <h1 className="font-display text-[clamp(40px,6.4vw,76px)] leading-[1.12]">
               旅行清算アプリ
@@ -69,7 +69,7 @@ export default async function Home({ searchParams }) {
             <form action={signInWithGoogle} className="mt-3">
               <button
                 type="submit"
-                className="inline-flex min-h-[52px] items-center gap-3 rounded-md border border-[#747775] bg-white pr-6 pl-4 font-medium text-[#1F1F1F] transition-colors hover:bg-[#F7F8F8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="inline-flex min-h-13 items-center gap-3 rounded-md border border-[#747775] bg-white pr-6 pl-4 font-medium text-[#1F1F1F] transition-colors hover:bg-[#F7F8F8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <GoogleIcon size={20} />
                 Googleでログイン
@@ -80,9 +80,9 @@ export default async function Home({ searchParams }) {
           <div
             role="img"
             aria-label="精算の例：じろうさんがはなこさんに13,000円支払う"
-            className="mx-auto w-full max-w-[440px] -rotate-2 drop-shadow-[0_24px_28px_rgb(21_128_196/0.18)]"
+            className="mx-auto w-full max-w-110 -rotate-2 drop-shadow-[0_24px_28px_rgb(21_128_196/0.18)]"
           >
-            <div className="ticket-top px-6 pt-5 pb-6 sm:px-[30px]">
+            <div className="ticket-top px-6 pt-5 pb-6 sm:px-7.5">
               <div className="flex items-baseline justify-between gap-3 border-b-2 border-dashed border-line-dashed pb-4">
                 <span className="font-bold">沖縄旅行</span>
                 <span className="text-sm text-ink-sub">4人で精算</span>
@@ -94,7 +94,7 @@ export default async function Home({ searchParams }) {
               </div>
               <div className="mt-2 font-display text-[38px] text-pay sm:text-[48px]">¥13,000</div>
             </div>
-            <div className="ticket-bottom grid gap-1 px-6 pt-4 pb-5 text-[15px] sm:px-[30px]">
+            <div className="ticket-bottom grid gap-1 px-6 pt-4 pb-5 text-[15px] sm:px-7.5">
               {sampleTransfers.map(([label, amount]) => (
                 <div key={label} className="flex justify-between">
                   <span>{label}</span>
@@ -106,7 +106,7 @@ export default async function Home({ searchParams }) {
         </section>
 
         <section aria-labelledby="how-heading" className="bg-paper">
-          <div className="mx-auto w-full max-w-[1120px] px-5 pt-[72px] pb-24 sm:px-6">
+          <div className="mx-auto w-full max-w-280 px-5 pt-18 pb-24 sm:px-6">
             <h2 id="how-heading" className="font-display text-3xl">
               使い方
             </h2>
@@ -125,7 +125,7 @@ export default async function Home({ searchParams }) {
                         index === steps.length - 1 ? "border-pay" : "border-primary"
                       }`}
                     />
-                    <h3 className="text-lg font-black md:mt-[18px]">{step.title}</h3>
+                    <h3 className="text-lg font-black md:mt-4.5">{step.title}</h3>
                     <p className="mt-1.5 max-w-[18em] text-[15px] leading-[1.8] text-ink-sub">{step.description}</p>
                   </li>
                 ))}
@@ -135,7 +135,7 @@ export default async function Home({ searchParams }) {
         </section>
       </main>
 
-      <footer className="mx-auto w-full max-w-[1120px] px-5 py-6 text-[13px] text-ink-muted sm:px-6">
+      <footer className="mx-auto w-full max-w-280 px-5 py-6 text-[13px] text-ink-muted sm:px-6">
         © 旅行清算アプリ
       </footer>
     </div>
