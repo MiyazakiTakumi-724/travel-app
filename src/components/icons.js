@@ -43,11 +43,20 @@ export function CalendarIcon(props) {
   );
 }
 
-export function TicketIcon(props) {
+export function ListIcon(props) {
   return (
     <Icon {...props}>
-      <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a3 3 0 0 0 0 6v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a3 3 0 0 0 0-6z" />
-      <path d="M13 5v2M13 11v2M13 17v2" />
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01" strokeWidth={3} />
+    </Icon>
+  );
+}
+
+export function ReceiptIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+      <path d="M9 8h6M9 12h6" />
     </Icon>
   );
 }

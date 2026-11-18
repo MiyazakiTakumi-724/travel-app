@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDisplayNames, calculateSettlements } from "./settlement";
+import { buildDisplayNames, calculateSettlements, summarizeSettlement } from "./settlement";
 
 const people = (...names) => names.map((name, index) => ({ id: `p${index + 1}`, name }));
 const pay = (payerId, amount, isSettled = false) => ({ payerId, amount, isSettled });
@@ -99,6 +99,41 @@ describe("buildDisplayNames", () => {
       b: "はなこ",
       c: "たろう（2）",
       d: "たろう（3）",
+    });
+  });
+});
+
+describe("summarizeSettlement", () => {
+  it("未精算と精算済みを分けて数え、メンバーごとの払った額・負担額・収支を出す", () => {
+    const participants = people("まさのり", "田中 太郎", "はなこ");
+    const payments = [
+      pay("p1", 24000),
+      pay("p2", 9000),
+      pay("p1", 4500),
+      pay("p3", 6300),
+      pay("p3", 1500, true),
+    ];
+
+    const summary = summarizeSettlement(participants, payments);
+
+    expect(summary).toMatchObject({ unsettledCount: 4, unsettledTotal: 43800, settledCount: 1, settledTotal: 1500, share: 14600 });
+    expect(summary.rows).toEqual([
+      { id: "p1", paid: 28500, share: 14600, balance: 13900 },
+      { id: "p2", paid: 9000, share: 14600, balance: -5600 },
+      { id: "p3", paid: 6300, share: 14600, balance: -8300 },
+    ]);
+    expect(summary.transfers).toEqual([
+      { from: "p3", to: "p1", amount: 8300 },
+      { from: "p2", to: "p1", amount: 5600 },
+    ]);
+  });
+
+  it("支払いがなければ、すべて0で送金もない", () => {
+    expect(summarizeSettlement(people("あきら", "ゆうき"), [])).toMatchObject({
+      unsettledTotal: 0,
+      settledTotal: 0,
+      share: 0,
+      transfers: [],
     });
   });
 });

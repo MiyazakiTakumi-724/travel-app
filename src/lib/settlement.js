@@ -54,3 +54,29 @@ export function calculateSettlements(participants, payments) {
 
   return { transfers, balances };
 }
+
+// 精算タブのレシートに出す内訳をまとめて計算する。
+// 精算済みの支払いは件数と金額だけ数え、精算の計算（1人あたり・収支・送金）には入れない
+export function summarizeSettlement(participants, payments) {
+  const unsettled = payments.filter((payment) => !payment.isSettled);
+  const settled = payments.filter((payment) => payment.isSettled);
+  const sum = (list) => list.reduce((total, payment) => total + payment.amount, 0);
+  const unsettledTotal = sum(unsettled);
+  const share = participants.length > 0 ? unsettledTotal / participants.length : 0;
+  const { transfers, balances } = calculateSettlements(participants, payments);
+
+  return {
+    unsettledCount: unsettled.length,
+    unsettledTotal,
+    settledCount: settled.length,
+    settledTotal: sum(settled),
+    share,
+    rows: participants.map((participant) => ({
+      id: participant.id,
+      paid: sum(unsettled.filter((payment) => payment.payerId === participant.id)),
+      share,
+      balance: balances.get(participant.id) ?? 0,
+    })),
+    transfers,
+  };
+}

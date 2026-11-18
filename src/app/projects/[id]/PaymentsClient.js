@@ -19,8 +19,9 @@ import {
   CloseIcon,
   LinkIcon,
   CalendarIcon,
+  ListIcon,
   PlusIcon,
-  TicketIcon,
+  ReceiptIcon,
   UsersIcon,
 } from "@/components/icons";
 import {
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui";
 import { formatSignedYen, formatTripPeriod, formatYen } from "@/lib/format";
 import ScheduleSection from "./ScheduleSection";
+import SettlementReceipt from "./SettlementReceipt";
 import { splitAmount } from "@/lib/split";
 import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
 import { applyPaymentChange, initialMemoChoice, MEMO_OPTIONS, OTHER } from "@/lib/payments";
@@ -178,28 +180,17 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
   );
 }
 
-// 自分が関わる送金を「〇〇さんへ／〇〇さんから」の形で表示する
-function MySettlementRow({ transfer, currentParticipantId, displayNames }) {
-  const isPaying = transfer.from === currentParticipantId;
-  return (
-    <li className="flex justify-between gap-3 font-bold">
-      <span className="min-w-0 wrap-break-word">
-        {isPaying
-          ? `${displayNames.get(transfer.to)}さんへ`
-          : `${displayNames.get(transfer.from)}さんから`}
-      </span>
-      <span className={`shrink-0 ${isPaying ? "text-pay" : "text-primary"}`}>
-        {formatYen(transfer.amount)}
-      </span>
-    </li>
-  );
-}
-
-// スマホで下に並べるタブ（PCは「日程調整」と「支払い・精算」の2つに分け、メンバーは支払い・精算の横に並べる）
+// スマホで下に並べるタブ（PCは「日程調整・支払い・精算」の3つに分け、メンバーは支払いの横に並べる）
 const TABS = [
   { id: "schedule", label: "日程", Icon: CalendarIcon },
-  { id: "main", label: "支払い・精算", Icon: TicketIcon },
+  { id: "payments", label: "支払い", Icon: ListIcon },
+  { id: "settle", label: "精算", Icon: ReceiptIcon },
   { id: "members", label: "メンバー", Icon: UsersIcon },
+];
+const DESKTOP_TABS = [
+  { id: "schedule", label: "日程調整", Icon: CalendarIcon },
+  { id: "payments", label: "支払い", Icon: ListIcon },
+  { id: "settle", label: "精算", Icon: ReceiptIcon },
 ];
 
 export default function PaymentsClient({ project, currentParticipantId, isOwner }) {
@@ -207,20 +198,22 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const searchParams = useSearchParams();
 
   // 開いているタブ。URL（?tab=）にも残して、再読み込みしても同じタブに戻れるようにする。
-  // 指定がなければ、日程を調整中のときは日程調整から、決まっていれば支払い・精算から始める
+  // 指定がなければ、日程を調整中なら日程調整、支払いがあれば精算、まだなければ支払いから始める
   const [tab, setTab] = useState(() => {
     const fromUrl = searchParams.get("tab");
     if (TABS.some((t) => t.id === fromUrl)) return fromUrl;
     const isScheduling = !project.startDate && !project.endDate && Boolean(project.days);
-    return isScheduling ? "schedule" : "main";
+    if (isScheduling) return "schedule";
+    return project.payments.length > 0 ? "settle" : "payments";
   });
   const selectTab = (id) => {
     setTab(id);
     window.history.replaceState(null, "", `?tab=${id}`);
     window.scrollTo({ top: 0 });
   };
-  // スマホで、選んでいないタブの中身を隠すためのクラス
-  const panelClass = (id) => (tab === id ? "" : "max-lg:hidden");
+  // 支払いとメンバーは、PCでは「支払い」の画面に並べ、スマホではそれぞれのタブに分ける
+  const onPaymentsView = tab === "payments" || tab === "members";
+  const panelClass = (id) => (tab === id ? "" : onPaymentsView ? "max-lg:hidden" : "hidden");
 
   // useState初期値設定
   const [isOpen, setisOpen] = useState(false);
@@ -366,24 +359,13 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   };
 
   const displayNames = buildDisplayNames(project.participants);
-  const { transfers: settlements, balances } = calculateSettlements(
-    project.participants,
-    payments
-  );
-  const mine = settlements.filter(
-    (t) => t.from === currentParticipantId || t.to === currentParticipantId
-  );
-  const others = settlements.filter(
-    (t) => t.from !== currentParticipantId && t.to !== currentParticipantId
-  );
+  const { balances } = calculateSettlements(project.participants, payments);
 
   const myBalance = Math.round(balances.get(currentParticipantId) ?? 0);
   const totalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
   const balanceLabel =
     myBalance > 0 ? "あなたが受け取る金額" : myBalance < 0 ? "あなたが支払う金額" : "あなたの精算";
-  const ticketBalanceClass =
-    myBalance > 0 ? "text-primary" : myBalance < 0 ? "text-pay" : "text-ink-faint";
   const barBalanceClass =
     myBalance > 0 ? "text-primary-light" : myBalance < 0 ? "text-pay-light" : "text-line-soft";
 
@@ -439,12 +421,9 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         </div>
 
         {/* PC用の切り替え（スマホは画面下のタブ） */}
-        <div role="tablist" aria-label="表示の切り替え" className="grid w-fit grid-cols-2 rounded-xl bg-paper p-1 max-lg:hidden">
-          {[
-            { id: "schedule", label: "日程調整", Icon: CalendarIcon },
-            { id: "main", label: "支払い・精算", Icon: TicketIcon },
-          ].map(({ id, label, Icon }) => {
-            const selected = id === "schedule" ? tab === "schedule" : tab !== "schedule";
+        <div role="tablist" aria-label="表示の切り替え" className="grid w-fit grid-cols-3 rounded-xl bg-paper p-1 max-lg:hidden">
+          {DESKTOP_TABS.map(({ id, label, Icon }) => {
+            const selected = tab === id || (id === "payments" && tab === "members");
             return (
               <button
                 key={id}
@@ -469,12 +448,22 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           />
         </section>
 
-        <div className={`grid items-start gap-8 lg:grid-cols-[1fr_380px] lg:gap-10 ${tab === "schedule" ? "hidden" : ""}`}>
+        <section id="panel-settle" role="tabpanel" aria-label="精算" className={tab === "settle" ? "" : "hidden"}>
+          <SettlementReceipt
+            participants={project.participants}
+            payments={payments}
+            displayNames={displayNames}
+            currentParticipantId={currentParticipantId}
+            onRecord={() => setisOpen(true)}
+          />
+        </section>
+
+        <div className={`grid items-start gap-8 lg:grid-cols-[1fr_380px] lg:gap-10 ${onPaymentsView ? "" : "hidden"}`}>
           <section
-            id="panel-main"
+            id="panel-payments"
             role="tabpanel"
             aria-labelledby="payments-heading"
-            className={`flex min-w-0 flex-col gap-3.5 lg:row-span-2 ${panelClass("main")}`}>
+            className={`flex min-w-0 flex-col gap-3.5 ${panelClass("payments")}`}>
             <div className="flex items-baseline justify-between gap-4">
               <h2 id="payments-heading" className="text-xl font-black">支払い記録</h2>
               <span className="text-sm text-ink-sub">合計 {formatYen(totalAmount)}</span>
@@ -502,63 +491,12 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             )}
           </section>
 
-          {/* 自分の精算をきっぷ風に表示。スマホでは支払い記録より上に出す */}
-          {payments.length > 0 && (
-            <aside
-              aria-labelledby="settlement-heading"
-              className={`flex min-w-0 flex-col gap-7 max-lg:order-first ${panelClass("main")}`}>
-              <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
-                <div className="ticket-top px-6.5 pt-5.5 pb-4">
-                  <h2 id="settlement-heading" className="text-sm font-bold text-ink-sub">{balanceLabel}</h2>
-                  <p className={`mt-0.5 amount text-[48px] leading-tight ${ticketBalanceClass}`}>
-                    {formatYen(Math.abs(myBalance))}
-                  </p>
-                </div>
-                <div className="ticket-bottom px-6.5 pt-4 pb-5">
-                  {mine.length > 0 ? (
-                    <ul className="flex flex-col gap-1.5">
-                      {mine.map((transfer, index) => (
-                        <MySettlementRow
-                          key={index}
-                          transfer={transfer}
-                          currentParticipantId={currentParticipantId}
-                          displayNames={displayNames}
-                        />
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-ink-sub">
-                      {settlements.length === 0 ? "精算の必要はありません" : "あなたの送金・受け取りはありません"}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {others.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  <h3 className="font-black">ほかのメンバーの精算</h3>
-                  <ul className="flex flex-col gap-0.5 overflow-hidden rounded-lg">
-                    {others.map((transfer, index) => (
-                      <li key={index} className="flex justify-between gap-3 bg-paper px-4 py-3 text-[15px]">
-                        <span className="min-w-0 wrap-break-word">
-                          {displayNames.get(transfer.from)} <span className="text-pay">→</span>{" "}
-                          {displayNames.get(transfer.to)}
-                        </span>
-                        <b className="shrink-0">{formatYen(transfer.amount)}</b>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </aside>
-          )}
-
-          {/* メンバー。スマホは「メンバー」タブ、PCは右の列の精算の下に出す */}
+          {/* メンバー。スマホは「メンバー」タブ、PCは「支払い」の右の列に出す */}
           <section
             id="panel-members"
             role="tabpanel"
             aria-labelledby="members-heading"
-            className={`flex min-w-0 flex-col gap-3.5 lg:col-start-2 ${panelClass("members")}`}>
+            className={`flex min-w-0 flex-col gap-3.5 ${panelClass("members")}`}>
             <div className="flex items-baseline justify-between gap-4">
               <h2 id="members-heading" className="text-xl font-black">メンバー</h2>
               <span className="text-sm text-ink-sub">{project.participants.length}人</span>
@@ -634,7 +572,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         <nav
           role="tablist"
           aria-label="表示の切り替え"
-          className="grid grid-cols-3 border-t border-line-soft bg-paper pb-[env(safe-area-inset-bottom)]">
+          className="grid grid-cols-4 border-t border-line-soft bg-paper pb-[env(safe-area-inset-bottom)]">
           {TABS.map(({ id, label, Icon }) => (
             <button
               key={id}

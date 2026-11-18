@@ -106,7 +106,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
             )}
           </div>
         </div>
-        <p className="text-sm text-ink-sub">支払いの記録と精算は「支払い・精算」から。</p>
+        <p className="text-sm text-ink-sub">支払いの記録は「支払い」、精算は「精算」から。</p>
       </div>
     );
   }
