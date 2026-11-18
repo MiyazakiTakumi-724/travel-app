@@ -1,38 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyPaymentChange, initialMemoChoice, OTHER } from "./payments";
-import { splitAmount } from "./split";
+import { applyPaymentChange } from "./payments";
 import { formatPeriod, formatSignedYen, formatTripPeriod, formatYen } from "./format";
-
-describe("splitAmount", () => {
-  it("割り切れるときは均等に分ける", () => {
-    expect(splitAmount(9000, 2)).toEqual([4500, 4500]);
-  });
-
-  it("端数は先頭から1円ずつ乗せ、合計は元の金額と同じ", () => {
-    const amounts = splitAmount(1000, 3);
-    expect(amounts).toEqual([334, 333, 333]);
-    expect(amounts.reduce((a, b) => a + b, 0)).toBe(1000);
-  });
-
-  it("1人なら全額", () => {
-    expect(splitAmount(1234, 1)).toEqual([1234]);
-  });
-});
-
-describe("initialMemoChoice", () => {
-  it("候補にある内容はそのチップを選ぶ", () => {
-    expect(initialMemoChoice("宿")).toBe("宿");
-  });
-
-  it("候補にない内容は「その他」にする", () => {
-    expect(initialMemoChoice("レンタカー")).toBe(OTHER);
-  });
-
-  it("内容が空なら何も選ばない", () => {
-    expect(initialMemoChoice("")).toBeNull();
-    expect(initialMemoChoice(undefined)).toBeNull();
-  });
-});
 
 describe("applyPaymentChange", () => {
   const payments = [

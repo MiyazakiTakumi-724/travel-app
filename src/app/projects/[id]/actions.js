@@ -3,7 +3,6 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { splitAmount } from "@/lib/split";
 import { isValidAmount, isWithinLength, LIMITS } from "@/lib/limits";
 
 import {
@@ -101,28 +100,17 @@ export async function addPayment(projectId, formData) {
   if (!session?.user?.id) return LOGIN_REQUIRED;
   if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
 
-  const requestedPayerIds = [
-    ...new Set(formData.getAll("payerId").map((id) => id.toString()).filter(Boolean)),
-  ];
-  const payerIds = await filterParticipantIds(projectId, requestedPayerIds);
+  // 支払者は1人だけ
+  const payerIds = formData.getAll("payerId").map((id) => id.toString()).filter(Boolean);
   const memo = formData.get("memo")?.toString().trim();
   const amount = Number(formData.get("amount"));
 
-  if (payerIds.length === 0 || payerIds.length !== requestedPayerIds.length) return INVALID_INPUT;
+  if (payerIds.length !== 1) return INVALID_INPUT;
+  if ((await filterParticipantIds(projectId, payerIds)).length === 0) return INVALID_INPUT;
   if (!isValidAmount(amount)) return INVALID_AMOUNT;
   if (!isWithinLength(memo, LIMITS.memo)) return MEMO_TOO_LONG;
 
-  // 複数人が支払者の場合は金額を均等割りする
-  const amounts = splitAmount(amount, payerIds.length);
-
-  await prisma.payment.createMany({
-    data: payerIds.map((payerId, index) => ({
-      payerId,
-      memo,
-      amount: amounts[index],
-      projectId,
-    })),
-  });
+  await prisma.payment.create({ data: { payerId: payerIds[0], memo, amount, projectId } });
 
   revalidatePath(`/projects/${projectId}`);
   return { ok: true };

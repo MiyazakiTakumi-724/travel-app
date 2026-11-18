@@ -34,31 +34,15 @@ import {
 import { formatSignedYen, formatTripPeriod, formatYen } from "@/lib/format";
 import ScheduleSection from "./ScheduleSection";
 import SettlementReceipt from "./SettlementReceipt";
-import { splitAmount } from "@/lib/split";
 import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
-import { applyPaymentChange, initialMemoChoice, MEMO_OPTIONS, OTHER } from "@/lib/payments";
+import { applyPaymentChange } from "@/lib/payments";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { runServerAction } from "@/lib/runServerAction";
 import { LIMITS } from "@/lib/limits";
 
-function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, onDelete, isPending, submitLabel, allowMultiplePayers }) {
+function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, onDelete, isPending, submitLabel }) {
   // 新規のときは自分を支払者にしておく（自分で払った分を記録することが一番多いため）
-  const initialPayerId = defaultValues?.payerId ?? defaultPayerId ?? participants[0]?.id ?? "";
-  const [payer, setPayer] = useState(initialPayerId);
-  const [selectedPayers, setSelectedPayers] = useState(initialPayerId ? [initialPayerId] : []);
-  const [memoChoice, setMemoChoice] = useState(initialMemoChoice(defaultValues?.memo));
-  const [otherMemo, setOtherMemo] = useState(
-    initialMemoChoice(defaultValues?.memo) === OTHER ? defaultValues.memo : ""
-  );
-  const memo = memoChoice === OTHER ? otherMemo : memoChoice ?? "";
-
-  const togglePayer = (id) => {
-    setSelectedPayers((current) =>
-      current.includes(id) ? current.filter((n) => n !== id) : [...current, id]
-    );
-  };
-
-  const noPayerSelected = allowMultiplePayers && selectedPayers.length === 0;
+  const [payer, setPayer] = useState(defaultValues?.payerId ?? defaultPayerId ?? participants[0]?.id ?? "");
 
   return (
     <Modal title={title} onClose={onCancel}>
@@ -89,65 +73,36 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
           </span>
         </label>
 
-        {/* 支払い内容はチップから選ぶ。もう一度押すと選択を外せる */}
-        <fieldset className="flex min-w-0 flex-col">
-          <legend className={`${fieldLabelClass} mb-2.5`}>支払い内容</legend>
-          <input type="hidden" name="memo" value={memo} />
-          <div className="flex flex-wrap gap-2">
-            {[...MEMO_OPTIONS, OTHER].map((option) => {
-              const selected = memoChoice === option;
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => setMemoChoice(selected ? null : option)}
-                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-line-dashed bg-paper px-4 text-[15px] font-bold text-ink transition-colors aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
-                >
-                  {selected && <CheckIcon />}
-                  {option}
-                </button>
-              );
-            })}
-          </div>
-          {memoChoice === OTHER && (
-            <input
-              type="text"
-              aria-label="支払い内容（自由入力）"
-              value={otherMemo}
-              onChange={(event) => setOtherMemo(event.target.value)}
-              maxLength={LIMITS.memo}
-              autoFocus
-              className={`${textFieldClass} mt-2.5`}
-              placeholder="例：レンタカー、スキー場のリフト券"
-            />
-          )}
-        </fieldset>
+        <label className="flex flex-col gap-1.5">
+          <span className={fieldLabelClass}>支払い内容</span>
+          <input
+            type="text"
+            name="memo"
+            defaultValue={defaultValues?.memo}
+            maxLength={LIMITS.memo}
+            className={textFieldClass}
+            placeholder="例：夕食、レンタカー"
+          />
+        </label>
 
-        {/* 支払者（新規は複数選択のチェックボックス、編集は単一選択のラジオ）。見た目はチップ */}
+        {/* 支払者は1人だけ選ぶ。見た目はチップ */}
         <fieldset className="flex min-w-0 flex-col">
-          <legend className={`${fieldLabelClass} mb-2.5`}>
-            {allowMultiplePayers ? "支払者（複数選択で均等割り）" : "支払者"}
-          </legend>
+          <legend className={`${fieldLabelClass} mb-2.5`}>支払者</legend>
           <div className="flex flex-wrap gap-2">
             {participants.map((participant) => {
-              const selected = allowMultiplePayers
-                ? selectedPayers.includes(participant.id)
-                : payer === participant.id;
+              const selected = payer === participant.id;
               return (
                 <label
                   key={participant.id}
                   className="inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] border-line-dashed bg-paper px-4 text-[15px] font-bold text-ink transition-colors has-checked:border-primary has-checked:bg-primary has-checked:text-white has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink"
                 >
                   <input
-                    type={allowMultiplePayers ? "checkbox" : "radio"}
+                    type="radio"
                     name="payerId"
                     value={participant.id}
                     checked={selected}
-                    required={!allowMultiplePayers}
-                    onChange={() =>
-                      allowMultiplePayers ? togglePayer(participant.id) : setPayer(participant.id)
-                    }
+                    required
+                    onChange={() => setPayer(participant.id)}
                     className="sr-only"
                   />
                   {selected && <CheckIcon />}
@@ -156,16 +111,9 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
               );
             })}
           </div>
-          {noPayerSelected && (
-            <p role="alert" className="mt-2 text-xs text-pay">支払者を1人以上選択してください</p>
-          )}
         </fieldset>
 
-        <ModalActions
-          submitLabel={submitLabel}
-          onCancel={onCancel}
-          disabled={isPending || noPayerSelected}
-        />
+        <ModalActions submitLabel={submitLabel} onCancel={onCancel} disabled={isPending} />
 
         {onDelete && (
           <button
@@ -258,21 +206,19 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const [payments, applyOptimistic] = useOptimistic(project.payments, applyPaymentChange);
 
   const handleAddPayment = (formData) => {
-    const payerIds = formData.getAll("payerId").map(String);
-    const amount = Number(formData.get("amount"));
-    const memo = formData.get("memo")?.toString().trim();
-    const amounts = splitAmount(amount, payerIds.length);
     setisOpen(false);
     startTransition(async () => {
       applyOptimistic({
         type: "add",
-        payments: payerIds.map((payerId, index) => ({
-          id: `pending-${Date.now()}-${index}`,
-          payerId,
-          memo,
-          amount: amounts[index],
-          isSettled: false,
-        })),
+        payments: [
+          {
+            id: `pending-${Date.now()}`,
+            payerId: formData.get("payerId")?.toString(),
+            memo: formData.get("memo")?.toString().trim(),
+            amount: Number(formData.get("amount")),
+            isSettled: false,
+          },
+        ],
       });
       await save(() => addPayment(project.id, formData));
     });
@@ -597,7 +543,6 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           onCancel={() => setisOpen(false)}
           isPending={isPending}
           submitLabel="記録する"
-          allowMultiplePayers
         />
       )}
 

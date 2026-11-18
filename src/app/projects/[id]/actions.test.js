@@ -100,15 +100,15 @@ beforeEach(() => {
 });
 
 describe("addPayment", () => {
-  it("複数人の支払いは均等割りして記録する", async () => {
-    await addPayment("trip", form([["payerId", "pOwner"], ["payerId", "pMember"], ["memo", "夕食"], ["amount", "1001"]]));
-
-    const added = db.payments.filter((p) => p.memo === "夕食");
-    expect(added.map((p) => [p.payerId, p.amount])).toEqual([["pOwner", 501], ["pMember", 500]]);
+  it("支払者1人の支払いを記録する", async () => {
+    await addPayment("trip", form([["payerId", "pOwner"], ["memo", "夕食"], ["amount", "1001"]]));
+    expect(db.payments.filter((p) => p.memo === "夕食")).toEqual([expect.objectContaining({ payerId: "pOwner", amount: 1001 })]);
   });
 
-  it("ほかのプロジェクトの参加者IDが混ざっていたら記録しない", async () => {
-    await addPayment("trip", form([["payerId", "pMember"], ["payerId", "pOther"], ["amount", "1000"]]));
+  it("支払者が2人以上・いない・ほかのプロジェクトの参加者のときは記録しない", async () => {
+    await addPayment("trip", form([["payerId", "pOwner"], ["payerId", "pMember"], ["amount", "1000"]]));
+    await addPayment("trip", form([["amount", "1000"]]));
+    await addPayment("trip", form([["payerId", "pOther"], ["amount", "1000"]]));
     expect(db.payments).toHaveLength(1);
   });
 
