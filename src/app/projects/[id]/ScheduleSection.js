@@ -1,5 +1,5 @@
 "use client";
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 import {
   answerTentative,
   cancelTentative,
@@ -56,6 +56,14 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
   );
   const phase = schedulePhase(project, people);
 
+  // 全員の提出が終わった状態で作成者がページを開いたら、「日程を仮決定する」の欄から見せる
+  // （開いたときだけ。途中で全員の提出がそろっても、画面は勝手に動かさない）
+  const [scrollToChoose] = useState(() => phase === "choosing" && isOwner);
+  useEffect(() => {
+    const target = document.getElementById("choose");
+    if (scrollToChoose && target?.offsetParent) target.scrollIntoView({ block: "start" });
+  }, [scrollToChoose]);
+
   const run = (optimistic, action) => {
     startTransition(async () => {
       optimistic?.();
@@ -75,14 +83,14 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
 
   const propose = (startDate) => {
     const range = formatDateRange(startDate, tripEndDate(startDate, days));
-    if (!window.confirm(`${range} で仮決定しますか？\nメンバーに ○× で答えてもらい、全員が ○ なら確定します。`)) return;
+    if (!window.confirm(`${range} で仮決定しますか？`)) return;
     run(null, () => proposeSchedule(project.id, startDate));
   };
 
   // ---- 確定 ----
   if (phase === "decided") {
     const reopen = () => {
-      if (!window.confirm("日程を決め直しますか？\n提出された行ける日はそのまま使えます。")) return;
+      if (!window.confirm("日程を決め直しますか？")) return;
       run(null, () => reopenSchedule(project.id));
     };
     const decidedDays = project.startDate && project.endDate ? daysBetween(project.startDate, project.endDate) + 1 : null;
@@ -166,15 +174,12 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
         />
       )}
 
-      {phase === "choosing" &&
-        (isOwner ? (
-          <ChooseSchedule project={project} onPropose={propose} />
-        ) : (
-          <div className="flex flex-col items-center gap-2 rounded-xl bg-paper px-6 py-8 text-center">
-            <h3 className="font-black">全員の提出が終わりました</h3>
-            <p className="text-sm leading-relaxed text-ink-sub">作成者がみんなの行ける日を見て、日程を仮決定するのを待っています。</p>
-          </div>
-        ))}
+      {phase === "choosing" && !isOwner && (
+        <div className="flex flex-col items-center gap-2 rounded-xl bg-paper px-6 py-8 text-center">
+          <h3 className="font-black">全員の提出が終わりました</h3>
+          <p className="text-sm leading-relaxed text-ink-sub">作成者がみんなの行ける日を見て、日程を仮決定するのを待っています。</p>
+        </div>
+      )}
 
       {/* 自分の行ける日（仮決定のあとは、表で見るだけ） */}
       {phase !== "voting" && (
@@ -229,19 +234,22 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
           currentParticipantId={currentParticipantId}
         />
       </section>
+
+      {/* みんなの行ける日を見ながら選べるよう、表のすぐ下に置く */}
+      {phase === "choosing" && isOwner && <ChooseSchedule project={project} onPropose={propose} />}
     </div>
   );
 }
 
-// 作成者が、提出された行ける日（下の表）を見て、出発日を選んで仮決定する
+// 作成者が、提出された行ける日（上の表）を見て、出発日を選んで仮決定する
 function ChooseSchedule({ project, onPropose }) {
   const lastStart = addDays(project.rangeEnd, -(project.days - 1));
   const [startDate, setStartDate] = useState(project.rangeStart);
   const valid = Boolean(parseDate(startDate)) && fitsInRange(startDate, project);
 
   return (
-    <section className="flex flex-col gap-3.5" aria-labelledby="choose">
-      <SectionTitle id="choose" note="全員の提出が終わりました。下の表でみんなの行ける日を見て、出発日を選んでください。">
+    <section className="flex scroll-mt-4 flex-col gap-3.5" aria-labelledby="choose">
+      <SectionTitle id="choose" note="全員の提出が終わりました。上の表でみんなの行ける日を見て、出発日を選んでください。">
         日程を仮決定する
       </SectionTitle>
       <form

@@ -198,13 +198,12 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const searchParams = useSearchParams();
 
   // 開いているタブ。URL（?tab=）にも残して、再読み込みしても同じタブに戻れるようにする。
-  // 指定がなければ、日程を調整中なら日程調整、支払いがあれば精算、まだなければ支払いから始める
+  // 指定がなければ、日程を調整中なら日程調整、日程が決まっていれば支払いから始める
   const [tab, setTab] = useState(() => {
     const fromUrl = searchParams.get("tab");
     if (TABS.some((t) => t.id === fromUrl)) return fromUrl;
     const isScheduling = !project.startDate && !project.endDate && Boolean(project.days);
-    if (isScheduling) return "schedule";
-    return project.payments.length > 0 ? "settle" : "payments";
+    return isScheduling ? "schedule" : "payments";
   });
   const selectTab = (id) => {
     setTab(id);
@@ -565,7 +564,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
               onClick={() => setisOpen(true)}
               className={`${primaryButtonClass} min-h-11 shrink-0 rounded-full px-5 text-[15px]`}>
               <PlusIcon />
-              記録
+              支払い記録
             </button>
           </div>
         </div>
