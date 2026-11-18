@@ -1,4 +1,4 @@
-import { addDays, daysBetween, eachDay } from "./dates";
+import { addDays, daysBetween } from "./dates";
 
 export const MAX_DAYS = 14; // 旅行の日数の上限
 export const MAX_RANGE_DAYS = 92; // 行ける日を聞く期間は3か月まで
@@ -36,29 +36,6 @@ export function schedulePhase(project, participants) {
   if (project.tentativeStart) return "voting";
   if (participants.length > 0 && participants.every((p) => p.availabilitySubmitted)) return "choosing";
   return "collecting";
-}
-
-// participants: [{ id, availableDays: ["YYYY-MM-DD", ...] }]
-// 期間内のすべての開始日について、その日数の旅行に全日行ける人を数え、多い順に並べる
-export function findBestWindows({ rangeStart, rangeEnd, days, participants }) {
-  if (!rangeStart || !rangeEnd || !days) return [];
-  const lastStart = addDays(rangeEnd, -(days - 1));
-  if (daysBetween(rangeStart, lastStart) < 0) return [];
-
-  const available = participants.map((p) => ({ id: p.id, dates: new Set(p.availableDays) }));
-
-  return eachDay(rangeStart, lastStart)
-    .map((startDate) => {
-      const window = eachDay(startDate, tripEndDate(startDate, days));
-      const availableIds = available.filter((p) => window.every((date) => p.dates.has(date))).map((p) => p.id);
-      return {
-        startDate,
-        endDate: tripEndDate(startDate, days),
-        availableIds,
-        unavailableIds: available.filter((p) => !availableIds.includes(p.id)).map((p) => p.id),
-      };
-    })
-    .sort((a, b) => b.availableIds.length - a.availableIds.length || a.startDate.localeCompare(b.startDate));
 }
 
 // その日に行ける人数（表の一番下の行に出す）

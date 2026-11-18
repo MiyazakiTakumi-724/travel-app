@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   availableCount,
-  findBestWindows,
   fitsInRange,
   isValidDays,
   schedulePhase,
@@ -14,32 +13,6 @@ const participants = [
   { id: "b", availableDays: ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05"] },
   { id: "c", availableDays: ["2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"] },
 ];
-
-describe("findBestWindows", () => {
-  it("開始日ごとに全日行ける人を数え、多い順・日付順に並べる", () => {
-    const windows = findBestWindows({ rangeStart: "2026-11-01", rangeEnd: "2026-11-06", days: 2, participants });
-
-    // 開始日は 11/1〜11/5 の5通り（11/6 開始だと期間からはみ出す）
-    expect(windows.map((w) => [w.startDate, w.availableIds])).toEqual([
-      ["2026-11-03", ["a", "b", "c"]],
-      ["2026-11-02", ["a", "b"]],
-      ["2026-11-04", ["b", "c"]],
-      ["2026-11-01", ["a"]],
-      ["2026-11-05", ["c"]],
-    ]);
-    expect(windows[1]).toMatchObject({ endDate: "2026-11-03", unavailableIds: ["c"] });
-  });
-
-  it("1日でも行けない日が入っていれば、その人は行けない扱い", () => {
-    const [best] = findBestWindows({ rangeStart: "2026-11-01", rangeEnd: "2026-11-06", days: 4, participants });
-    expect(best).toMatchObject({ startDate: "2026-11-01", availableIds: ["a"] });
-  });
-
-  it("期間が旅行の日数より短い・未設定のときは空", () => {
-    expect(findBestWindows({ rangeStart: "2026-11-01", rangeEnd: "2026-11-02", days: 3, participants })).toEqual([]);
-    expect(findBestWindows({ rangeStart: null, rangeEnd: null, days: 3, participants })).toEqual([]);
-  });
-});
 
 describe("schedulePhase", () => {
   const project = { startDate: "", endDate: "", days: 3, rangeStart: "2026-11-01", rangeEnd: "2026-11-30", tentativeStart: null };

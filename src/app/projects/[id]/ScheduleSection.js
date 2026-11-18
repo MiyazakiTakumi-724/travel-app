@@ -10,9 +10,9 @@ import {
   unsubmitAvailability,
 } from "./scheduleActions";
 import { CheckIcon } from "@/components/icons";
-import { fieldLabelClass, primaryButtonClass, secondaryButtonClass, textButtonClass, textFieldClass } from "@/components/ui";
+import { fieldLabelClass, primaryButtonClass, textButtonClass, textFieldClass } from "@/components/ui";
 import { addDays, daysBetween, dayKind, eachDay, formatDateRange, formatDays, formatShortDate, holidayName, parseDate } from "@/lib/dates";
-import { availableCount, findBestWindows, fitsInRange, schedulePhase, tallyAnswers, tripEndDate } from "@/lib/schedule";
+import { availableCount, fitsInRange, schedulePhase, tallyAnswers, tripEndDate } from "@/lib/schedule";
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 const KIND_TEXT = { holiday: "text-pay", saturday: "text-primary", weekday: "text-ink" };
@@ -168,7 +168,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
 
       {phase === "choosing" &&
         (isOwner ? (
-          <ChooseSchedule project={project} people={people} displayNames={displayNames} onPropose={propose} />
+          <ChooseSchedule project={project} onPropose={propose} />
         ) : (
           <div className="flex flex-col items-center gap-2 rounded-xl bg-paper px-6 py-8 text-center">
             <h3 className="font-black">全員の提出が終わりました</h3>
@@ -181,7 +181,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
         <section className="flex flex-col gap-3.5" aria-labelledby="my-calendar">
           <SectionTitle
             id="my-calendar"
-            note={mySubmitted ? "提出済みです。変えるときは「修正する」を押してください。" : "行ける日をタップすると ○ が付きます。付け終わったら「提出する」を押してください。"}>
+            note={mySubmitted ? undefined : "行ける日をタップして選び、付け終わったら「提出する」を押してください。"}>
             自分の行ける日
           </SectionTitle>
           <MonthCalendars
@@ -195,7 +195,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-line-soft/60 px-4.5 py-3">
               <span className="inline-flex items-center gap-1.5 font-bold text-primary">
                 <CheckIcon />
-                提出済み（{myDates.length}日）
+                提出済み
               </span>
               <button
                 onClick={() => run(() => setMySubmitted(false), () => unsubmitAvailability(project.id))}
@@ -205,7 +205,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
             </div>
           ) : (
             <button onClick={submit} className={`${primaryButtonClass} min-h-13 text-base`}>
-              行ける日を提出する（{myDates.length}日）
+              行ける日を提出する
             </button>
           )}
         </section>
@@ -213,7 +213,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
 
       {/* 提出の状況とみんなの予定 */}
       <section className="flex flex-col gap-3.5" aria-labelledby="everyone">
-        <SectionTitle id="everyone" note="○ が行ける日です。表は横にスクロールできます。">
+        <SectionTitle id="everyone">
           みんなの行ける日
         </SectionTitle>
         {phase === "collecting" && (
@@ -233,73 +233,45 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
   );
 }
 
-// 作成者が、提出された行ける日を見て日程を仮決定する
-function ChooseSchedule({ project, people, displayNames, onPropose }) {
-  const windows = findBestWindows({
-    rangeStart: project.rangeStart,
-    rangeEnd: project.rangeEnd,
-    days: project.days,
-    participants: people,
-  });
+// 作成者が、提出された行ける日（下の表）を見て、出発日を選んで仮決定する
+function ChooseSchedule({ project, onPropose }) {
   const lastStart = addDays(project.rangeEnd, -(project.days - 1));
-  const [otherStart, setOtherStart] = useState(project.rangeStart);
+  const [startDate, setStartDate] = useState(project.rangeStart);
+  const valid = Boolean(parseDate(startDate)) && fitsInRange(startDate, project);
 
   return (
     <section className="flex flex-col gap-3.5" aria-labelledby="choose">
-      <SectionTitle id="choose" note="全員の提出が終わりました。行ける人が多い順に並べています。日程を選んで仮決定してください。">
+      <SectionTitle id="choose" note="全員の提出が終わりました。下の表でみんなの行ける日を見て、出発日を選んでください。">
         日程を仮決定する
       </SectionTitle>
-      {windows.length === 0 ? (
-        <p className="rounded-xl bg-paper px-4 py-3.5 text-sm text-ink-sub">期間が旅行の日数より短いため、日程を探せません。</p>
-      ) : (
-        <ul className="divide-y divide-sky-ground rounded-xl bg-paper">
-          {windows.slice(0, 5).map((w) => {
-            const everyone = w.unavailableIds.length === 0;
-            return (
-              <li key={w.startDate} className="flex items-center justify-between gap-3 px-4 py-3">
-                <div className="flex min-w-0 flex-col">
-                  <span className="font-bold">{formatDateRange(w.startDate, w.endDate)}</span>
-                  <span className={`text-sm ${everyone ? "font-bold text-primary" : "text-ink-sub"}`}>
-                    {everyone
-                      ? "全員行ける"
-                      : `${w.availableIds.length}人行ける（行けない：${namesOf(w.unavailableIds, displayNames)}）`}
-                  </span>
-                </div>
-                <button
-                  onClick={() => onPropose(w.startDate)}
-                  aria-label={`${formatDateRange(w.startDate, w.endDate)}で仮決定する`}
-                  className={`${everyone ? primaryButtonClass : secondaryButtonClass} min-h-11 shrink-0 px-4 text-sm`}>
-                  仮決定する
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {/* 一覧にない日を選ぶ */}
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (parseDate(otherStart) && fitsInRange(otherStart, project)) onPropose(otherStart);
+          if (valid) onPropose(startDate);
         }}
-        className="flex flex-col gap-2 rounded-xl border-2 border-dashed border-line-dashed px-4 py-3.5">
+        className="flex flex-col gap-3 rounded-xl bg-paper px-4.5 py-4">
         <label className="flex flex-col gap-1.5">
-          <span className={fieldLabelClass}>ほかの日程にする（出発日）</span>
+          <span className={fieldLabelClass}>出発日</span>
           <input
             type="date"
-            value={otherStart}
+            value={startDate}
             min={project.rangeStart}
             max={lastStart}
-            onChange={(e) => setOtherStart(e.target.value)}
-            className={`${textFieldClass} text-sm`}
+            onChange={(e) => setStartDate(e.target.value)}
+            required
+            className={textFieldClass}
           />
         </label>
-        {parseDate(otherStart) && fitsInRange(otherStart, project) && (
-          <p className="text-sm text-ink-sub">{formatDateRange(otherStart, tripEndDate(otherStart, project.days))}</p>
+        {valid ? (
+          <p className="font-bold">
+            {formatDateRange(startDate, tripEndDate(startDate, project.days))}
+            <span className="ml-2 text-sm font-medium text-ink-sub">{formatDays(project.days)}</span>
+          </p>
+        ) : (
+          <p className="text-sm font-bold text-pay">期間の中に収まる出発日を選んでください</p>
         )}
-        <button type="submit" className={`${secondaryButtonClass} min-h-11 text-sm`}>
-          この日程で仮決定
+        <button type="submit" disabled={!valid} className={`${primaryButtonClass} min-h-12`}>
+          この日程で仮決定する
         </button>
       </form>
     </section>
@@ -432,15 +404,10 @@ function MonthCalendars({ rangeStart, rangeEnd, available, locked, onToggle }) {
                     title={holiday ?? undefined}
                     disabled={locked}
                     onClick={() => onToggle(date)}
-                    className={`relative grid aspect-square place-items-center rounded-lg text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default ${
+                    className={`grid aspect-square place-items-center rounded-lg text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-default ${
                       on ? "bg-primary text-white" : `bg-sky-ground/70 enabled:hover:bg-line-soft ${KIND_TEXT[dayKind(date)]}`
                     } ${locked && !on ? "opacity-60" : ""}`}>
                     {Number(date.slice(8))}
-                    {on && (
-                      <span aria-hidden="true" className="absolute top-0.5 right-1 text-[10px] leading-none">
-                        ○
-                      </span>
-                    )}
                   </button>
                 );
               })}
