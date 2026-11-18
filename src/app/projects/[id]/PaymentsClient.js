@@ -142,7 +142,7 @@ function TodoDot() {
 // 端末の機能（共有メニューが使えるか）は変わらないので、変化を知らせる仕組みはいらない
 const noopSubscribe = () => () => {};
 
-// スマホで下に並べるタブ（PCは「日程調整・支払い・精算」の3つに分け、メンバーは支払いの横に並べる）
+// スマホで下に並べるタブ（PCは「日程・支払い・精算」の3つに分け、メンバーは支払いの横に並べる）
 const TABS = [
   { id: "schedule", label: "日程", Icon: CalendarIcon },
   { id: "payments", label: "支払い", Icon: ListIcon },
@@ -150,7 +150,7 @@ const TABS = [
   { id: "members", label: "メンバー", Icon: UsersIcon },
 ];
 const DESKTOP_TABS = [
-  { id: "schedule", label: "日程調整", Icon: CalendarIcon },
+  { id: "schedule", label: "日程", Icon: CalendarIcon },
   { id: "payments", label: "支払い", Icon: ListIcon },
   { id: "settle", label: "精算", Icon: ReceiptIcon },
 ];
@@ -413,7 +413,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           })}
         </div>
 
-        <section id="panel-schedule" role="tabpanel" aria-label="日程調整" className={tab === "schedule" ? "" : "hidden"}>
+        <section id="panel-schedule" role="tabpanel" aria-label="日程" className={tab === "schedule" ? "" : "hidden"}>
           <ScheduleSection
             project={project}
             currentParticipantId={currentParticipantId}
