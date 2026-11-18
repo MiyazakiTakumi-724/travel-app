@@ -53,6 +53,41 @@ export async function editProject(projectId, formData) {
   revalidatePath("/projects");
 }
 
+// 作成者がメンバーを外す。支払い記録が残っている人は、記録が消えたり精算額が変わったりしないよう外せない
+export async function removeParticipant(projectId, participantId) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "ログインしてください" };
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project || project.ownerId !== session.user.id) {
+    return { error: "メンバーを外せるのは作成者だけです" };
+  }
+
+  const participant = await prisma.participant.findFirst({
+    where: { id: participantId, projectId },
+    include: { _count: { select: { payments: true } } },
+  });
+  if (!participant) return { error: "メンバーが見つかりません" };
+  if (participant.userId === project.ownerId) return { error: "作成者は外せません" };
+  if (participant._count.payments > 0) {
+    return { error: `${participant.name}さんの支払い記録があるため外せません。先に支払いを編集するか削除してください` };
+  }
+
+  try {
+    await prisma.participant.delete({ where: { id: participant.id } });
+  } catch (error) {
+    // 確認のあとに支払いが記録された場合は、DBの制約で削除が止まる
+    if (error?.code === "P2003") {
+      return { error: `${participant.name}さんの支払い記録があるため外せません` };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  return { ok: true };
+}
+
 export async function deleteProject(projectId) {
   const session = await auth();
   if (!session?.user?.id) return;

@@ -8,6 +8,7 @@ import {
   deleteProject,
   editPayment,
   editProject,
+  removeParticipant,
   restorePayment,
   toggleSettled,
 } from "./actions";
@@ -389,6 +390,23 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
     });
   };
 
+  // メンバーを外したときのエラー表示（支払い記録がある人は外せない）
+  const [memberError, setMemberError] = useState("");
+
+  const handleRemoveMember = (participant) => {
+    const name = displayNames.get(participant.id);
+    setMemberError("");
+    if (payments.some((payment) => payment.payerId === participant.id)) {
+      setMemberError(`${name}さんの支払い記録があるため外せません。先に支払いを編集するか削除してください。`);
+      return;
+    }
+    if (!window.confirm(`${name}さんをメンバーから外しますか？\n外した人も、招待リンクからもう一度参加できます。`)) return;
+    startTransition(async () => {
+      const result = await removeParticipant(project.id, participant.id);
+      if (result?.error) setMemberError(result.error);
+    });
+  };
+
   const handleEditProject = (formData) => {
     startTransition(async () => {
       await editProject(project.id, formData);
@@ -465,28 +483,9 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
               <span>{project.destination || "目的地未定"}</span>
               <span>{formatPeriod(project.startDate, project.endDate)}</span>
             </div>
-            {/* メンバーはPCではここに、スマホでは「メンバー」タブに出す */}
-            <ul aria-label="メンバー" className="mt-1.5 flex flex-wrap gap-1.5 max-lg:hidden">
-              {project.participants.map((participant) => (
-                <li
-                  key={participant.id}
-                  className={`rounded-full px-3 py-0.5 text-sm font-medium ${
-                    participant.id === currentParticipantId ? "bg-primary text-white" : "bg-paper"
-                  }`}>
-                  {displayNames.get(participant.id)}
-                  {participant.id === currentParticipantId ? "（あなた）" : ""}
-                </li>
-              ))}
-            </ul>
           </div>
 
           <div className="flex flex-wrap gap-3 max-lg:hidden">
-            <button
-              onClick={handleCopyInviteLink}
-              className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
-              <LinkIcon />
-              <span aria-live="polite">{copied ? "コピーしました！" : "招待リンクをコピー"}</span>
-            </button>
             <button
               onClick={() => setisOpen(true)}
               className={`${primaryButtonClass} min-h-12 text-[15px]`}>
@@ -501,7 +500,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             id="panel-main"
             role="tabpanel"
             aria-labelledby="payments-heading"
-            className={`flex min-w-0 flex-col gap-3.5 ${panelClass("main")}`}>
+            className={`flex min-w-0 flex-col gap-3.5 lg:row-span-2 ${panelClass("main")}`}>
             <div className="flex items-baseline justify-between gap-4">
               <h2 id="payments-heading" className="text-xl font-black">支払い記録</h2>
               <span className="text-sm text-ink-sub">合計 {formatYen(totalAmount)}</span>
@@ -580,12 +579,12 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             </aside>
           )}
 
-          {/* メンバー（スマホのタブ専用。PCは上の見出しの下に並べている） */}
+          {/* メンバー。スマホは「メンバー」タブ、PCは右の列の精算の下に出す */}
           <section
             id="panel-members"
             role="tabpanel"
             aria-labelledby="members-heading"
-            className={`flex min-w-0 flex-col gap-3.5 lg:hidden ${panelClass("members")}`}>
+            className={`flex min-w-0 flex-col gap-3.5 lg:col-start-2 ${panelClass("members")}`}>
             <div className="flex items-baseline justify-between gap-4">
               <h2 id="members-heading" className="text-xl font-black">メンバー</h2>
               <span className="text-sm text-ink-sub">{project.participants.length}人</span>
@@ -607,9 +606,24 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                   {participant.id === currentParticipantId && (
                     <span className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-white">あなた</span>
                   )}
+                  {/* 作成者だけが、自分以外のメンバーを外せる */}
+                  {isOwner && participant.userId !== project.ownerId && (
+                    <button
+                      onClick={() => handleRemoveMember(participant)}
+                      disabled={isPending}
+                      aria-label={`${displayNames.get(participant.id)}さんをメンバーから外す`}
+                      className={`${textButtonClass} -mr-2 shrink-0 hover:text-pay`}>
+                      外す
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
+            {memberError && (
+              <p role="alert" className="rounded-lg bg-[#FCECE8] px-4 py-3 text-sm leading-relaxed font-bold text-pay">
+                {memberError}
+              </p>
+            )}
             <div className="flex flex-col gap-2.5 rounded-xl border-2 border-dashed border-line-dashed px-4.5 py-4">
               <p className="text-sm leading-relaxed text-ink-sub">
                 招待リンクを送ると、友達がログインしてメンバーになれます。

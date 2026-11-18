@@ -85,7 +85,8 @@ model Participant {
 model Payment {
   id        String      @id @default(cuid())
   payerId   String
-  payer     Participant @relation(fields: [payerId], references: [id], onDelete: Cascade)
+  // 支払いが残っている参加者は消せないようにする（メンバーを外したときに支払い記録まで消えないように）
+  payer     Participant @relation(fields: [payerId], references: [id], onDelete: NoAction)
   memo      String
   amount    Int
   isSettled Boolean     @default(false)
