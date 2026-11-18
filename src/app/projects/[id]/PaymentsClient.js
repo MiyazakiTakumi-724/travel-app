@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -39,6 +39,7 @@ import { applyPaymentChange } from "@/lib/payments";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { runServerAction } from "@/lib/runServerAction";
 import { LIMITS } from "@/lib/limits";
+import { canShare, shareOrCopy } from "@/lib/share";
 
 function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, onDelete, isPending, submitLabel }) {
   // 新規のときは自分を支払者にしておく（自分で払った分を記録することが一番多いため）
@@ -128,6 +129,9 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
   );
 }
 
+// 端末の機能（共有メニューが使えるか）は変わらないので、変化を知らせる仕組みはいらない
+const noopSubscribe = () => () => {};
+
 // スマホで下に並べるタブ（PCは「日程調整・支払い・精算」の3つに分け、メンバーは支払いの横に並べる）
 const TABS = [
   { id: "schedule", label: "日程", Icon: CalendarIcon },
@@ -195,11 +199,21 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
     return !result.error;
   };
 
+  // 共有メニューが使える端末（スマホなど）か。サーバーで描画するときは false にして、食い違いを防ぐ
+  const shareable = useSyncExternalStore(noopSubscribe, canShare, () => false);
+
   const handleCopyInviteLink = async () => {
-    const inviteUrl = `${window.location.origin}/invite/${project.id}`;
-    await navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const result = await shareOrCopy({
+      title: `${project.title}の招待`,
+      text: `旅行清算アプリの「${project.title}」に参加してください`,
+      url: `${window.location.origin}/invite/${project.id}`,
+    });
+    if (result === "copied") {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } else if (result === "failed") {
+      setSaveError("リンクをコピーできませんでした");
+    }
   };
 
   // サーバーの返事を待たずに支払い一覧へ先に反映する。処理が終わると最新のデータに置き換わる
@@ -489,7 +503,9 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                 onClick={handleCopyInviteLink}
                 className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
                 <LinkIcon />
-                <span aria-live="polite">{copied ? "コピーしました！" : "招待リンクをコピー"}</span>
+                <span aria-live="polite">
+                  {copied ? "コピーしました！" : shareable ? "招待リンクを送る" : "招待リンクをコピー"}
+                </span>
               </button>
             </div>
           </section>
