@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPaymentChange } from "./payments";
+import { applyPaymentChange, filterPayments } from "./payments";
 import { formatPeriod, formatSignedYen, formatTripPeriod, formatYen } from "./format";
 
 describe("applyPaymentChange", () => {
@@ -55,5 +55,24 @@ describe("format", () => {
     expect(formatTripPeriod({ startDate: "", endDate: "", days: 3 })).toBe("日程調整中（2泊3日）");
     expect(formatTripPeriod({ startDate: "", endDate: "", days: null })).toBe("日程未定");
     expect(formatTripPeriod({ startDate: "", endDate: "", days: 3, tentativeStart: "2026-11-14" })).toBe("仮決定 11/14(土)〜11/16(月)");
+  });
+});
+
+describe("filterPayments", () => {
+  const payments = [
+    { id: "a", payerId: "p1", isSettled: false },
+    { id: "b", payerId: "p2", isSettled: true },
+    { id: "c", payerId: "p1", isSettled: true },
+  ];
+  const ids = (list) => list.map((p) => p.id);
+
+  it("条件がなければ全部", () => {
+    expect(ids(filterPayments(payments))).toEqual(["a", "b", "c"]);
+  });
+
+  it("人ごと・精算済みを隠す・両方で絞り込める", () => {
+    expect(ids(filterPayments(payments, { payerId: "p1" }))).toEqual(["a", "c"]);
+    expect(ids(filterPayments(payments, { hideSettled: true }))).toEqual(["a"]);
+    expect(ids(filterPayments(payments, { payerId: "p2", hideSettled: true }))).toEqual([]);
   });
 });

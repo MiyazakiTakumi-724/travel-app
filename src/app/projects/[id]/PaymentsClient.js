@@ -35,7 +35,7 @@ import { formatSignedYen, formatTripPeriod, formatYen } from "@/lib/format";
 import ScheduleSection from "./ScheduleSection";
 import SettlementReceipt from "./SettlementReceipt";
 import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
-import { applyPaymentChange } from "@/lib/payments";
+import { applyPaymentChange, filterPayments } from "@/lib/payments";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { runServerAction } from "@/lib/runServerAction";
 import { LIMITS } from "@/lib/limits";
@@ -334,7 +334,12 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const { balances } = calculateSettlements(project.participants, payments);
 
   const myBalance = Math.round(balances.get(currentParticipantId) ?? 0);
-  const totalAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  // 支払い記録の絞り込み（人ごと・精算済みを隠す）
+  const [payerFilter, setPayerFilter] = useState(null);
+  const [hideSettled, setHideSettled] = useState(false);
+  const visiblePayments = filterPayments(payments, { payerId: payerFilter, hideSettled });
+  const isFiltered = Boolean(payerFilter) || hideSettled;
+  const totalAmount = visiblePayments.reduce((sum, payment) => sum + payment.amount, 0);
 
   const balanceLabel =
     myBalance > 0 ? "あなたが受け取る金額" : myBalance < 0 ? "あなたが支払う金額" : "あなたの精算";
@@ -444,8 +449,39 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             className={`flex min-w-0 flex-col gap-3.5 ${panelClass("payments")}`}>
             <div className="flex items-baseline justify-between gap-4">
               <h2 id="payments-heading" className="text-xl font-black">支払い記録</h2>
-              <span className="text-sm text-ink-sub">合計 {formatYen(totalAmount)}</span>
+              <span className="text-sm text-ink-sub">
+                {isFiltered && `${visiblePayments.length}件・`}合計 {formatYen(totalAmount)}
+              </span>
             </div>
+
+            {payments.length > 0 && (
+              <div className="flex flex-col gap-2.5">
+                {/* 人ごとに見る。もう一度押すと全員に戻る */}
+                <div role="group" aria-label="支払った人で絞り込む" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 sm:mx-0 sm:flex-wrap sm:px-0">
+                  {[{ id: null, name: "全員" }, ...project.participants.map((p) => ({ id: p.id, name: displayNames.get(p.id) }))].map(
+                    (option) => (
+                      <button
+                        key={option.id ?? "all"}
+                        type="button"
+                        aria-pressed={payerFilter === option.id}
+                        onClick={() => setPayerFilter(payerFilter === option.id ? null : option.id)}
+                        className="inline-flex min-h-9 shrink-0 items-center rounded-full border-[1.5px] border-line-dashed bg-paper px-3.5 text-sm font-bold whitespace-nowrap text-ink-sub transition-colors aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-primary">
+                        {option.name}
+                      </button>
+                    )
+                  )}
+                </div>
+                <label className="inline-flex min-h-9 w-fit cursor-pointer items-center gap-2 text-sm font-bold text-ink-sub">
+                  <input
+                    type="checkbox"
+                    checked={hideSettled}
+                    onChange={(e) => setHideSettled(e.target.checked)}
+                    className="size-4.5 accent-primary"
+                  />
+                  精算済みを隠す
+                </label>
+              </div>
+            )}
 
             {payments.length === 0 ? (
               <button
@@ -454,9 +490,21 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                 <PlusIcon size={24} />
                 最初の支払いを記録
               </button>
+            ) : visiblePayments.length === 0 ? (
+              <div className="flex flex-col items-center gap-1 rounded-xl bg-paper px-6 py-8 text-center">
+                <p className="font-bold">条件に合う支払いはありません</p>
+                <button
+                  onClick={() => {
+                    setPayerFilter(null);
+                    setHideSettled(false);
+                  }}
+                  className={`${textButtonClass} hover:text-primary`}>
+                  絞り込みをやめる
+                </button>
+              </div>
             ) : (
               <ul className="divide-y divide-sky-ground rounded-xl bg-paper">
-                {payments.map((payment) => (
+                {visiblePayments.map((payment) => (
                   <PaymentRow
                     key={payment.id}
                     payment={payment}
