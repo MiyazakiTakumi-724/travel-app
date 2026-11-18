@@ -9,30 +9,11 @@ import Modal, { ModalActions } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import { PlusIcon } from "@/components/icons";
 import { primaryButtonClass } from "@/components/ui";
-import { formatSignedYen, formatTripPeriod } from "@/lib/format";
-import { myScheduleTodo } from "@/lib/schedule";
-import { calculateSettlements } from "@/lib/settlement";
+import { formatTripPeriod } from "@/lib/format";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { runServerAction } from "@/lib/runServerAction";
 
-// カードに出すラベル。日程調整でやることがあればそれを、なければ自分の収支を出す
-function cardStatus(project, userId) {
-    const me = project.participants.find((p) => p.userId === userId);
-    if (!me) return null;
-    const todo = myScheduleTodo(project, project.participants, me.id, project.ownerId === userId);
-    if (todo) return { text: todo, tone: "todo" };
-    const balance = Math.round(calculateSettlements(project.participants, project.payments).balances.get(me.id) ?? 0);
-    if (balance === 0) return null;
-    return { text: `あなた ${formatSignedYen(balance)}`, tone: balance > 0 ? "receive" : "pay" };
-}
-
-const STATUS_CLASS = {
-    todo: "bg-pay text-white",
-    receive: "bg-line-soft text-primary",
-    pay: "bg-[#FCECE8] text-pay",
-};
-
-export default function ProjectsList({ projects, userId }) {
+export default function ProjectsList({ projects }) {
 
     // useStateの初期値設定
     const [isOpen, setisOpen] = useState(false);
@@ -99,9 +80,7 @@ export default function ProjectsList({ projects, userId }) {
                 ) : (
                     <div className="grid grid-cols-[repeat(auto-fill,minmax(min(320px,100%),1fr))] gap-6">
                         {/* 旅行ごとにきっぷの形で表示。上段がタイトルと目的地、下段が期間と人数 */}
-                        {projects.map((project) => {
-                            const status = cardStatus(project, userId);
-                            return (
+                        {projects.map((project) => (
                             <Link
                                 key={project.id}
                                 href={`/projects/${project.id}`}
@@ -112,20 +91,13 @@ export default function ProjectsList({ projects, userId }) {
                                         {project.title}
                                     </h2>
                                     <p className="mt-1 truncate font-medium text-ink-sub">{project.destination || "目的地未定"}</p>
-                                    {status && (
-                                        <p className={`mt-3 inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-bold ${STATUS_CLASS[status.tone]}`}>
-                                            {status.tone === "todo" && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-white" />}
-                                            <span className={`truncate ${status.tone === "todo" ? "" : "amount text-[15px]"}`}>{status.text}</span>
-                                        </p>
-                                    )}
                                 </div>
                                 <div className="ticket-bottom flex justify-between gap-4 px-7 pt-3.5 pb-5 text-sm text-ink-sub">
                                     <span className="font-bold text-ink">{formatTripPeriod(project)}</span>
                                     <span><b className="text-ink">{project.participants.length}</b>人</span>
                                 </div>
                             </Link>
-                            );
-                        })}
+                        ))}
 
                         <button
                             onClick={() => setisOpen(true)}

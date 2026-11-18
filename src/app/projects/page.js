@@ -18,17 +18,13 @@ export default async function ProjectsPage() {
         { participants: { some: { userId: session.user.id } } },
       ],
     },
-    // カードに「やること」と自分の収支を出すため、支払いも必要な項目だけ読む
-    include: {
-      participants: { orderBy: { id: "asc" } },
-      payments: { select: { payerId: true, amount: true, isSettled: true } },
-    },
+    include: { participants: true },
     orderBy: { createdAt: "desc" },
   });
 
   return (
     <>
-      <ProjectsList projects={projects} userId={session.user.id} />
+      <ProjectsList projects={projects} />
       {!session.user.nickname && <NicknameOverlay />}
     </>
   );
