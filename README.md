@@ -2,16 +2,34 @@
 
 [![CI](https://github.com/MiyazakiTakumi-724/travel-app/actions/workflows/ci.yml/badge.svg)](https://github.com/MiyazakiTakumi-724/travel-app/actions/workflows/ci.yml)
 
-旅行中の立て替えを記録して、「誰が誰にいくら払えばよいか」を自動で計算する割り勘Webアプリです。
-Googleでログインして旅行を作り、招待URLで友人を招くと、メンバー全員で支払いを共有できます。
+旅行の日程調整から、旅行中の立て替えの記録、「誰が誰にいくら払えばよいか」の精算までを、1つでできるWebアプリです。
+Googleでログインして旅行を作り、招待URLで友人を招くと、メンバー全員で日程と支払いを共有できます。
 
 **公開URL**：https://travel-app-xi-seven.vercel.app/
 
-スマホでの表示です。
+## 画面
 
-| プロジェクトの一覧 | 支払い記録と精算 |
+スマホでの表示です（例：4人で行く2泊3日の京都旅行）。
+
+### はじめる
+
+| トップ（ログイン） | マイプロジェクト |
 |---|---|
-| <img src="docs/projects.png" alt="プロジェクトの一覧画面" width="280"> | <img src="docs/settlement.png" alt="支払い記録と精算の画面" width="280"> |
+| <img src="docs/01-top.png" alt="トップページ。Googleでログインするボタンがある" width="240"> | <img src="docs/02-projects.png" alt="参加しているプロジェクトの一覧" width="240"> |
+
+### 日程を決める
+
+| 1. 行ける日を提出 | 2. 作成者が仮決定 |
+|---|---|
+| <img src="docs/03-available-days.png" alt="カレンダーで行ける日を選んで提出する画面" width="240"> | <img src="docs/04-tentative.png" alt="みんなの行ける日の表を見て、出発日を選んで仮決定する画面" width="240"> |
+| **3. 全員の ○ で確定** | **4. 旅行の予定** |
+| <img src="docs/05-vote.png" alt="仮決定の日程に ○× で答える画面" width="240"> | <img src="docs/06-itinerary.png" alt="確定した日程と、日ごとの旅行の予定" width="240"> |
+
+### 精算する
+
+| 支払い記録 | 精算レシート |
+|---|---|
+| <img src="docs/07-payments.png" alt="支払い記録の一覧。支払った人で絞り込める" width="240"> | <img src="docs/08-settlement.png" alt="支払いの合計・1人あたり・メンバーごとの内訳・送金のしかたを並べた精算レシート" width="240"> |
 
 ## 主な機能
 
