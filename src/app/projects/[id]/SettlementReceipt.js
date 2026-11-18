@@ -21,7 +21,28 @@ function Line({ label, amount, muted }) {
 
 const Divider = () => <hr className="my-3.5 border-0 border-t-2 border-dashed border-line-dashed" />;
 
-// 精算タブ。計算の流れ（支払い → メンバーごとの内訳 → あなたの精算 → 送金のしかた）を1枚のレシートで見せる
+// 「受け取る金額／支払う金額」の見出し
+const balanceLabel = (balance, who) =>
+  balance > 0 ? `${who}が受け取る金額` : balance < 0 ? `${who}が支払う金額` : `${who}の精算`;
+
+// 送金の一覧。自分の名前には「（あなた）」を付ける
+function TransferList({ transfers, nameOf }) {
+  return (
+    <ul className="flex flex-col">
+      {transfers.map((transfer, index) => (
+        <li key={index} className="flex justify-between gap-3 py-1 text-sm">
+          <span className="min-w-0 wrap-break-word">
+            {nameOf(transfer.from)} <span className="text-pay">→</span> {nameOf(transfer.to)}
+          </span>
+          <span className="shrink-0 amount text-[15px]">{formatYen(transfer.amount)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// 精算タブ。計算の流れ（支払い → メンバーごとの内訳 → あなたの精算 → あなたの送金のしかた）を1枚のレシートで見せ、
+// ほかのメンバーの精算は、その下に折りたたんで置く
 export default function SettlementReceipt({ participants, payments, displayNames, currentParticipantId, onRecord }) {
   if (payments.length === 0) {
     return (
@@ -38,8 +59,11 @@ export default function SettlementReceipt({ participants, payments, displayNames
 
   const summary = summarizeSettlement(participants, payments);
   const myBalance = Math.round(summary.rows.find((row) => row.id === currentParticipantId)?.balance ?? 0);
-  const myLabel = myBalance > 0 ? "あなたが受け取る金額" : myBalance < 0 ? "あなたが支払う金額" : "あなたの精算";
+  const myLabel = balanceLabel(myBalance, "あなた");
   const nameOf = (id) => `${displayNames.get(id)}${id === currentParticipantId ? "（あなた）" : ""}`;
+  const involves = (id) => (transfer) => transfer.from === id || transfer.to === id;
+  const myTransfers = summary.transfers.filter(involves(currentParticipantId));
+  const others = summary.rows.filter((row) => row.id !== currentParticipantId);
 
   return (
     <div className="flex w-full max-w-xl flex-col gap-3">
@@ -88,27 +112,51 @@ export default function SettlementReceipt({ participants, payments, displayNames
 
           <Divider />
           <Label>
-            送金のしかた{summary.transfers.length > 0 ? `（${summary.transfers.length}回）` : ""}
+            あなたの送金のしかた{myTransfers.length > 0 ? `（${myTransfers.length}回）` : ""}
           </Label>
-          {summary.transfers.length === 0 ? (
-            <p className="text-sm text-ink-sub">精算の必要はありません</p>
+          {myTransfers.length === 0 ? (
+            <p className="text-sm text-ink-sub">
+              {summary.transfers.length === 0 ? "精算の必要はありません" : "あなたの送金・受け取りはありません"}
+            </p>
           ) : (
-            <ul className="flex flex-col">
-              {summary.transfers.map((transfer, index) => {
-                const mine = transfer.from === currentParticipantId || transfer.to === currentParticipantId;
-                return (
-                  <li key={index} className={`flex justify-between gap-3 py-1 text-sm ${mine ? "font-bold" : ""}`}>
-                    <span className="min-w-0 wrap-break-word">
-                      {nameOf(transfer.from)} <span className="text-pay">→</span> {nameOf(transfer.to)}
-                    </span>
-                    <span className="shrink-0 amount text-[15px]">{formatYen(transfer.amount)}</span>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="font-bold">
+              <TransferList transfers={myTransfers} nameOf={nameOf} />
+            </div>
           )}
         </div>
       </div>
+
+      {/* ほかのメンバーの精算（最初は閉じておき、開くと1人ずつ見られる） */}
+      {others.length > 0 && (
+        <details className="group rounded-xl bg-paper">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4.5 font-bold focus-visible:outline-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+            ほかのメンバーの精算
+            <span aria-hidden="true" className="text-ink-faint transition-transform group-open:rotate-180">
+              ▾
+            </span>
+          </summary>
+          <ul className="flex flex-col px-4.5 pb-3">
+            {others.map((row) => {
+              const balance = Math.round(row.balance);
+              const transfers = summary.transfers.filter(involves(row.id));
+              return (
+                <li key={row.id} className="border-t-2 border-dashed border-line-soft py-3.5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="text-sm font-bold">{balanceLabel(balance, `${displayNames.get(row.id)}さん`)}</span>
+                    <span className={`amount text-2xl ${toneOf(balance)}`}>{formatYen(Math.abs(balance))}</span>
+                  </div>
+                  <p className="mt-2 text-xs font-bold text-ink-muted">送金のしかた</p>
+                  {transfers.length === 0 ? (
+                    <p className="text-sm text-ink-sub">送金・受け取りはありません</p>
+                  ) : (
+                    <TransferList transfers={transfers} nameOf={nameOf} />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
     </div>
   );
 }

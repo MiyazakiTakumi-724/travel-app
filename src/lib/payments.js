@@ -19,7 +19,7 @@ export function applyPaymentChange(payments, change) {
   }
 }
 
-// 支払い記録の絞り込み。payerId を指定するとその人の支払いだけにする
-export function filterPayments(payments, { payerId = null } = {}) {
-  return payments.filter((payment) => !payerId || payment.payerId === payerId);
+// 支払い記録の絞り込み。payerIds に入っている人の支払いだけにする（空なら全員分）
+export function filterPayments(payments, { payerIds = [] } = {}) {
+  return payments.filter((payment) => payerIds.length === 0 || payerIds.includes(payment.payerId));
 }

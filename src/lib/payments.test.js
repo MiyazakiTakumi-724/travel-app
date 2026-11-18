@@ -70,8 +70,10 @@ describe("filterPayments", () => {
     expect(ids(filterPayments(payments))).toEqual(["a", "b", "c"]);
   });
 
-  it("支払った人で絞り込める", () => {
-    expect(ids(filterPayments(payments, { payerId: "p1" }))).toEqual(["a", "c"]);
-    expect(ids(filterPayments(payments, { payerId: "p3" }))).toEqual([]);
+  it("支払った人で絞り込める（複数人も選べる）", () => {
+    expect(ids(filterPayments(payments, { payerIds: ["p1"] }))).toEqual(["a", "c"]);
+    expect(ids(filterPayments(payments, { payerIds: ["p1", "p2"] }))).toEqual(["a", "b", "c"]);
+    expect(ids(filterPayments(payments, { payerIds: ["p3"] }))).toEqual([]);
+    expect(ids(filterPayments(payments, { payerIds: [] }))).toEqual(["a", "b", "c"]);
   });
 });

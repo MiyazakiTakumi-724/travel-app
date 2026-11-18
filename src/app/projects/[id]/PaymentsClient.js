@@ -325,10 +325,12 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const { balances } = calculateSettlements(project.participants, payments);
 
   const myBalance = Math.round(balances.get(currentParticipantId) ?? 0);
-  // 支払い記録の絞り込み（支払った人ごとに見る）
-  const [payerFilter, setPayerFilter] = useState(null);
-  const visiblePayments = filterPayments(payments, { payerId: payerFilter });
-  const isFiltered = Boolean(payerFilter);
+  // 支払い記録の絞り込み（支払った人で見る。複数人を選べ、だれも選ばなければ全員分）
+  const [payerFilter, setPayerFilter] = useState([]);
+  const togglePayerFilter = (id) =>
+    setPayerFilter((current) => (current.includes(id) ? current.filter((p) => p !== id) : [...current, id]));
+  const visiblePayments = filterPayments(payments, { payerIds: payerFilter });
+  const isFiltered = payerFilter.length > 0;
   const totalAmount = visiblePayments.reduce((sum, payment) => sum + payment.amount, 0);
 
   const balanceLabel =
@@ -446,15 +448,15 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
 
             {payments.length > 0 && (
               <div className="flex flex-col gap-2.5">
-                {/* 人ごとに見る。もう一度押すと全員に戻る */}
+                {/* 支払った人で絞り込む。複数人を選べる。「全員」で選択をすべて外す */}
                 <div role="group" aria-label="支払った人で絞り込む" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 sm:mx-0 sm:flex-wrap sm:px-0">
                   {[{ id: null, name: "全員" }, ...project.participants.map((p) => ({ id: p.id, name: displayNames.get(p.id) }))].map(
                     (option) => (
                       <button
                         key={option.id ?? "all"}
                         type="button"
-                        aria-pressed={payerFilter === option.id}
-                        onClick={() => setPayerFilter(payerFilter === option.id ? null : option.id)}
+                        aria-pressed={option.id === null ? payerFilter.length === 0 : payerFilter.includes(option.id)}
+                        onClick={() => (option.id === null ? setPayerFilter([]) : togglePayerFilter(option.id))}
                         className="inline-flex min-h-9 shrink-0 items-center rounded-full border-[1.5px] border-line-dashed bg-paper px-3.5 text-sm font-bold whitespace-nowrap text-ink-sub transition-colors aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-white focus-visible:outline-2 focus-visible:outline-primary">
                         {option.name}
                       </button>
@@ -475,7 +477,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
               <div className="flex flex-col items-center gap-1 rounded-xl bg-paper px-6 py-8 text-center">
                 <p className="font-bold">条件に合う支払いはありません</p>
                 <button
-                  onClick={() => setPayerFilter(null)}
+                  onClick={() => setPayerFilter([])}
                   className={`${textButtonClass} hover:text-primary`}>
                   絞り込みをやめる
                 </button>
