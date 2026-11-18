@@ -109,16 +109,24 @@ describe("addPayment", () => {
     expect(db.payments).toHaveLength(1);
   });
 
-  it("メンバーでない人やログインしていない人は記録できない", async () => {
+  it("記録できたら ok を返す", async () => {
+    expect(await addPayment("trip", form([["payerId", "pMember"], ["amount", "1000"]]))).toEqual({ ok: true });
+  });
+
+  it("メンバーでない人やログインしていない人は記録できず、理由を返す", async () => {
     loginAs("outsider");
-    await addPayment("trip", form([["payerId", "pMember"], ["amount", "1000"]]));
+    expect(await addPayment("trip", form([["payerId", "pMember"], ["amount", "1000"]]))).toEqual({
+      error: "このプロジェクトのメンバーではありません",
+    });
     loginAs(null);
-    await addPayment("trip", form([["payerId", "pMember"], ["amount", "1000"]]));
+    expect(await addPayment("trip", form([["payerId", "pMember"], ["amount", "1000"]]))).toEqual({
+      error: "ログインし直してください",
+    });
     expect(db.payments).toHaveLength(1);
   });
 
   it("金額が0以下・数字でないときは記録しない", async () => {
-    await addPayment("trip", form([["payerId", "pMember"], ["amount", "0"]]));
+    expect((await addPayment("trip", form([["payerId", "pMember"], ["amount", "0"]]))).error).toBe("入力内容を確認してください");
     await addPayment("trip", form([["payerId", "pMember"], ["amount", "-5"]]));
     await addPayment("trip", form([["payerId", "pMember"], ["amount", "abc"]]));
     expect(db.payments).toHaveLength(1);

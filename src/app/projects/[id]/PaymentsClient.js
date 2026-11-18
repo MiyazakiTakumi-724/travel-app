@@ -16,6 +16,7 @@ import Modal, { ModalActions } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import {
   CheckIcon,
+  CloseIcon,
   LinkIcon,
   PlusIcon,
   TicketIcon,
@@ -33,6 +34,7 @@ import { splitAmount } from "@/lib/split";
 import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
 import { applyPaymentChange, initialMemoChoice, MEMO_OPTIONS, OTHER } from "@/lib/payments";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
+import { runServerAction } from "@/lib/runServerAction";
 
 function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, onDelete, isPending, submitLabel, allowMultiplePayers }) {
   // 新規のときは自分を支払者にしておく（自分で払った分を記録することが一番多いため）
@@ -227,6 +229,22 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
     return () => clearTimeout(timer);
   }, [deletedPayment]);
 
+  // 保存に失敗したときのメッセージ。楽観的更新の表示は自動で元に戻るので、何が起きたかを知らせる
+  const [saveError, setSaveError] = useState("");
+
+  useEffect(() => {
+    if (!saveError) return;
+    const timer = setTimeout(() => setSaveError(""), 6000);
+    return () => clearTimeout(timer);
+  }, [saveError]);
+
+  // Server Action を呼び、失敗したらメッセージを出す。成功したかどうかを返す
+  const save = async (action) => {
+    const result = await runServerAction(action);
+    if (result.error) setSaveError(result.error);
+    return !result.error;
+  };
+
   const handleCopyInviteLink = async () => {
     const inviteUrl = `${window.location.origin}/invite/${project.id}`;
     await navigator.clipboard.writeText(inviteUrl);
@@ -254,7 +272,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           isSettled: false,
         })),
       });
-      await addPayment(project.id, formData);
+      await save(() => addPayment(project.id, formData));
     });
   };
 
@@ -272,14 +290,14 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           amount: Number(formData.get("amount")),
         },
       });
-      await editPayment(project.id, paymentId, formData);
+      await save(() => editPayment(project.id, paymentId, formData));
     });
   };
 
   const handleToggleSettled = (paymentId, isSettled) => {
     startTransition(async () => {
       applyOptimistic({ type: "edit", id: paymentId, changes: { isSettled } });
-      await toggleSettled(project.id, paymentId, isSettled);
+      await save(() => toggleSettled(project.id, paymentId, isSettled));
     });
   };
 
@@ -291,7 +309,8 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
     setDeletedPayment(payment);
     startTransition(async () => {
       applyOptimistic({ type: "delete", id: payment.id });
-      await deletePayment(project.id, payment.id);
+      // 削除に失敗したら「元に戻す」は出さない（消えていないので）
+      if (!(await save(() => deletePayment(project.id, payment.id)))) setDeletedPayment(null);
     });
   };
 
@@ -301,7 +320,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
     setDeletedPayment(null);
     startTransition(async () => {
       applyOptimistic({ type: "restore", payment });
-      await restorePayment(project.id, payment);
+      await save(() => restorePayment(project.id, payment));
     });
   };
 
@@ -317,23 +336,22 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
     }
     if (!window.confirm(`${name}さんをメンバーから外しますか？\n外した人も、招待リンクからもう一度参加できます。`)) return;
     startTransition(async () => {
-      const result = await removeParticipant(project.id, participant.id);
-      if (result?.error) setMemberError(result.error);
+      const result = await runServerAction(() => removeParticipant(project.id, participant.id));
+      if (result.error) setMemberError(result.error);
     });
   };
 
   const handleEditProject = (formData) => {
     startTransition(async () => {
-      await editProject(project.id, formData);
-      setIsEditingProject(false);
+      // 失敗したときは入力した内容が消えないよう、シートを開いたままにする
+      if (await save(() => editProject(project.id, formData))) setIsEditingProject(false);
     });
   };
 
   const handleDeleteProject = () => {
     if (!window.confirm(`「${project.title}」を削除しますか？支払い記録もすべて削除されます。`)) return;
     startTransition(async () => {
-      await deleteProject(project.id);
-      router.push("/projects");
+      if (await save(() => deleteProject(project.id))) router.push("/projects");
     });
   };
 
@@ -619,18 +637,36 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         />
       )}
 
-      {deletedPayment && (
-        <div
-          role="status"
-          className="fixed inset-x-4 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink py-2 pr-2 pl-4.5 text-sm text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)] lg:bottom-8">
-          <span className="min-w-0 truncate">
-            「{deletedPayment.memo || `${displayNames.get(deletedPayment.payerId)}の支払い`}」を削除しました
-          </span>
-          <button
-            onClick={handleUndoDelete}
-            className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3.5 font-bold text-primary-light transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-primary-light">
-            元に戻す
-          </button>
+      {/* 画面下のお知らせ（保存の失敗・削除の取り消し）。スマホでは下部バーとタブの上に出す */}
+      {(saveError || deletedPayment) && (
+        <div className="fixed inset-x-4 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md flex-col gap-2 lg:bottom-8">
+          {saveError && (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-xl bg-pay py-2 pr-2 pl-4.5 text-sm font-bold text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)]">
+              <span className="min-w-0 py-1.5">{saveError}</span>
+              <button
+                onClick={() => setSaveError("")}
+                aria-label="閉じる"
+                className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white">
+                <CloseIcon />
+              </button>
+            </div>
+          )}
+          {deletedPayment && (
+            <div
+              role="status"
+              className="flex items-center justify-between gap-3 rounded-xl bg-ink py-2 pr-2 pl-4.5 text-sm text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)]">
+              <span className="min-w-0 truncate">
+                「{deletedPayment.memo || `${displayNames.get(deletedPayment.payerId)}の支払い`}」を削除しました
+              </span>
+              <button
+                onClick={handleUndoDelete}
+                className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3.5 font-bold text-primary-light transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-primary-light">
+                元に戻す
+              </button>
+            </div>
+          )}
         </div>
       )}
 

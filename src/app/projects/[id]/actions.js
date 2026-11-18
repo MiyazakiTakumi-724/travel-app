@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { splitAmount } from "@/lib/split";
 
+// 画面に出すエラーメッセージ。成功したときは { ok: true } を返す
+const LOGIN_REQUIRED = { error: "ログインし直してください" };
+const NOT_MEMBER = { error: "このプロジェクトのメンバーではありません" };
+const OWNER_ONLY = { error: "この操作ができるのは作成者だけです" };
+const INVALID_INPUT = { error: "入力内容を確認してください" };
+
 async function assertMember(projectId, userId) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -34,15 +40,15 @@ async function assertOwner(projectId, userId) {
 
 export async function editProject(projectId, formData) {
   const session = await auth();
-  if (!session?.user?.id) return;
-  if (!(await assertOwner(projectId, session.user.id))) return;
+  if (!session?.user?.id) return LOGIN_REQUIRED;
+  if (!(await assertOwner(projectId, session.user.id))) return OWNER_ONLY;
 
   const title = formData.get("title")?.toString().trim();
   const destination = formData.get("destination")?.toString().trim();
   const startDate = formData.get("startDate")?.toString().trim();
   const endDate = formData.get("endDate")?.toString().trim();
 
-  if (!title) return;
+  if (!title) return INVALID_INPUT;
 
   await prisma.project.update({
     where: { id: projectId },
@@ -51,12 +57,13 @@ export async function editProject(projectId, formData) {
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
+  return { ok: true };
 }
 
 // 作成者がメンバーを外す。支払い記録が残っている人は、記録が消えたり精算額が変わったりしないよう外せない
 export async function removeParticipant(projectId, participantId) {
   const session = await auth();
-  if (!session?.user?.id) return { error: "ログインしてください" };
+  if (!session?.user?.id) return LOGIN_REQUIRED;
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project || project.ownerId !== session.user.id) {
@@ -90,18 +97,19 @@ export async function removeParticipant(projectId, participantId) {
 
 export async function deleteProject(projectId) {
   const session = await auth();
-  if (!session?.user?.id) return;
-  if (!(await assertOwner(projectId, session.user.id))) return;
+  if (!session?.user?.id) return LOGIN_REQUIRED;
+  if (!(await assertOwner(projectId, session.user.id))) return OWNER_ONLY;
 
   await prisma.project.delete({ where: { id: projectId } });
 
   revalidatePath("/projects");
+  return { ok: true };
 }
 
 export async function addPayment(projectId, formData) {
   const session = await auth();
-  if (!session?.user?.id) return;
-  if (!(await assertMember(projectId, session.user.id))) return;
+  if (!session?.user?.id) return LOGIN_REQUIRED;
+  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
 
   const requestedPayerIds = [
     ...new Set(formData.getAll("payerId").map((id) => id.toString()).filter(Boolean)),
@@ -110,8 +118,8 @@ export async function addPayment(projectId, formData) {
   const memo = formData.get("memo")?.toString().trim();
   const amount = Number(formData.get("amount"));
 
-  if (payerIds.length === 0 || payerIds.length !== requestedPayerIds.length) return;
-  if (!amount || amount <= 0) return;
+  if (payerIds.length === 0 || payerIds.length !== requestedPayerIds.length) return INVALID_INPUT;
+  if (!amount || amount <= 0) return INVALID_INPUT;
 
   // 複数人が支払者の場合は金額を均等割りする
   const amounts = splitAmount(amount, payerIds.length);
@@ -126,12 +134,13 @@ export async function addPayment(projectId, formData) {
   });
 
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }
 
 export async function toggleSettled(projectId, paymentId, isSettled) {
   const session = await auth();
-  if (!session?.user?.id) return;
-  if (!(await assertMember(projectId, session.user.id))) return;
+  if (!session?.user?.id) return LOGIN_REQUIRED;
+  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
 
   await prisma.payment.updateMany({
     where: { id: paymentId, projectId },
@@ -139,19 +148,20 @@ export async function toggleSettled(projectId, paymentId, isSettled) {
   });
 
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }
 
 export async function editPayment(projectId, paymentId, formData) {
   const session = await auth();
-  if (!session?.user?.id) return;
-  if (!(await assertMember(projectId, session.user.id))) return;
+  if (!session?.user?.id) return LOGIN_REQUIRED;
+  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
 
   const payerId = formData.get("payerId")?.toString();
   const memo = formData.get("memo")?.toString().trim();
   const amount = Number(formData.get("amount"));
 
-  if (!payerId || !amount || amount <= 0) return;
-  if ((await filterParticipantIds(projectId, [payerId])).length === 0) return;
+  if (!payerId || !amount || amount <= 0) return INVALID_INPUT;
+  if ((await filterParticipantIds(projectId, [payerId])).length === 0) return INVALID_INPUT;
 
   await prisma.payment.updateMany({
     where: { id: paymentId, projectId },
@@ -159,20 +169,22 @@ export async function editPayment(projectId, paymentId, formData) {
   });
 
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }
 
 // 削除を「元に戻す」ときに、同じIDと作成日時のまま作り直す（一覧の並び順も元どおりになる）
 export async function restorePayment(projectId, payment) {
   const session = await auth();
-  if (!session?.user?.id) return;
-  if (!(await assertMember(projectId, session.user.id))) return;
+  if (!session?.user?.id) return LOGIN_REQUIRED;
+  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
 
   const amount = Number(payment?.amount);
-  if (!payment?.id || !amount || amount <= 0) return;
-  if ((await filterParticipantIds(projectId, [payment.payerId])).length === 0) return;
+  if (!payment?.id || !amount || amount <= 0) return INVALID_INPUT;
+  if ((await filterParticipantIds(projectId, [payment.payerId])).length === 0) return INVALID_INPUT;
 
   const exists = await prisma.payment.findUnique({ where: { id: payment.id } });
-  if (exists) return;
+  // すでにある（二重に押された）ときは、元に戻せている状態なので成功扱い
+  if (exists) return { ok: true };
 
   await prisma.payment.create({
     data: {
@@ -187,16 +199,18 @@ export async function restorePayment(projectId, payment) {
   });
 
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }
 
 export async function deletePayment(projectId, paymentId) {
   const session = await auth();
-  if (!session?.user?.id) return;
-  if (!(await assertMember(projectId, session.user.id))) return;
+  if (!session?.user?.id) return LOGIN_REQUIRED;
+  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
 
   await prisma.payment.deleteMany({
     where: { id: paymentId, projectId },
   });
 
   revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }

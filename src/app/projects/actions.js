@@ -21,14 +21,14 @@ export async function setNickname(formData) {
 
 export async function createProject(formData) {
   const session = await auth();
-  if (!session?.user?.id) return;
+  if (!session?.user?.id) return { error: "ログインし直してください" };
 
   const title = formData.get("title")?.toString().trim();
   const destination = formData.get("destination")?.toString().trim();
   const startDate = formData.get("startDate")?.toString().trim();
   const endDate = formData.get("endDate")?.toString().trim();
 
-  if (!title) return;
+  if (!title) return { error: "タイトルを入力してください" };
 
   await prisma.project.create({
     data: {
@@ -44,4 +44,5 @@ export async function createProject(formData) {
   });
 
   revalidatePath("/projects");
+  return { ok: true };
 }

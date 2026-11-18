@@ -10,6 +10,7 @@ import { PlusIcon } from "@/components/icons";
 import { primaryButtonClass } from "@/components/ui";
 import { formatPeriod } from "@/lib/format";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
+import { runServerAction } from "@/lib/runServerAction";
 
 export default function ProjectsList({ projects }) {
 
@@ -20,10 +21,14 @@ export default function ProjectsList({ projects }) {
     useAutoRefresh({ paused: isPending });
 
     // プロジェクト作成時のデータ保管用関数
+    // 失敗したときは入力した内容が消えないよう、シートを開いたままメッセージを出す
+    const [createError, setCreateError] = useState("");
     const handleCreateProject = (formData) => {
+        setCreateError("");
         startTransition(async () => {
-            await createProject(formData);
-            setisOpen(false);
+            const result = await runServerAction(() => createProject(formData));
+            if (result.error) setCreateError(result.error);
+            else setisOpen(false);
         });
     };
 
@@ -109,6 +114,11 @@ export default function ProjectsList({ projects }) {
                 <Modal title="新しいプロジェクトを作成" onClose={() => setisOpen(false)}>
                     <form action={handleCreateProject} className="flex flex-col gap-5">
                         <ProjectFormFields />
+                        {createError && (
+                            <p role="alert" className="rounded-lg bg-[#FCECE8] px-4 py-3 text-sm font-bold text-pay">
+                                {createError}
+                            </p>
+                        )}
                         <ModalActions
                             submitLabel="作成する"
                             onCancel={() => setisOpen(false)}
