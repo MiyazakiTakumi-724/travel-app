@@ -3,6 +3,7 @@ import {
   availableCount,
   fitsInRange,
   isValidDays,
+  myScheduleTodo,
   schedulePhase,
   tallyAnswers,
   tripEndDate,
@@ -66,5 +67,33 @@ describe("そのほか", () => {
   it("その日に行ける人数を数える", () => {
     expect(availableCount("2026-11-03", participants)).toBe(3);
     expect(availableCount("2026-11-06", participants)).toBe(1);
+  });
+});
+
+describe("myScheduleTodo", () => {
+  const project = { startDate: "", endDate: "", days: 3, rangeStart: "2026-11-01", rangeEnd: "2026-11-30", tentativeStart: null };
+  const people = (aSubmitted, bSubmitted, answers = {}) => [
+    { id: "a", availabilitySubmitted: aSubmitted, tentativeAnswer: answers.a ?? null },
+    { id: "b", availabilitySubmitted: bSubmitted, tentativeAnswer: answers.b ?? null },
+  ];
+
+  it("提出していない人には、提出を頼む", () => {
+    expect(myScheduleTodo(project, people(false, true), "a", false)).toBe("行ける日を提出してください");
+    expect(myScheduleTodo(project, people(true, false), "a", true)).toBeNull();
+  });
+
+  it("全員が提出したら、作成者にだけ仮決定を頼む", () => {
+    expect(myScheduleTodo(project, people(true, true), "a", true)).toBe("日程を仮決定してください");
+    expect(myScheduleTodo(project, people(true, true), "b", false)).toBeNull();
+  });
+
+  it("仮決定のあとは、まだ答えていない人に回答を頼む", () => {
+    const voting = { ...project, tentativeStart: "2026-11-14" };
+    expect(myScheduleTodo(voting, people(true, true, { a: "yes" }), "b", false)).toBe("仮決定の日程に回答してください");
+    expect(myScheduleTodo(voting, people(true, true, { a: "yes" }), "a", true)).toBeNull();
+  });
+
+  it("日程が決まっていれば、やることはない", () => {
+    expect(myScheduleTodo({ ...project, startDate: "2026-11-14", endDate: "2026-11-16" }, people(false, false), "a", true)).toBeNull();
   });
 });

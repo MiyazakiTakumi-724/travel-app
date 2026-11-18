@@ -50,3 +50,15 @@ export function tallyAnswers(participants) {
   const waiting = participants.filter((p) => !p.tentativeAnswer).map((p) => p.id);
   return { yes, no, waiting, allAgreed: participants.length > 0 && yes.length === participants.length };
 }
+
+// 日程調整で、その人がやることのラベル（何もなければ null）
+// participants は availabilitySubmitted・tentativeAnswer を持つ参加者の一覧
+export function myScheduleTodo(project, participants, myParticipantId, isOwner) {
+  const me = participants.find((p) => p.id === myParticipantId);
+  if (!me) return null;
+  const phase = schedulePhase(project, participants);
+  if (phase === "collecting" && !me.availabilitySubmitted) return "行ける日を提出してください";
+  if (phase === "choosing" && isOwner) return "日程を仮決定してください";
+  if (phase === "voting" && !me.tentativeAnswer) return "仮決定の日程に回答してください";
+  return null;
+}

@@ -40,6 +40,7 @@ import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { runServerAction } from "@/lib/runServerAction";
 import { LIMITS } from "@/lib/limits";
 import { canShare, shareOrCopy } from "@/lib/share";
+import { myScheduleTodo } from "@/lib/schedule";
 
 function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, onDelete, isPending, submitLabel }) {
   // 新規のときは自分を支払者にしておく（自分で払った分を記録することが一番多いため）
@@ -126,6 +127,16 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
         )}
       </form>
     </Modal>
+  );
+}
+
+// 日程タブに付ける赤い点（自分がやることがあるとき）
+function TodoDot() {
+  return (
+    <>
+      <span aria-hidden="true" className="absolute top-1.5 right-[calc(50%-18px)] size-2.5 rounded-full border-2 border-paper bg-pay" />
+      <span className="sr-only">（やることがあります）</span>
+    </>
   );
 }
 
@@ -318,6 +329,8 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   };
 
   const displayNames = buildDisplayNames(project.participants);
+  // 日程調整で自分がやること（行ける日の提出・仮決定・○×の回答）があれば、日程タブに印を付ける
+  const scheduleTodo = myScheduleTodo(project, project.participants, currentParticipantId, isOwner);
   const { balances } = calculateSettlements(project.participants, payments);
 
   const myBalance = Math.round(balances.get(currentParticipantId) ?? 0);
@@ -389,9 +402,15 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                 role="tab"
                 aria-selected={selected}
                 onClick={() => selectTab(id)}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-6 text-[15px] font-bold text-ink-sub transition-colors aria-selected:bg-primary aria-selected:text-white focus-visible:outline-2 focus-visible:outline-primary">
+                className="relative inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-6 text-[15px] font-bold text-ink-sub transition-colors aria-selected:bg-primary aria-selected:text-white focus-visible:outline-2 focus-visible:outline-primary">
                 <Icon />
                 {label}
+                {id === "schedule" && scheduleTodo && (
+                  <>
+                    <span aria-hidden="true" className="size-2 rounded-full bg-pay" />
+                    <span className="sr-only">（やることがあります）</span>
+                  </>
+                )}
               </button>
             );
           })}
@@ -541,9 +560,10 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
               aria-selected={tab === id}
               aria-controls={`panel-${id}`}
               onClick={() => selectTab(id)}
-              className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-ink-faint transition-colors aria-selected:text-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
+              className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-ink-faint transition-colors aria-selected:text-primary focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
               <Icon size={22} />
               {label}
+              {id === "schedule" && scheduleTodo && <TodoDot />}
             </button>
           ))}
         </nav>
