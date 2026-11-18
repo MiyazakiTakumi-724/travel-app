@@ -10,7 +10,6 @@ import {
   editProject,
   removeParticipant,
   restorePayment,
-  toggleSettled,
 } from "./actions";
 import Modal, { ModalActions } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
@@ -241,7 +240,6 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             payerId: formData.get("payerId")?.toString(),
             memo: formData.get("memo")?.toString().trim(),
             amount: Number(formData.get("amount")),
-            isSettled: false,
           },
         ],
       });
@@ -264,13 +262,6 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
         },
       });
       await save(() => editPayment(project.id, paymentId, formData));
-    });
-  };
-
-  const handleToggleSettled = (paymentId, isSettled) => {
-    startTransition(async () => {
-      applyOptimistic({ type: "edit", id: paymentId, changes: { isSettled } });
-      await save(() => toggleSettled(project.id, paymentId, isSettled));
     });
   };
 
@@ -334,11 +325,10 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const { balances } = calculateSettlements(project.participants, payments);
 
   const myBalance = Math.round(balances.get(currentParticipantId) ?? 0);
-  // 支払い記録の絞り込み（人ごと・精算済みを隠す）
+  // 支払い記録の絞り込み（支払った人ごとに見る）
   const [payerFilter, setPayerFilter] = useState(null);
-  const [hideSettled, setHideSettled] = useState(false);
-  const visiblePayments = filterPayments(payments, { payerId: payerFilter, hideSettled });
-  const isFiltered = Boolean(payerFilter) || hideSettled;
+  const visiblePayments = filterPayments(payments, { payerId: payerFilter });
+  const isFiltered = Boolean(payerFilter);
   const totalAmount = visiblePayments.reduce((sum, payment) => sum + payment.amount, 0);
 
   const balanceLabel =
@@ -471,15 +461,6 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                     )
                   )}
                 </div>
-                <label className="inline-flex min-h-9 w-fit cursor-pointer items-center gap-2 text-sm font-bold text-ink-sub">
-                  <input
-                    type="checkbox"
-                    checked={hideSettled}
-                    onChange={(e) => setHideSettled(e.target.checked)}
-                    className="size-4.5 accent-primary"
-                  />
-                  精算済みを隠す
-                </label>
               </div>
             )}
 
@@ -494,10 +475,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
               <div className="flex flex-col items-center gap-1 rounded-xl bg-paper px-6 py-8 text-center">
                 <p className="font-bold">条件に合う支払いはありません</p>
                 <button
-                  onClick={() => {
-                    setPayerFilter(null);
-                    setHideSettled(false);
-                  }}
+                  onClick={() => setPayerFilter(null)}
                   className={`${textButtonClass} hover:text-primary`}>
                   絞り込みをやめる
                 </button>
@@ -510,7 +488,6 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                     payment={payment}
                     payerName={displayNames.get(payment.payerId) ?? "不明"}
                     onEdit={setEditingPayment}
-                    onToggle={handleToggleSettled}
                   />
                 ))}
               </ul>
@@ -693,47 +670,28 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   );
 }
 
-// チェックで精算済みを切り替え、それ以外の部分をタップすると編集シートが開く
-function PaymentRow({ payment, payerName, onEdit, onToggle }) {
-  const { id: paymentId, memo, amount, isSettled } = payment;
+// タップすると編集シートが開く
+function PaymentRow({ payment, payerName, onEdit }) {
+  const { id: paymentId, memo, amount } = payment;
   // 保存中の仮の行はまだIDが確定していないので操作できない
   const isPending = String(paymentId).startsWith("pending-");
   const title = memo || `${payerName}の支払い`;
 
   return (
-    <li className="flex items-center gap-1 px-2 sm:gap-2 sm:px-3">
-      <label className="flex size-11 flex-none cursor-pointer items-center justify-center">
-        <input
-          type="checkbox"
-          checked={isSettled}
-          disabled={isPending}
-          onChange={() => onToggle(paymentId, !isSettled)}
-          aria-label={isSettled ? `「${title}」の精算済みを解除` : `「${title}」を精算済みにする`}
-          className="size-5.5 cursor-pointer accent-primary"
-        />
-      </label>
-
+    <li className="px-2 sm:px-3">
       <button
         type="button"
         onClick={() => onEdit(payment)}
         disabled={isPending}
         aria-label={`「${title}」を編集`}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg py-4 pr-2 pl-1 text-left transition-colors hover:bg-sky-ground/60 focus-visible:outline-2 focus-visible:outline-primary active:bg-sky-ground disabled:opacity-60">
+        className="flex w-full min-w-0 items-center gap-3 rounded-lg py-4 pr-2 pl-3 text-left transition-colors hover:bg-sky-ground/60 focus-visible:outline-2 focus-visible:outline-primary active:bg-sky-ground disabled:opacity-60">
         {/* 支払い内容が主、支払者が従。内容が空なら支払者を主にする */}
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className={`wrap-break-word text-[17px] font-bold ${isSettled ? "text-ink-faint line-through" : ""}`}>
-            {title}
-          </span>
-          <span className={`text-sm ${isSettled ? "text-ink-faint" : "text-ink-sub"}`}>
-            {memo ? `${payerName}が支払い` : ""}
-            {memo && isSettled ? "／" : ""}
-            {isSettled ? "精算済み" : ""}
-          </span>
+          <span className="wrap-break-word text-[17px] font-bold">{title}</span>
+          {memo && <span className="text-sm text-ink-sub">{payerName}が支払い</span>}
         </span>
 
-        <span className={`shrink-0 amount text-xl ${isSettled ? "text-ink-faint line-through" : ""}`}>
-          {formatYen(amount)}
-        </span>
+        <span className="shrink-0 amount text-xl">{formatYen(amount)}</span>
         <span aria-hidden="true" className="shrink-0 text-lg text-ink-faint">›</span>
       </button>
     </li>

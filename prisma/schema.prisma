@@ -110,7 +110,6 @@ model Payment {
   payer     Participant @relation(fields: [payerId], references: [id], onDelete: NoAction)
   memo      String
   amount    Int
-  isSettled Boolean     @default(false)
   createdAt DateTime    @default(now())
   projectId String
   project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)

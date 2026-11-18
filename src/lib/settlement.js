@@ -10,18 +10,17 @@ export function buildDisplayNames(participants) {
   return names;
 }
 
-// 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
+// 支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
 // balances は参加者IDごとの収支（プラス=最終的に受け取る、マイナス=最終的に支払う）
 // 名前をキーにすると同じニックネームの参加者が1人にまとまってしまうので、必ずIDで集計する
 export function calculateSettlements(participants, payments) {
   if (participants.length === 0) return { transfers: [], balances: new Map() };
 
-  const unsettled = payments.filter((payment) => !payment.isSettled);
-  const total = unsettled.reduce((sum, payment) => sum + payment.amount, 0);
+  const total = payments.reduce((sum, payment) => sum + payment.amount, 0);
   const share = total / participants.length;
 
   const balances = new Map(participants.map((p) => [p.id, -share]));
-  for (const payment of unsettled) {
+  for (const payment of payments) {
     balances.set(payment.payerId, (balances.get(payment.payerId) ?? -share) + payment.amount);
   }
 
@@ -55,25 +54,20 @@ export function calculateSettlements(participants, payments) {
   return { transfers, balances };
 }
 
-// 精算タブのレシートに出す内訳をまとめて計算する。
-// 精算済みの支払いは件数と金額だけ数え、精算の計算（1人あたり・収支・送金）には入れない
+// 精算タブのレシートに出す内訳（支払いの合計・1人あたり・メンバーごとの収支・送金）をまとめて計算する
 export function summarizeSettlement(participants, payments) {
-  const unsettled = payments.filter((payment) => !payment.isSettled);
-  const settled = payments.filter((payment) => payment.isSettled);
   const sum = (list) => list.reduce((total, payment) => total + payment.amount, 0);
-  const unsettledTotal = sum(unsettled);
-  const share = participants.length > 0 ? unsettledTotal / participants.length : 0;
+  const total = sum(payments);
+  const share = participants.length > 0 ? total / participants.length : 0;
   const { transfers, balances } = calculateSettlements(participants, payments);
 
   return {
-    unsettledCount: unsettled.length,
-    unsettledTotal,
-    settledCount: settled.length,
-    settledTotal: sum(settled),
+    count: payments.length,
+    total,
     share,
     rows: participants.map((participant) => ({
       id: participant.id,
-      paid: sum(unsettled.filter((payment) => payment.payerId === participant.id)),
+      paid: sum(payments.filter((payment) => payment.payerId === participant.id)),
       share,
       balance: balances.get(participant.id) ?? 0,
     })),

@@ -116,20 +116,6 @@ export async function addPayment(projectId, formData) {
   return { ok: true };
 }
 
-export async function toggleSettled(projectId, paymentId, isSettled) {
-  const session = await auth();
-  if (!session?.user?.id) return LOGIN_REQUIRED;
-  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
-
-  await prisma.payment.updateMany({
-    where: { id: paymentId, projectId },
-    data: { isSettled },
-  });
-
-  revalidatePath(`/projects/${projectId}`);
-  return { ok: true };
-}
-
 export async function editPayment(projectId, paymentId, formData) {
   const session = await auth();
   if (!session?.user?.id) return LOGIN_REQUIRED;
@@ -175,7 +161,6 @@ export async function restorePayment(projectId, payment) {
       payerId: payment.payerId,
       memo: payment.memo ?? "",
       amount,
-      isSettled: Boolean(payment.isSettled),
       createdAt: payment.createdAt ? new Date(payment.createdAt) : undefined,
       projectId,
     },

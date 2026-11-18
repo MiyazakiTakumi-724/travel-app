@@ -51,10 +51,7 @@ export default function SettlementReceipt({ participants, payments, displayNames
 
           <Divider />
           <Label>支払い</Label>
-          <Line label={`未精算の支払い（${summary.unsettledCount}件）`} amount={summary.unsettledTotal} />
-          {summary.settledCount > 0 && (
-            <Line label={`精算済みの支払い（${summary.settledCount}件）`} amount={summary.settledTotal} muted />
-          )}
+          <Line label={`支払いの合計（${summary.count}件）`} amount={summary.total} />
           <Line label={`1人あたり（÷ ${participants.length}人）`} amount={Math.round(summary.share)} />
 
           <Divider />
@@ -112,9 +109,6 @@ export default function SettlementReceipt({ participants, payments, displayNames
           )}
         </div>
       </div>
-      <p className="text-xs leading-relaxed text-ink-muted">
-        送金が済んだら、「支払い」で支払いに精算済みのチェックを入れると、計算から外れます。
-      </p>
     </div>
   );
 }

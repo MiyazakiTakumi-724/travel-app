@@ -49,9 +49,9 @@ vi.mock("@/lib/prisma", () => {
       },
       payment: {
         findUnique: async ({ where }) => db.payments.find((p) => p.id === where.id) ?? null,
-        create: async ({ data }) => db.payments.push({ isSettled: false, ...data }),
+        create: async ({ data }) => db.payments.push({ ...data }),
         createMany: async ({ data }) => {
-          data.forEach((row, index) => db.payments.push({ id: `new-${index}`, isSettled: false, ...row }));
+          data.forEach((row, index) => db.payments.push({ id: `new-${index}`, ...row }));
         },
         updateMany: async ({ where, data }) => {
           db.payments.filter((p) => matches(p, where)).forEach((p) => Object.assign(p, data));
@@ -71,7 +71,6 @@ const {
   editProject,
   removeParticipant,
   restorePayment,
-  toggleSettled,
 } = await import("./actions");
 
 const form = (entries) => {
@@ -95,7 +94,7 @@ beforeEach(() => {
     { id: "pQuiet", name: "じろう", projectId: "trip", userId: "quiet" },
     { id: "pOther", name: "よそ", projectId: "other", userId: "outsider" },
   ];
-  db.payments = [{ id: "pay1", payerId: "pMember", memo: "宿", amount: 9000, isSettled: false, projectId: "trip" }];
+  db.payments = [{ id: "pay1", payerId: "pMember", memo: "宿", amount: 9000, projectId: "trip" }];
   loginAs("member");
 });
 
@@ -166,7 +165,7 @@ describe("入力値の上限", () => {
   });
 });
 
-describe("editPayment / toggleSettled / deletePayment", () => {
+describe("editPayment / deletePayment", () => {
   it("メンバーは支払いを編集できる", async () => {
     await editPayment("trip", "pay1", form([["payerId", "pOwner"], ["memo", "宿代"], ["amount", "12000"]]));
     expect(db.payments[0]).toMatchObject({ payerId: "pOwner", memo: "宿代", amount: 12000 });
@@ -177,9 +176,7 @@ describe("editPayment / toggleSettled / deletePayment", () => {
     expect(db.payments[0]).toMatchObject({ payerId: "pMember", amount: 9000 });
   });
 
-  it("精算済みの切り替えと削除ができる", async () => {
-    await toggleSettled("trip", "pay1", true);
-    expect(db.payments[0].isSettled).toBe(true);
+  it("支払いを削除できる", async () => {
     await deletePayment("trip", "pay1");
     expect(db.payments).toHaveLength(0);
   });

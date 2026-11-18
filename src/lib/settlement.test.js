@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildDisplayNames, calculateSettlements, summarizeSettlement } from "./settlement";
 
 const people = (...names) => names.map((name, index) => ({ id: `p${index + 1}`, name }));
-const pay = (payerId, amount, isSettled = false) => ({ payerId, amount, isSettled });
+const pay = (payerId, amount) => ({ payerId, amount });
 const sum = (map) => [...map.values()].reduce((a, b) => a + b, 0);
 
 describe("calculateSettlements", () => {
@@ -34,15 +34,6 @@ describe("calculateSettlements", () => {
       { from: "b", to: "a", amount: 3000 },
       { from: "c", to: "a", amount: 3000 },
     ]);
-  });
-
-  it("精算済みの支払いは計算に入れない", () => {
-    const participants = people("あきら", "ゆうき");
-    const payments = [pay("p1", 1000), pay("p2", 5000, true)];
-
-    const { transfers } = calculateSettlements(participants, payments);
-
-    expect(transfers).toEqual([{ from: "p2", to: "p1", amount: 500 }]);
   });
 
   it("全員が同じ額を払っていれば送金はない", () => {
@@ -104,19 +95,18 @@ describe("buildDisplayNames", () => {
 });
 
 describe("summarizeSettlement", () => {
-  it("未精算と精算済みを分けて数え、メンバーごとの払った額・負担額・収支を出す", () => {
+  it("支払いの件数・合計と、メンバーごとの払った額・負担額・収支を出す", () => {
     const participants = people("まさのり", "田中 太郎", "はなこ");
     const payments = [
       pay("p1", 24000),
       pay("p2", 9000),
       pay("p1", 4500),
       pay("p3", 6300),
-      pay("p3", 1500, true),
     ];
 
     const summary = summarizeSettlement(participants, payments);
 
-    expect(summary).toMatchObject({ unsettledCount: 4, unsettledTotal: 43800, settledCount: 1, settledTotal: 1500, share: 14600 });
+    expect(summary).toMatchObject({ count: 4, total: 43800, share: 14600 });
     expect(summary.rows).toEqual([
       { id: "p1", paid: 28500, share: 14600, balance: 13900 },
       { id: "p2", paid: 9000, share: 14600, balance: -5600 },
@@ -130,8 +120,8 @@ describe("summarizeSettlement", () => {
 
   it("支払いがなければ、すべて0で送金もない", () => {
     expect(summarizeSettlement(people("あきら", "ゆうき"), [])).toMatchObject({
-      unsettledTotal: 0,
-      settledTotal: 0,
+      count: 0,
+      total: 0,
       share: 0,
       transfers: [],
     });

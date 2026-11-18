@@ -19,9 +19,7 @@ export function applyPaymentChange(payments, change) {
   }
 }
 
-// 支払い記録の絞り込み。payerId を指定するとその人の支払いだけ、hideSettled で精算済みを隠す
-export function filterPayments(payments, { payerId = null, hideSettled = false } = {}) {
-  return payments.filter(
-    (payment) => (!payerId || payment.payerId === payerId) && (!hideSettled || !payment.isSettled)
-  );
+// 支払い記録の絞り込み。payerId を指定するとその人の支払いだけにする
+export function filterPayments(payments, { payerId = null } = {}) {
+  return payments.filter((payment) => !payerId || payment.payerId === payerId);
 }

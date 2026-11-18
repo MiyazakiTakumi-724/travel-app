@@ -60,9 +60,9 @@ describe("format", () => {
 
 describe("filterPayments", () => {
   const payments = [
-    { id: "a", payerId: "p1", isSettled: false },
-    { id: "b", payerId: "p2", isSettled: true },
-    { id: "c", payerId: "p1", isSettled: true },
+    { id: "a", payerId: "p1" },
+    { id: "b", payerId: "p2" },
+    { id: "c", payerId: "p1" },
   ];
   const ids = (list) => list.map((p) => p.id);
 
@@ -70,9 +70,8 @@ describe("filterPayments", () => {
     expect(ids(filterPayments(payments))).toEqual(["a", "b", "c"]);
   });
 
-  it("人ごと・精算済みを隠す・両方で絞り込める", () => {
+  it("支払った人で絞り込める", () => {
     expect(ids(filterPayments(payments, { payerId: "p1" }))).toEqual(["a", "c"]);
-    expect(ids(filterPayments(payments, { hideSettled: true }))).toEqual(["a"]);
-    expect(ids(filterPayments(payments, { payerId: "p2", hideSettled: true }))).toEqual([]);
+    expect(ids(filterPayments(payments, { payerId: "p3" }))).toEqual([]);
   });
 });
