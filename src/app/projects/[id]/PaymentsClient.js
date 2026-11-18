@@ -30,74 +30,9 @@ import {
 } from "@/components/ui";
 import { formatPeriod, formatSignedYen, formatYen } from "@/lib/format";
 import { splitAmount } from "@/lib/split";
+import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
+import { applyPaymentChange, initialMemoChoice, MEMO_OPTIONS, OTHER } from "@/lib/payments";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
-
-// 同じニックネームの参加者がいても見分けられるよう、2人目以降に番号を付けた表示名を作る
-function buildDisplayNames(participants) {
-  const seen = new Map();
-  const names = new Map();
-  for (const participant of participants) {
-    const count = (seen.get(participant.name) ?? 0) + 1;
-    seen.set(participant.name, count);
-    names.set(participant.id, count === 1 ? participant.name : `${participant.name}（${count}）`);
-  }
-  return names;
-}
-
-// 未清算の支払いを参加者で均等割りし、誰が誰にいくら払えば精算できるかを計算する
-// balances は参加者IDごとの収支（プラス=最終的に受け取る、マイナス=最終的に支払う）
-// 名前をキーにすると同じニックネームの参加者が1人にまとまってしまうので、必ずIDで集計する
-function calculateSettlements(participants, payments) {
-  if (participants.length === 0) return { transfers: [], balances: new Map() };
-
-  const unsettled = payments.filter((payment) => !payment.isSettled);
-  const total = unsettled.reduce((sum, payment) => sum + payment.amount, 0);
-  const share = total / participants.length;
-
-  const balances = new Map(participants.map((p) => [p.id, -share]));
-  for (const payment of unsettled) {
-    balances.set(payment.payerId, (balances.get(payment.payerId) ?? -share) + payment.amount);
-  }
-
-  const creditors = [];
-  const debtors = [];
-  for (const [id, balance] of balances) {
-    if (balance > 0.5) creditors.push({ id, amount: balance });
-    else if (balance < -0.5) debtors.push({ id, amount: -balance });
-  }
-  creditors.sort((a, b) => b.amount - a.amount);
-  debtors.sort((a, b) => b.amount - a.amount);
-
-  const transfers = [];
-  let i = 0;
-  let j = 0;
-  while (i < debtors.length && j < creditors.length) {
-    const debtor = debtors[i];
-    const creditor = creditors[j];
-    const amount = Math.min(debtor.amount, creditor.amount);
-
-    if (amount > 0.5) {
-      transfers.push({ from: debtor.id, to: creditor.id, amount: Math.round(amount) });
-    }
-
-    debtor.amount -= amount;
-    creditor.amount -= amount;
-    if (debtor.amount <= 0.5) i++;
-    if (creditor.amount <= 0.5) j++;
-  }
-
-  return { transfers, balances };
-}
-
-// 支払い内容の候補。「その他」を選ぶと自由に入力できる
-const MEMO_OPTIONS = ["食事", "宿", "交通費", "ガソリン", "観光", "買い物"];
-const OTHER = "その他";
-
-// 編集時は保存済みの内容から、どのチップを選んだ状態にするかを決める
-function initialMemoChoice(memo) {
-  if (!memo) return null;
-  return MEMO_OPTIONS.includes(memo) ? memo : OTHER;
-}
 
 function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, onDelete, isPending, submitLabel, allowMultiplePayers }) {
   // 新規のときは自分を支払者にしておく（自分で払った分を記録することが一番多いため）
@@ -233,26 +168,6 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
       </form>
     </Modal>
   );
-}
-
-function applyPaymentChange(payments, change) {
-  switch (change.type) {
-    case "add":
-      return [...payments, ...change.payments];
-    case "restore":
-      // 作成日時の順に並べ直して、元の位置に戻す
-      return [...payments, change.payment].sort(
-        (a, b) => new Date(a.createdAt ?? 0) - new Date(b.createdAt ?? 0)
-      );
-    case "edit":
-      return payments.map((payment) =>
-        payment.id === change.id ? { ...payment, ...change.changes } : payment
-      );
-    case "delete":
-      return payments.filter((payment) => payment.id !== change.id);
-    default:
-      return payments;
-  }
 }
 
 // 自分が関わる送金を「〇〇さんへ／〇〇さんから」の形で表示する
