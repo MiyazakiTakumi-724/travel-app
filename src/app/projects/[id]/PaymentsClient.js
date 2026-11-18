@@ -18,6 +18,7 @@ import {
   CheckIcon,
   CloseIcon,
   LinkIcon,
+  CalendarIcon,
   PlusIcon,
   TicketIcon,
   UsersIcon,
@@ -29,7 +30,8 @@ import {
   textButtonClass,
   textFieldClass,
 } from "@/components/ui";
-import { formatPeriod, formatSignedYen, formatYen } from "@/lib/format";
+import { formatSignedYen, formatTripPeriod, formatYen } from "@/lib/format";
+import ScheduleSection from "./ScheduleSection";
 import { splitAmount } from "@/lib/split";
 import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
 import { applyPaymentChange, initialMemoChoice, MEMO_OPTIONS, OTHER } from "@/lib/payments";
@@ -193,8 +195,9 @@ function MySettlementRow({ transfer, currentParticipantId, displayNames }) {
   );
 }
 
-// スマホで下に並べるタブ（PCは画面が広いのでタブにせず全部並べる）
+// スマホで下に並べるタブ（PCは「日程調整」と「支払い・精算」の2つに分け、メンバーは支払い・精算の横に並べる）
 const TABS = [
+  { id: "schedule", label: "日程", Icon: CalendarIcon },
   { id: "main", label: "支払い・精算", Icon: TicketIcon },
   { id: "members", label: "メンバー", Icon: UsersIcon },
 ];
@@ -204,9 +207,12 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
   const searchParams = useSearchParams();
 
   // 開いているタブ。URL（?tab=）にも残して、再読み込みしても同じタブに戻れるようにする。
+  // 指定がなければ、日程を調整中のときは日程調整から、決まっていれば支払い・精算から始める
   const [tab, setTab] = useState(() => {
     const fromUrl = searchParams.get("tab");
-    return TABS.some((t) => t.id === fromUrl) ? fromUrl : "main";
+    if (TABS.some((t) => t.id === fromUrl)) return fromUrl;
+    const isScheduling = !project.startDate && !project.endDate && Boolean(project.days);
+    return isScheduling ? "schedule" : "main";
   });
   const selectTab = (id) => {
     setTab(id);
@@ -418,7 +424,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
             </h1>
             <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm font-medium text-ink-sub sm:text-base">
               <span>{project.destination || "目的地未定"}</span>
-              <span>{formatPeriod(project.startDate, project.endDate)}</span>
+              <span>{formatTripPeriod(project)}</span>
             </div>
           </div>
 
@@ -432,7 +438,38 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
           </div>
         </div>
 
-        <div className="grid items-start gap-8 lg:grid-cols-[1fr_380px] lg:gap-10">
+        {/* PC用の切り替え（スマホは画面下のタブ） */}
+        <div role="tablist" aria-label="表示の切り替え" className="grid w-fit grid-cols-2 rounded-xl bg-paper p-1 max-lg:hidden">
+          {[
+            { id: "schedule", label: "日程調整", Icon: CalendarIcon },
+            { id: "main", label: "支払い・精算", Icon: TicketIcon },
+          ].map(({ id, label, Icon }) => {
+            const selected = id === "schedule" ? tab === "schedule" : tab !== "schedule";
+            return (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={selected}
+                onClick={() => selectTab(id)}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-6 text-[15px] font-bold text-ink-sub transition-colors aria-selected:bg-primary aria-selected:text-white focus-visible:outline-2 focus-visible:outline-primary">
+                <Icon />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        <section id="panel-schedule" role="tabpanel" aria-label="日程調整" className={tab === "schedule" ? "" : "hidden"}>
+          <ScheduleSection
+            project={project}
+            currentParticipantId={currentParticipantId}
+            isOwner={isOwner}
+            displayNames={displayNames}
+            save={save}
+          />
+        </section>
+
+        <div className={`grid items-start gap-8 lg:grid-cols-[1fr_380px] lg:gap-10 ${tab === "schedule" ? "hidden" : ""}`}>
           <section
             id="panel-main"
             role="tabpanel"
@@ -578,7 +615,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
 
       {/* スマホ用の下部。自分の収支と「記録」ボタンのバー、その下にタブ（PCでは出さない） */}
       <div className="sticky bottom-0 z-20 lg:hidden">
-        <div className="bg-ink text-white">
+        <div className={`bg-ink text-white ${tab === "schedule" ? "hidden" : ""}`}>
           <div className="mx-auto flex w-full max-w-280 items-center justify-between gap-3 px-5 py-2.5 sm:px-6">
             <div className="flex min-w-0 flex-col gap-1">
               <span className="text-xs font-bold text-line-soft">{balanceLabel}</span>

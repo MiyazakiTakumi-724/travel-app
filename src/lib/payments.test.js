@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyPaymentChange, initialMemoChoice, OTHER } from "./payments";
 import { splitAmount } from "./split";
-import { formatPeriod, formatSignedYen, formatYen } from "./format";
+import { formatPeriod, formatSignedYen, formatTripPeriod, formatYen } from "./format";
 
 describe("splitAmount", () => {
   it("割り切れるときは均等に分ける", () => {
@@ -80,5 +80,11 @@ describe("format", () => {
     expect(formatPeriod("2026-12-29", "2026-12-30")).toBe("2026-12-29 〜 2026-12-30");
     expect(formatPeriod("2026-12-29", "")).toBe("2026-12-29 〜 未定");
     expect(formatPeriod("", "")).toBe("日程未定");
+  });
+
+  it("日程調整中のプロジェクトは日数を添える", () => {
+    expect(formatTripPeriod({ startDate: "2026-12-29", endDate: "2026-12-30", days: 2 })).toBe("2026-12-29 〜 2026-12-30");
+    expect(formatTripPeriod({ startDate: "", endDate: "", days: 3 })).toBe("日程調整中（2泊3日）");
+    expect(formatTripPeriod({ startDate: "", endDate: "", days: null })).toBe("日程未定");
   });
 });

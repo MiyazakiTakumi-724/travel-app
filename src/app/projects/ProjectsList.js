@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { createProject } from "./actions";
 import SiteHeader, { GuideLink } from "@/components/SiteHeader";
@@ -8,7 +9,7 @@ import Modal, { ModalActions } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import { PlusIcon } from "@/components/icons";
 import { primaryButtonClass } from "@/components/ui";
-import { formatPeriod } from "@/lib/format";
+import { formatTripPeriod } from "@/lib/format";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { runServerAction } from "@/lib/runServerAction";
 
@@ -17,6 +18,7 @@ export default function ProjectsList({ projects }) {
     // useStateの初期値設定
     const [isOpen, setisOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
+    const router = useRouter();
     // 招待された旅行や、ほかのメンバーが作った変更を自動で反映する
     useAutoRefresh({ paused: isPending });
 
@@ -27,8 +29,12 @@ export default function ProjectsList({ projects }) {
         setCreateError("");
         startTransition(async () => {
             const result = await runServerAction(() => createProject(formData));
-            if (result.error) setCreateError(result.error);
-            else setisOpen(false);
+            if (result.error) {
+                setCreateError(result.error);
+                return;
+            }
+            // 作ったプロジェクトを開く（日程がまだなら日程調整の画面から始まる）
+            router.push(`/projects/${result.id}`);
         });
     };
 
@@ -87,7 +93,7 @@ export default function ProjectsList({ projects }) {
                                     <p className="mt-1 truncate font-medium text-ink-sub">{project.destination || "目的地未定"}</p>
                                 </div>
                                 <div className="ticket-bottom flex justify-between gap-4 px-7 pt-3.5 pb-5 text-sm text-ink-sub">
-                                    <span className="font-bold text-ink">{formatPeriod(project.startDate, project.endDate)}</span>
+                                    <span className="font-bold text-ink">{formatTripPeriod(project)}</span>
                                     <span><b className="text-ink">{project.participants.length}</b>人</span>
                                 </div>
                             </Link>
