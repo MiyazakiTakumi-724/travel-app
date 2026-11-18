@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { isWithinLength, LIMITS } from "@/lib/limits";
+import { parseProjectForm } from "@/lib/projectInput";
 
 export async function setNickname(formData) {
   const session = await auth();
@@ -20,27 +21,17 @@ export async function setNickname(formData) {
   revalidatePath("/projects");
 }
 
+// 作成したら、そのプロジェクトのIDを返す（画面はそのプロジェクトへ移る）
 export async function createProject(formData) {
   const session = await auth();
   if (!session?.user?.id) return { error: "ログインし直してください" };
 
-  const title = formData.get("title")?.toString().trim();
-  const destination = formData.get("destination")?.toString().trim();
-  const startDate = formData.get("startDate")?.toString().trim();
-  const endDate = formData.get("endDate")?.toString().trim();
+  const { data, error } = parseProjectForm(formData);
+  if (error) return { error };
 
-  if (!title) return { error: "タイトルを入力してください" };
-  if (!isWithinLength(title, LIMITS.title)) return { error: `タイトルは${LIMITS.title}文字以内で入力してください` };
-  if (!isWithinLength(destination, LIMITS.destination)) {
-    return { error: `目的地は${LIMITS.destination}文字以内で入力してください` };
-  }
-
-  await prisma.project.create({
+  const project = await prisma.project.create({
     data: {
-      title,
-      destination,
-      startDate,
-      endDate,
+      ...data,
       ownerId: session.user.id,
       participants: {
         create: [{ name: session.user.nickname, userId: session.user.id }],
@@ -49,5 +40,5 @@ export async function createProject(formData) {
   });
 
   revalidatePath("/projects");
-  return { ok: true };
+  return { ok: true, id: project.id };
 }

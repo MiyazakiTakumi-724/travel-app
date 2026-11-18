@@ -6,68 +6,29 @@ import { revalidatePath } from "next/cache";
 import { splitAmount } from "@/lib/split";
 import { isValidAmount, isWithinLength, LIMITS } from "@/lib/limits";
 
-// 画面に出すエラーメッセージ。成功したときは { ok: true } を返す
-const LOGIN_REQUIRED = { error: "ログインし直してください" };
-const NOT_MEMBER = { error: "このプロジェクトのメンバーではありません" };
-const OWNER_ONLY = { error: "この操作ができるのは作成者だけです" };
-const INVALID_INPUT = { error: "入力内容を確認してください" };
+import {
+  assertMember,
+  assertOwner,
+  filterParticipantIds,
+  INVALID_INPUT,
+  LOGIN_REQUIRED,
+  NOT_MEMBER,
+  OWNER_ONLY,
+} from "@/lib/access";
+import { parseProjectForm } from "@/lib/projectInput";
+
 const INVALID_AMOUNT = { error: "金額は1円〜1,000万円の整数で入力してください" };
 const MEMO_TOO_LONG = { error: `支払い内容は${LIMITS.memo}文字以内で入力してください` };
-
-// プロジェクトのタイトル・目的地の文字数をチェックする（問題なければ null）
-function checkProjectText(title, destination) {
-  if (!title) return { error: "タイトルを入力してください" };
-  if (!isWithinLength(title, LIMITS.title)) return { error: `タイトルは${LIMITS.title}文字以内で入力してください` };
-  if (!isWithinLength(destination, LIMITS.destination)) {
-    return { error: `目的地は${LIMITS.destination}文字以内で入力してください` };
-  }
-  return null;
-}
-
-async function assertMember(projectId, userId) {
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    include: { participants: true },
-  });
-  if (!project) return false;
-  return (
-    project.ownerId === userId ||
-    project.participants.some((p) => p.userId === userId)
-  );
-}
-
-// 送られてきた支払者IDのうち、このプロジェクトの参加者のものだけを残す
-async function filterParticipantIds(projectId, ids) {
-  const participants = await prisma.participant.findMany({
-    where: { projectId, id: { in: ids } },
-    select: { id: true },
-  });
-  const valid = new Set(participants.map((p) => p.id));
-  return ids.filter((id) => valid.has(id));
-}
-
-async function assertOwner(projectId, userId) {
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  return Boolean(project && project.ownerId === userId);
-}
 
 export async function editProject(projectId, formData) {
   const session = await auth();
   if (!session?.user?.id) return LOGIN_REQUIRED;
   if (!(await assertOwner(projectId, session.user.id))) return OWNER_ONLY;
 
-  const title = formData.get("title")?.toString().trim();
-  const destination = formData.get("destination")?.toString().trim();
-  const startDate = formData.get("startDate")?.toString().trim();
-  const endDate = formData.get("endDate")?.toString().trim();
+  const { data, error } = parseProjectForm(formData);
+  if (error) return { error };
 
-  const textError = checkProjectText(title, destination);
-  if (textError) return textError;
-
-  await prisma.project.update({
-    where: { id: projectId },
-    data: { title, destination, startDate, endDate },
-  });
+  await prisma.project.update({ where: { id: projectId }, data });
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
