@@ -1,5 +1,7 @@
 # 旅行清算アプリ
 
+[![CI](https://github.com/MiyazakiTakumi-724/travel-app/actions/workflows/ci.yml/badge.svg)](https://github.com/MiyazakiTakumi-724/travel-app/actions/workflows/ci.yml)
+
 旅行中の立て替えを記録して、「誰が誰にいくら払えばよいか」を自動で計算する割り勘Webアプリです。
 Googleでログインして旅行を作り、招待URLで友人を招くと、メンバー全員で支払いを共有できます。
 
@@ -144,6 +146,8 @@ Googleでログインして旅行を作り、招待URLで友人を招くと、�
 ```bash
 npm test
 ```
+
+GitHub に push すると、GitHub Actions で lint・テスト・ビルドが自動で実行されます（`.github/workflows/ci.yml`）。
 
 ## デプロイ
 

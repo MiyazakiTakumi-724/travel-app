@@ -1,0 +1,31 @@
+# push とプルリクエストのたびに、lint・テスト・ビルドを自動で確認する
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # postinstall で prisma generate も走る（DB への接続は不要）
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # DB やログインの設定がなくてもビルドできる
+      - name: Build
+        run: npm run build
