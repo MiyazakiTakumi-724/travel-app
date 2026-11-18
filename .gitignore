@@ -45,3 +45,7 @@ next-env.d.ts
 # prisma sqlite database
 /dev.db
 /prisma/*.db
+
+# 自分のパソコン用の Claude Code の設定（開発サーバーの起動設定など）
+/.claude/launch.json
+/.claude/settings.local.json
