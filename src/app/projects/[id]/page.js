@@ -19,6 +19,7 @@ export default async function ProjectDetailPage({ params }) {
         include: { availableDays: { select: { date: true } } },
       },
       payments: { orderBy: { createdAt: "asc" } },
+      itineraryItems: { orderBy: { createdAt: "asc" } },
     },
   });
 

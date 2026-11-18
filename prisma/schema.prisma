@@ -58,22 +58,23 @@ model VerificationToken {
 }
 
 model Project {
-  id             String        @id @default(cuid())
+  id             String          @id @default(cuid())
   title          String
   destination    String
-  startDate      String        @default("")
-  endDate        String        @default("")
+  startDate      String          @default("")
+  endDate        String          @default("")
   // 日程調整：旅行の日数と、行ける日を聞く期間（作成時に決める）
   days           Int?
   rangeStart     String?
   rangeEnd       String?
   // 作成者が仮決定した日程の開始日。全員が ○ と答えると startDate・endDate に確定する
   tentativeStart String?
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime        @default(now())
   ownerId        String
-  owner          User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   participants   Participant[]
   payments       Payment[]
+  itineraryItems ItineraryItem[]
 }
 
 model Participant {
@@ -113,4 +114,15 @@ model Payment {
   createdAt DateTime    @default(now())
   projectId String
   project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// 旅行の予定（日ごとのメモ）。日付ではなく「何日目か」で持つので、日程を決め直しても予定は残る
+model ItineraryItem {
+  id        String   @id @default(cuid())
+  dayIndex  Int
+  time      String   @default("")
+  text      String
+  createdAt DateTime @default(now())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }

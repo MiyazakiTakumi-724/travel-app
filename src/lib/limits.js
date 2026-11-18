@@ -5,6 +5,7 @@ export const LIMITS = {
   destination: 30,
   memo: 30,
   nickname: 20,
+  itinerary: 50, // 旅行の予定1件の文字数
 };
 
 // 金額として受け付けられるか（1円以上・上限以下の整数）

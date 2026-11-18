@@ -11,6 +11,7 @@ import {
   unsubmitAvailability,
 } from "./scheduleActions";
 import { CheckIcon } from "@/components/icons";
+import ItinerarySection from "./ItinerarySection";
 import { fieldLabelClass, primaryButtonClass, textButtonClass, textFieldClass } from "@/components/ui";
 import { addDays, daysBetween, dayKind, eachDay, formatDateRange, formatDays, formatShortDate, holidayName, parseDate } from "@/lib/dates";
 import { availableCount, fitsInRange, schedulePhase, tallyAnswers, tripEndDate } from "@/lib/schedule";
@@ -102,7 +103,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
     };
     const decidedDays = project.startDate && project.endDate ? daysBetween(project.startDate, project.endDate) + 1 : null;
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-8">
         <div className="drop-shadow-[0_14px_20px_rgb(21_128_196/0.15)]">
           <div className="ticket-top px-6.5 pt-5.5 pb-4">
             <p className="text-sm font-bold text-ink-sub">日程が決まりました</p>
@@ -121,7 +122,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
             )}
           </div>
         </div>
-        <p className="text-sm text-ink-sub">支払いの記録は「支払い」、精算は「精算」から。</p>
+        {decidedDays && <ItinerarySection project={{ ...project, days: decidedDays }} save={save} />}
       </div>
     );
   }
