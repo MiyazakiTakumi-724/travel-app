@@ -1,4 +1,5 @@
 import { fieldLabelClass, textFieldClass } from "./ui";
+import { LIMITS } from "@/lib/limits";
 
 // 新規作成・編集で共通のプロジェクト入力欄（name属性はServer Actionと対応）
 export default function ProjectFormFields({ project }) {
@@ -10,6 +11,7 @@ export default function ProjectFormFields({ project }) {
           type="text"
           name="title"
           required
+          maxLength={LIMITS.title}
           defaultValue={project?.title}
           placeholder="例：沖縄旅行"
           className={textFieldClass}
@@ -21,6 +23,7 @@ export default function ProjectFormFields({ project }) {
         <input
           type="text"
           name="destination"
+          maxLength={LIMITS.destination}
           defaultValue={project?.destination}
           placeholder="例：那覇"
           className={textFieldClass}

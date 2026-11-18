@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { isWithinLength, LIMITS } from "@/lib/limits";
 
 async function ensureParticipant(projectId, userId, name) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -35,7 +36,7 @@ export async function setNicknameAndJoin(projectId, formData) {
   if (!session?.user?.id) return;
 
   const nickname = formData.get("nickname")?.toString().trim();
-  if (!nickname) return;
+  if (!nickname || !isWithinLength(nickname, LIMITS.nickname)) return;
 
   await prisma.user.update({
     where: { id: session.user.id },

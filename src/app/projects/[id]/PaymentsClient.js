@@ -35,6 +35,7 @@ import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
 import { applyPaymentChange, initialMemoChoice, MEMO_OPTIONS, OTHER } from "@/lib/payments";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { runServerAction } from "@/lib/runServerAction";
+import { LIMITS } from "@/lib/limits";
 
 function PaymentFormModal({ title, participants, displayNames, defaultValues, defaultPayerId, onSubmit, onCancel, onDelete, isPending, submitLabel, allowMultiplePayers }) {
   // 新規のときは自分を支払者にしておく（自分で払った分を記録することが一番多いため）
@@ -76,6 +77,8 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
               defaultValue={defaultValues?.amount}
               required
               min="1"
+              max={LIMITS.amount}
+              step="1"
               placeholder="0"
               className="min-w-0 flex-1 bg-transparent p-0 amount text-[34px] text-ink outline-none placeholder:text-line-dashed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
@@ -109,6 +112,7 @@ function PaymentFormModal({ title, participants, displayNames, defaultValues, de
               aria-label="支払い内容（自由入力）"
               value={otherMemo}
               onChange={(event) => setOtherMemo(event.target.value)}
+              maxLength={LIMITS.memo}
               autoFocus
               className={`${textFieldClass} mt-2.5`}
               placeholder="例：レンタカー、スキー場のリフト券"

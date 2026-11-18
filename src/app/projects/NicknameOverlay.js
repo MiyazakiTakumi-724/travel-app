@@ -3,6 +3,7 @@
 import { setNickname } from "./actions";
 import Modal, { ModalActions } from "@/components/Modal";
 import { textFieldClass } from "@/components/ui";
+import { LIMITS } from "@/lib/limits";
 
 export default function NicknameOverlay() {
   return (
@@ -12,7 +13,7 @@ export default function NicknameOverlay() {
           type="text"
           name="nickname"
           required
-          maxLength={20}
+          maxLength={LIMITS.nickname}
           aria-label="ニックネーム"
           className={textFieldClass}
           placeholder="例：たろう"

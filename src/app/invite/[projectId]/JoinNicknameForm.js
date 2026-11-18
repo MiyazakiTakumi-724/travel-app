@@ -3,6 +3,7 @@
 import { setNicknameAndJoin } from "./actions";
 import SiteHeader from "@/components/SiteHeader";
 import { primaryButtonClass, textFieldClass } from "@/components/ui";
+import { LIMITS } from "@/lib/limits";
 
 export default function JoinNicknameForm({ projectId, projectTitle }) {
   return (
@@ -26,7 +27,7 @@ export default function JoinNicknameForm({ projectId, projectTitle }) {
               type="text"
               name="nickname"
               required
-              maxLength={20}
+              maxLength={LIMITS.nickname}
               aria-label="ニックネーム"
               autoFocus
               className={textFieldClass}

@@ -3,13 +3,14 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { isWithinLength, LIMITS } from "@/lib/limits";
 
 export async function setNickname(formData) {
   const session = await auth();
   if (!session?.user?.id) return;
 
   const nickname = formData.get("nickname")?.toString().trim();
-  if (!nickname) return;
+  if (!nickname || !isWithinLength(nickname, LIMITS.nickname)) return;
 
   await prisma.user.update({
     where: { id: session.user.id },
@@ -29,6 +30,10 @@ export async function createProject(formData) {
   const endDate = formData.get("endDate")?.toString().trim();
 
   if (!title) return { error: "タイトルを入力してください" };
+  if (!isWithinLength(title, LIMITS.title)) return { error: `タイトルは${LIMITS.title}文字以内で入力してください` };
+  if (!isWithinLength(destination, LIMITS.destination)) {
+    return { error: `目的地は${LIMITS.destination}文字以内で入力してください` };
+  }
 
   await prisma.project.create({
     data: {

@@ -126,10 +126,40 @@ describe("addPayment", () => {
   });
 
   it("金額が0以下・数字でないときは記録しない", async () => {
-    expect((await addPayment("trip", form([["payerId", "pMember"], ["amount", "0"]]))).error).toBe("入力内容を確認してください");
+    expect((await addPayment("trip", form([["payerId", "pMember"], ["amount", "0"]]))).error).toBe(
+      "金額は1円〜1,000万円の整数で入力してください"
+    );
     await addPayment("trip", form([["payerId", "pMember"], ["amount", "-5"]]));
     await addPayment("trip", form([["payerId", "pMember"], ["amount", "abc"]]));
     expect(db.payments).toHaveLength(1);
+  });
+});
+
+describe("入力値の上限", () => {
+  it("1,000万円を超える金額や小数は記録しない", async () => {
+    expect(await addPayment("trip", form([["payerId", "pMember"], ["amount", "10000001"]]))).toEqual({
+      error: "金額は1円〜1,000万円の整数で入力してください",
+    });
+    expect((await addPayment("trip", form([["payerId", "pMember"], ["amount", "1.5"]]))).error).toBeDefined();
+    expect(await addPayment("trip", form([["payerId", "pMember"], ["amount", "10000000"]]))).toEqual({ ok: true });
+  });
+
+  it("支払い内容が長すぎるときは記録しない", async () => {
+    const memo = "あ".repeat(31);
+    expect((await addPayment("trip", form([["payerId", "pMember"], ["memo", memo], ["amount", "100"]]))).error).toContain(
+      "30文字以内"
+    );
+  });
+
+  it("編集でも金額の上限をチェックする", async () => {
+    expect((await editPayment("trip", "pay1", form([["payerId", "pMember"], ["amount", "99999999"]]))).error).toBeDefined();
+    expect(db.payments[0].amount).toBe(9000);
+  });
+
+  it("タイトルが長すぎるプロジェクトは保存しない", async () => {
+    loginAs("owner");
+    expect((await editProject("trip", form([["title", "あ".repeat(31)]]))).error).toContain("30文字以内");
+    expect(db.projects[0].title).toBe("沖縄旅行");
   });
 });
 

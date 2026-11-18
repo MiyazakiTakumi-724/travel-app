@@ -4,12 +4,25 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { splitAmount } from "@/lib/split";
+import { isValidAmount, isWithinLength, LIMITS } from "@/lib/limits";
 
 // 画面に出すエラーメッセージ。成功したときは { ok: true } を返す
 const LOGIN_REQUIRED = { error: "ログインし直してください" };
 const NOT_MEMBER = { error: "このプロジェクトのメンバーではありません" };
 const OWNER_ONLY = { error: "この操作ができるのは作成者だけです" };
 const INVALID_INPUT = { error: "入力内容を確認してください" };
+const INVALID_AMOUNT = { error: "金額は1円〜1,000万円の整数で入力してください" };
+const MEMO_TOO_LONG = { error: `支払い内容は${LIMITS.memo}文字以内で入力してください` };
+
+// プロジェクトのタイトル・目的地の文字数をチェックする（問題なければ null）
+function checkProjectText(title, destination) {
+  if (!title) return { error: "タイトルを入力してください" };
+  if (!isWithinLength(title, LIMITS.title)) return { error: `タイトルは${LIMITS.title}文字以内で入力してください` };
+  if (!isWithinLength(destination, LIMITS.destination)) {
+    return { error: `目的地は${LIMITS.destination}文字以内で入力してください` };
+  }
+  return null;
+}
 
 async function assertMember(projectId, userId) {
   const project = await prisma.project.findUnique({
@@ -48,7 +61,8 @@ export async function editProject(projectId, formData) {
   const startDate = formData.get("startDate")?.toString().trim();
   const endDate = formData.get("endDate")?.toString().trim();
 
-  if (!title) return INVALID_INPUT;
+  const textError = checkProjectText(title, destination);
+  if (textError) return textError;
 
   await prisma.project.update({
     where: { id: projectId },
@@ -119,7 +133,8 @@ export async function addPayment(projectId, formData) {
   const amount = Number(formData.get("amount"));
 
   if (payerIds.length === 0 || payerIds.length !== requestedPayerIds.length) return INVALID_INPUT;
-  if (!amount || amount <= 0) return INVALID_INPUT;
+  if (!isValidAmount(amount)) return INVALID_AMOUNT;
+  if (!isWithinLength(memo, LIMITS.memo)) return MEMO_TOO_LONG;
 
   // 複数人が支払者の場合は金額を均等割りする
   const amounts = splitAmount(amount, payerIds.length);
@@ -160,7 +175,9 @@ export async function editPayment(projectId, paymentId, formData) {
   const memo = formData.get("memo")?.toString().trim();
   const amount = Number(formData.get("amount"));
 
-  if (!payerId || !amount || amount <= 0) return INVALID_INPUT;
+  if (!payerId) return INVALID_INPUT;
+  if (!isValidAmount(amount)) return INVALID_AMOUNT;
+  if (!isWithinLength(memo, LIMITS.memo)) return MEMO_TOO_LONG;
   if ((await filterParticipantIds(projectId, [payerId])).length === 0) return INVALID_INPUT;
 
   await prisma.payment.updateMany({
@@ -179,7 +196,9 @@ export async function restorePayment(projectId, payment) {
   if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
 
   const amount = Number(payment?.amount);
-  if (!payment?.id || !amount || amount <= 0) return INVALID_INPUT;
+  if (!payment?.id || !isValidAmount(amount) || !isWithinLength(payment.memo, LIMITS.memo)) {
+    return INVALID_INPUT;
+  }
   if ((await filterParticipantIds(projectId, [payment.payerId])).length === 0) return INVALID_INPUT;
 
   const exists = await prisma.payment.findUnique({ where: { id: payment.id } });
