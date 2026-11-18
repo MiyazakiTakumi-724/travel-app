@@ -16,6 +16,7 @@ import {
   OWNER_ONLY,
 } from "@/lib/access";
 import { parseProjectForm } from "@/lib/projectInput";
+import { confirmIfAllAgreed, resetAnswers } from "@/lib/scheduleServer";
 
 const INVALID_AMOUNT = { error: "金額は1円〜1,000万円の整数で入力してください" };
 const MEMO_TOO_LONG = { error: `支払い内容は${LIMITS.memo}文字以内で入力してください` };
@@ -27,6 +28,18 @@ export async function editProject(projectId, formData) {
 
   const { data, error } = parseProjectForm(formData);
   if (error) return { error };
+
+  // 日程調整の条件が変わったら、仮決定と ○× をやり直す。期間が変わったら、行ける日の提出もやり直す
+  const before = await prisma.project.findUnique({ where: { id: projectId } });
+  const rangeChanged =
+    data.rangeStart !== undefined && (data.rangeStart !== before.rangeStart || data.rangeEnd !== before.rangeEnd);
+  if (rangeChanged || data.days !== before.days || data.startDate) {
+    data.tentativeStart = null;
+    await resetAnswers(projectId);
+  }
+  if (rangeChanged) {
+    await prisma.participant.updateMany({ where: { projectId }, data: { availabilitySubmitted: false } });
+  }
 
   await prisma.project.update({ where: { id: projectId }, data });
 
@@ -57,6 +70,8 @@ export async function removeParticipant(projectId, participantId) {
 
   try {
     await prisma.participant.delete({ where: { id: participant.id } });
+    // 外した人以外が全員 ○ なら、仮決定の日程をそのまま確定する
+    await confirmIfAllAgreed(projectId);
   } catch (error) {
     // 確認のあとに支払いが記録された場合は、DBの制約で削除が止まる
     if (error?.code === "P2003") {

@@ -86,5 +86,6 @@ describe("format", () => {
     expect(formatTripPeriod({ startDate: "2026-12-29", endDate: "2026-12-30", days: 2 })).toBe("2026-12-29 〜 2026-12-30");
     expect(formatTripPeriod({ startDate: "", endDate: "", days: 3 })).toBe("日程調整中（2泊3日）");
     expect(formatTripPeriod({ startDate: "", endDate: "", days: null })).toBe("日程未定");
+    expect(formatTripPeriod({ startDate: "", endDate: "", days: 3, tentativeStart: "2026-11-14" })).toBe("仮決定 11/14(土)〜11/16(月)");
   });
 });

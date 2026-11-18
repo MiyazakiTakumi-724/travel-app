@@ -14,15 +14,24 @@ describe("parseProjectForm", () => {
     });
   });
 
-  it("これから決めるときは、日数だけを保存して日付は空にする", () => {
-    expect(parseProjectForm(form({ title: "沖縄旅行", dateMode: "undecided", days: "3", startDate: "2026-08-10" }))).toEqual({
-      data: { title: "沖縄旅行", destination: "", startDate: "", endDate: "", days: 3 },
+  const undecided = { title: "沖縄旅行", dateMode: "undecided", days: "3", rangeStart: "2026-08-01", rangeEnd: "2026-08-31" };
+
+  it("これから決めるときは、日数と期間を保存して日付は空にする", () => {
+    expect(parseProjectForm(form({ ...undecided, startDate: "2026-08-10" }))).toEqual({
+      data: { title: "沖縄旅行", destination: "", startDate: "", endDate: "", days: 3, rangeStart: "2026-08-01", rangeEnd: "2026-08-31" },
     });
   });
 
   it("これから決めるのに日数がおかしいときはエラー", () => {
-    expect(parseProjectForm(form({ title: "沖縄旅行", dateMode: "undecided", days: "0" })).error).toContain("1〜14日");
-    expect(parseProjectForm(form({ title: "沖縄旅行", dateMode: "undecided", days: "15" })).error).toBeDefined();
+    expect(parseProjectForm(form({ ...undecided, days: "0" })).error).toContain("1〜14日");
+    expect(parseProjectForm(form({ ...undecided, days: "15" })).error).toBeDefined();
+  });
+
+  it("期間がない・逆向き・3か月を超える・旅行の日数より短いときはエラー", () => {
+    expect(parseProjectForm(form({ ...undecided, rangeStart: "" })).error).toBe("日程を聞く期間を入力してください");
+    expect(parseProjectForm(form({ ...undecided, rangeEnd: "2026-07-31" })).error).toContain("後に");
+    expect(parseProjectForm(form({ ...undecided, rangeEnd: "2026-11-30" })).error).toContain("92日以内");
+    expect(parseProjectForm(form({ ...undecided, rangeEnd: "2026-08-02" })).error).toContain("旅行の日数より短く");
   });
 
   it("終了日が開始日より前・ありえない日付はエラー", () => {

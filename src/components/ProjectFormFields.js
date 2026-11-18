@@ -2,13 +2,16 @@
 import { useState } from "react";
 import { fieldLabelClass, textFieldClass } from "./ui";
 import { LIMITS } from "@/lib/limits";
-import { formatDays } from "@/lib/dates";
-import { MAX_DAYS } from "@/lib/schedule";
+import { addDays, formatDays } from "@/lib/dates";
+import { MAX_DAYS, MAX_RANGE_DAYS } from "@/lib/schedule";
 
 const DATE_MODES = [
   { id: "undecided", label: "これから決める" },
   { id: "fixed", label: "決まっている" },
 ];
+
+// 端末の日付（日本時間など）で「今日」を "YYYY-MM-DD" にする
+const today = () => new Date().toLocaleDateString("sv-SE");
 
 // 新規作成・編集で共通のプロジェクト入力欄（name属性はServer Actionと対応）
 export default function ProjectFormFields({ project }) {
@@ -64,16 +67,46 @@ export default function ProjectFormFields({ project }) {
         </div>
 
         {dateMode === "undecided" ? (
-          <label className="mt-3 flex flex-col gap-1.5">
-            <span className="text-sm text-ink-sub">旅行の日数（日程はメンバーの都合を聞いて決めます）</span>
-            <select name="days" defaultValue={project?.days ?? 2} className={textFieldClass}>
-              {Array.from({ length: MAX_DAYS }, (_, index) => index + 1).map((days) => (
-                <option key={days} value={days}>
-                  {formatDays(days)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="mt-3 flex flex-col gap-3">
+            <p className="text-sm leading-relaxed text-ink-sub">
+              メンバーに行ける日を聞いて、日程を決めます。
+            </p>
+            <label className="flex flex-col gap-1.5">
+              <span className={fieldLabelClass}>旅行の日数</span>
+              <select name="days" defaultValue={project?.days ?? 2} className={textFieldClass}>
+                {Array.from({ length: MAX_DAYS }, (_, index) => index + 1).map((days) => (
+                  <option key={days} value={days}>
+                    {formatDays(days)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex flex-col gap-1.5">
+              <span className={fieldLabelClass}>行ける日を聞く期間（{MAX_RANGE_DAYS}日まで）</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  name="rangeStart"
+                  aria-label="期間の始まり"
+                  required
+                  defaultValue={project?.rangeStart ?? today()}
+                  className={`${textFieldClass} flex-1 px-2.5 text-sm`}
+                />
+                <span aria-hidden="true" className="shrink-0 text-ink-muted">〜</span>
+                <input
+                  type="date"
+                  name="rangeEnd"
+                  aria-label="期間の終わり"
+                  required
+                  defaultValue={project?.rangeEnd ?? addDays(today(), 30)}
+                  className={`${textFieldClass} flex-1 px-2.5 text-sm`}
+                />
+              </div>
+              {project?.rangeStart && (
+                <p className="text-xs leading-relaxed text-ink-muted">期間を変えると、全員に行ける日を提出し直してもらいます。</p>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="mt-3 flex items-center gap-2">
             <input

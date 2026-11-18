@@ -1,80 +1,97 @@
 import { describe, expect, it } from "vitest";
-import { availableCount, bestCandidateId, findBestWindows, isValidDays, tallyVotes, tripEndDate } from "./schedule";
+import {
+  availableCount,
+  findBestWindows,
+  fitsInRange,
+  isValidDays,
+  schedulePhase,
+  tallyAnswers,
+  tripEndDate,
+} from "./schedule";
 
 const participants = [
-  { id: "a", unavailableDays: ["2026-11-02"] },
-  { id: "b", unavailableDays: ["2026-11-05", "2026-11-06"] },
-  { id: "c", unavailableDays: [] },
+  { id: "a", availableDays: ["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"] },
+  { id: "b", availableDays: ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05"] },
+  { id: "c", availableDays: ["2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"] },
 ];
 
 describe("findBestWindows", () => {
-  it("期間内の開始日ごとに行けない人を数え、少ない順・日付順に並べる", () => {
-    const windows = findBestWindows({ rangeStart: "2026-11-01", rangeEnd: "2026-11-07", days: 2, participants });
+  it("開始日ごとに全日行ける人を数え、多い順・日付順に並べる", () => {
+    const windows = findBestWindows({ rangeStart: "2026-11-01", rangeEnd: "2026-11-06", days: 2, participants });
 
-    // 開始日は 11/1〜11/6 の6通り（11/7 開始だと期間からはみ出す）
-    expect(windows).toHaveLength(6);
-    expect(windows.map((w) => [w.startDate, w.absentIds])).toEqual([
-      ["2026-11-03", []],
+    // 開始日は 11/1〜11/5 の5通り（11/6 開始だと期間からはみ出す）
+    expect(windows.map((w) => [w.startDate, w.availableIds])).toEqual([
+      ["2026-11-03", ["a", "b", "c"]],
+      ["2026-11-02", ["a", "b"]],
+      ["2026-11-04", ["b", "c"]],
       ["2026-11-01", ["a"]],
-      ["2026-11-02", ["a"]],
-      ["2026-11-04", ["b"]],
-      ["2026-11-05", ["b"]],
-      ["2026-11-06", ["b"]],
+      ["2026-11-05", ["c"]],
     ]);
-    expect(windows[0].endDate).toBe("2026-11-04");
+    expect(windows[1]).toMatchObject({ endDate: "2026-11-03", unavailableIds: ["c"] });
+  });
+
+  it("1日でも行けない日が入っていれば、その人は行けない扱い", () => {
+    const [best] = findBestWindows({ rangeStart: "2026-11-01", rangeEnd: "2026-11-06", days: 4, participants });
+    expect(best).toMatchObject({ startDate: "2026-11-01", availableIds: ["a"] });
   });
 
   it("期間が旅行の日数より短い・未設定のときは空", () => {
     expect(findBestWindows({ rangeStart: "2026-11-01", rangeEnd: "2026-11-02", days: 3, participants })).toEqual([]);
     expect(findBestWindows({ rangeStart: null, rangeEnd: null, days: 3, participants })).toEqual([]);
   });
+});
 
-  it("日帰りなら期間の全日が候補になる", () => {
-    const windows = findBestWindows({ rangeStart: "2026-11-01", rangeEnd: "2026-11-03", days: 1, participants });
-    expect(windows.map((w) => w.startDate)).toEqual(["2026-11-01", "2026-11-03", "2026-11-02"]);
+describe("schedulePhase", () => {
+  const project = { startDate: "", endDate: "", days: 3, rangeStart: "2026-11-01", rangeEnd: "2026-11-30", tentativeStart: null };
+  const submitted = [{ availabilitySubmitted: true }, { availabilitySubmitted: true }];
+
+  it("提出していない人がいるうちは collecting", () => {
+    expect(schedulePhase(project, [{ availabilitySubmitted: true }, { availabilitySubmitted: false }])).toBe("collecting");
+  });
+
+  it("全員が提出したら choosing、仮決定したら voting、確定したら decided", () => {
+    expect(schedulePhase(project, submitted)).toBe("choosing");
+    expect(schedulePhase({ ...project, tentativeStart: "2026-11-14" }, submitted)).toBe("voting");
+    expect(schedulePhase({ ...project, startDate: "2026-11-14", endDate: "2026-11-16" }, submitted)).toBe("decided");
+  });
+
+  it("日数や期間がないときは notStarted", () => {
+    expect(schedulePhase({ ...project, days: null }, submitted)).toBe("notStarted");
+    expect(schedulePhase({ ...project, rangeStart: null }, submitted)).toBe("notStarted");
+  });
+});
+
+describe("tallyAnswers", () => {
+  it("○・×・まだの人に分け、全員が ○ かを出す", () => {
+    expect(
+      tallyAnswers([
+        { id: "a", tentativeAnswer: "yes" },
+        { id: "b", tentativeAnswer: "no" },
+        { id: "c", tentativeAnswer: null },
+      ])
+    ).toEqual({ yes: ["a"], no: ["b"], waiting: ["c"], allAgreed: false });
+
+    expect(tallyAnswers([{ id: "a", tentativeAnswer: "yes" }, { id: "b", tentativeAnswer: "yes" }]).allAgreed).toBe(true);
+    expect(tallyAnswers([]).allAgreed).toBe(false);
   });
 });
 
 describe("そのほか", () => {
-  it("日数のチェックと終了日の計算", () => {
+  it("日数のチェック・終了日・期間に収まるか", () => {
     expect(isValidDays(1)).toBe(true);
     expect(isValidDays(14)).toBe(true);
     expect(isValidDays(0)).toBe(false);
     expect(isValidDays(15)).toBe(false);
-    expect(isValidDays(2.5)).toBe(false);
     expect(tripEndDate("2026-11-30", 3)).toBe("2026-12-02");
+
+    const range = { rangeStart: "2026-11-01", rangeEnd: "2026-11-30", days: 3 };
+    expect(fitsInRange("2026-11-28", range)).toBe(true);
+    expect(fitsInRange("2026-11-29", range)).toBe(false);
+    expect(fitsInRange("2026-10-31", range)).toBe(false);
   });
 
   it("その日に行ける人数を数える", () => {
-    expect(availableCount("2026-11-05", participants)).toBe(2);
-    expect(availableCount("2026-11-04", participants)).toBe(3);
-  });
-});
-
-describe("投票の集計", () => {
-  const ids = ["a", "b", "c"];
-  const candidates = [
-    { id: "x", startDate: "2026-11-03", votes: [{ participantId: "a", answer: "yes" }, { participantId: "b", answer: "maybe" }] },
-    { id: "y", startDate: "2026-11-01", votes: [{ participantId: "a", answer: "yes" }, { participantId: "c", answer: "yes" }, { participantId: "b", answer: "no" }] },
-  ];
-
-  it("○△×ごとの人と、まだ投票していない人を出す", () => {
-    expect(tallyVotes(candidates[0], ids)).toEqual({
-      byAnswer: { yes: ["a"], maybe: ["b"], no: [] },
-      score: 3,
-      notVoted: ["c"],
-    });
-  });
-
-  it("メンバーから外れた人の投票は数えない", () => {
-    expect(tallyVotes(candidates[1], ["a", "c"]).byAnswer.no).toEqual([]);
-  });
-
-  it("○=2点・△=1点でいちばん点数が高い候補を選ぶ", () => {
-    expect(bestCandidateId(candidates, ids)).toBe("y");
-  });
-
-  it("誰も投票していなければ null", () => {
-    expect(bestCandidateId([{ id: "z", startDate: "2026-11-01", votes: [] }], ids)).toBeNull();
+    expect(availableCount("2026-11-03", participants)).toBe(3);
+    expect(availableCount("2026-11-06", participants)).toBe(1);
   });
 });

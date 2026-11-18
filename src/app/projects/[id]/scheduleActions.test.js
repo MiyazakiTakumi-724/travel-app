@@ -18,6 +18,7 @@ vi.mock("@/lib/prisma", () => {
     findUnique: async ({ where }) => db[name].find((row) => matches(row, flatten(where))) ?? null,
     findFirst: async ({ where }) => db[name].find((row) => matches(row, where)) ?? null,
     update: async ({ where, data }) => Object.assign(db[name].find((row) => matches(row, where)), data),
+    updateMany: async ({ where, data }) => db[name].filter((row) => matches(row, where)).forEach((row) => Object.assign(row, data)),
     upsert: async ({ where, create, update }) => {
       const found = db[name].find((row) => matches(row, flatten(where)));
       if (found) return Object.assign(found, update);
@@ -42,130 +43,162 @@ vi.mock("@/lib/prisma", () => {
         },
       },
       participant: table("participants"),
-      unavailableDay: table("unavailableDays"),
-      scheduleCandidate: table("candidates"),
-      scheduleVote: table("votes"),
+      availableDay: table("availableDays"),
     },
   };
 });
 
 const {
-  addCandidate,
-  decideSchedule,
-  deleteCandidate,
+  answerTentative,
+  cancelTentative,
+  proposeSchedule,
   reopenSchedule,
-  setScheduleRange,
-  setUnavailable,
-  voteCandidate,
+  setAvailable,
+  submitAvailability,
+  unsubmitAvailability,
 } = await import("./scheduleActions");
 
 const loginAs = (userId) => {
   session.current = userId ? { user: { id: userId } } : null;
 };
+const trip = () => db.projects[0];
+const person = (id) => db.participants.find((p) => p.id === id);
+const submitAll = () => db.participants.forEach((p) => (p.availabilitySubmitted = true));
 
 beforeEach(() => {
   db.projects = [
-    { id: "trip", ownerId: "owner", days: 3, rangeStart: "2026-11-01", rangeEnd: "2026-11-30", startDate: "", endDate: "" },
-    { id: "other", ownerId: "outsider", days: 2, rangeStart: null, rangeEnd: null, startDate: "", endDate: "" },
+    { id: "trip", ownerId: "owner", days: 3, rangeStart: "2026-11-01", rangeEnd: "2026-11-30", startDate: "", endDate: "", tentativeStart: null },
   ];
-  db.participants = [
-    { id: "pOwner", projectId: "trip", userId: "owner" },
-    { id: "pMember", projectId: "trip", userId: "member" },
-    { id: "pOther", projectId: "other", userId: "outsider" },
-  ];
-  db.unavailableDays = [];
-  db.candidates = [{ id: "c1", projectId: "trip", startDate: "2026-11-14" }];
-  db.votes = [];
+  const member = (id, userId) => ({ id, projectId: "trip", userId, availabilitySubmitted: false, tentativeAnswer: null });
+  db.participants = [member("pOwner", "owner"), member("pMember", "member"), member("pThird", "third")];
+  db.availableDays = [];
   loginAs("member");
 });
 
-describe("setScheduleRange", () => {
-  beforeEach(() => loginAs("owner"));
-
-  it("作成者は期間を決められる", async () => {
-    expect(await setScheduleRange("trip", "2026-12-01", "2026-12-31")).toEqual({ ok: true });
-    expect(db.projects[0]).toMatchObject({ rangeStart: "2026-12-01", rangeEnd: "2026-12-31" });
-  });
-
-  it("3か月を超える期間・逆向きの期間・旅行の日数より短い期間は受け付けない", async () => {
-    expect((await setScheduleRange("trip", "2026-11-01", "2027-03-01")).error).toContain("92日以内");
-    expect((await setScheduleRange("trip", "2026-11-10", "2026-11-01")).error).toContain("後にして");
-    expect((await setScheduleRange("trip", "2026-11-01", "2026-11-02")).error).toContain("旅行の日数より短く");
-    expect((await setScheduleRange("trip", "2026-11-01", "2026-13-01")).error).toBeDefined();
-  });
-
-  it("作成者以外は決められない", async () => {
-    loginAs("member");
-    expect(await setScheduleRange("trip", "2026-12-01", "2026-12-31")).toEqual({ error: "この操作ができるのは作成者だけです" });
-  });
-});
-
-describe("setUnavailable", () => {
-  it("自分の行けない日を付けて、外せる", async () => {
-    expect(await setUnavailable("trip", "2026-11-03", true)).toEqual({ ok: true });
-    expect(await setUnavailable("trip", "2026-11-03", true)).toEqual({ ok: true }); // 二重に付けても1件
-    expect(db.unavailableDays).toEqual([expect.objectContaining({ participantId: "pMember", date: "2026-11-03" })]);
-
-    await setUnavailable("trip", "2026-11-03", false);
-    expect(db.unavailableDays).toEqual([]);
+describe("1. 行ける日を付けて提出する", () => {
+  it("提出するまでは、自分の行ける日を付けたり外したりできる", async () => {
+    expect(await setAvailable("trip", "2026-11-03", true)).toEqual({ ok: true });
+    await setAvailable("trip", "2026-11-03", true); // 二重に付けても1件
+    await setAvailable("trip", "2026-11-04", true);
+    await setAvailable("trip", "2026-11-04", false);
+    expect(db.availableDays.map((d) => [d.participantId, d.date])).toEqual([["pMember", "2026-11-03"]]);
   });
 
   it("期間の外の日や、メンバーでない人は付けられない", async () => {
-    expect((await setUnavailable("trip", "2026-12-01", true)).error).toBeDefined();
+    expect((await setAvailable("trip", "2026-12-01", true)).error).toBeDefined();
     loginAs("outsider");
-    expect(await setUnavailable("trip", "2026-11-03", true)).toEqual({ error: "このプロジェクトのメンバーではありません" });
-    expect(db.unavailableDays).toEqual([]);
+    expect(await setAvailable("trip", "2026-11-03", true)).toEqual({ error: "このプロジェクトのメンバーではありません" });
+    expect(db.availableDays).toEqual([]);
+  });
+
+  it("提出すると変えられなくなり、「修正する」で付け直せる", async () => {
+    await submitAvailability("trip");
+    expect(person("pMember").availabilitySubmitted).toBe(true);
+    expect((await setAvailable("trip", "2026-11-03", true)).error).toContain("提出済み");
+
+    await unsubmitAvailability("trip");
+    expect(await setAvailable("trip", "2026-11-03", true)).toEqual({ ok: true });
   });
 });
 
-describe("候補と投票", () => {
-  it("作成者は候補を追加・削除できる（同じ開始日は1つだけ）", async () => {
-    loginAs("owner");
-    await addCandidate("trip", "2026-11-21");
-    await addCandidate("trip", "2026-11-21");
-    expect(db.candidates.map((c) => c.startDate)).toEqual(["2026-11-14", "2026-11-21"]);
+describe("2. 作成者が仮決定する", () => {
+  beforeEach(() => loginAs("owner"));
 
-    await deleteCandidate("trip", "c1");
-    expect(db.candidates.map((c) => c.startDate)).toEqual(["2026-11-21"]);
+  it("提出していないメンバーがいるうちは、仮決定できない", async () => {
+    person("pOwner").availabilitySubmitted = true;
+    person("pMember").availabilitySubmitted = true;
+    expect((await proposeSchedule("trip", "2026-11-14")).error).toBe("まだ行ける日を提出していないメンバーがいます");
+    expect(trip().tentativeStart).toBeNull();
   });
 
-  it("作成者以外は候補を追加できない", async () => {
-    expect((await addCandidate("trip", "2026-11-21")).error).toBe("この操作ができるのは作成者だけです");
+  it("全員が提出したら仮決定でき、作成者は ○ と答えたことになる", async () => {
+    submitAll();
+    expect(await proposeSchedule("trip", "2026-11-14")).toEqual({ ok: true });
+    expect(trip().tentativeStart).toBe("2026-11-14");
+    expect(db.participants.map((p) => p.tentativeAnswer)).toEqual(["yes", null, null]);
   });
 
-  it("メンバーは○△×で投票でき、もう一度投票すると上書きになる", async () => {
-    expect(await voteCandidate("trip", "c1", "yes")).toEqual({ ok: true });
-    await voteCandidate("trip", "c1", "maybe");
-    expect(db.votes).toEqual([expect.objectContaining({ candidateId: "c1", participantId: "pMember", answer: "maybe" })]);
+  it("期間からはみ出す日程は仮決定できない", async () => {
+    submitAll();
+    expect((await proposeSchedule("trip", "2026-11-29")).error).toBe("期間の中の日程を選んでください");
   });
 
-  it("おかしな答えや、ほかのプロジェクトの候補には投票できない", async () => {
-    expect((await voteCandidate("trip", "c1", "great")).error).toBeDefined();
-    db.candidates.push({ id: "cx", projectId: "other", startDate: "2026-11-01" });
-    expect((await voteCandidate("trip", "cx", "yes")).error).toContain("候補が見つかりません");
-    expect(db.votes).toEqual([]);
+  it("作成者以外は仮決定できない", async () => {
+    submitAll();
+    loginAs("member");
+    expect((await proposeSchedule("trip", "2026-11-14")).error).toBe("この操作ができるのは作成者だけです");
+  });
+
+  it("仮決定したあとは、行ける日の提出を取り消せない", async () => {
+    submitAll();
+    await proposeSchedule("trip", "2026-11-14");
+    loginAs("member");
+    expect((await unsubmitAvailability("trip")).error).toContain("仮決定");
   });
 });
 
-describe("日程の確定と取り消し", () => {
-  it("作成者が候補を選ぶと、旅行の日数から終了日まで決まる", async () => {
+describe("3. ○× で答えて、全員 ○ なら確定する", () => {
+  beforeEach(async () => {
+    submitAll();
     loginAs("owner");
-    expect(await decideSchedule("trip", "c1")).toEqual({ ok: true });
-    expect(db.projects[0]).toMatchObject({ startDate: "2026-11-14", endDate: "2026-11-16" });
+    await proposeSchedule("trip", "2026-11-14");
+  });
 
+  it("全員が ○ になった時点で、自動で日程が確定する", async () => {
+    loginAs("member");
+    expect(await answerTentative("trip", "yes")).toEqual({ ok: true, confirmed: false });
+    expect(trip().startDate).toBe("");
+
+    loginAs("third");
+    expect(await answerTentative("trip", "yes")).toEqual({ ok: true, confirmed: true });
+    expect(trip()).toMatchObject({ startDate: "2026-11-14", endDate: "2026-11-16", tentativeStart: null });
+  });
+
+  it("× の人がいると確定しない。作成者は仮決定を取り消して選び直せる", async () => {
+    loginAs("member");
+    await answerTentative("trip", "no");
+    loginAs("third");
+    await answerTentative("trip", "yes");
+    expect(trip().startDate).toBe("");
+
+    loginAs("owner");
+    await cancelTentative("trip");
+    expect(trip().tentativeStart).toBeNull();
+    expect(db.participants.every((p) => p.tentativeAnswer === null)).toBe(true);
+    // 行ける日の提出はそのまま
+    expect(db.participants.every((p) => p.availabilitySubmitted)).toBe(true);
+
+    // 選び直すと、前の答えは消えている
+    await proposeSchedule("trip", "2026-11-21");
+    expect(db.participants.map((p) => p.tentativeAnswer)).toEqual(["yes", null, null]);
+  });
+
+  it("答えは ○ と × だけ。仮決定がないときは答えられない", async () => {
+    loginAs("member");
+    expect((await answerTentative("trip", "maybe")).error).toBeDefined();
+    loginAs("owner");
+    await cancelTentative("trip");
+    loginAs("member");
+    expect((await answerTentative("trip", "yes")).error).toContain("仮決定の日程がありません");
+  });
+
+  it("確定したあと、作成者は日程を選び直せる（行ける日の提出は残る）", async () => {
+    for (const user of ["member", "third"]) {
+      loginAs(user);
+      await answerTentative("trip", "yes");
+    }
+    loginAs("owner");
     expect(await reopenSchedule("trip")).toEqual({ ok: true });
-    expect(db.projects[0]).toMatchObject({ startDate: "", endDate: "", days: 3 });
+    expect(trip()).toMatchObject({ startDate: "", endDate: "", tentativeStart: null });
+    expect(db.participants.every((p) => p.availabilitySubmitted && p.tentativeAnswer === null)).toBe(true);
   });
+});
 
-  it("作成者以外は確定できない", async () => {
-    expect((await decideSchedule("trip", "c1")).error).toBe("この操作ができるのは作成者だけです");
-    expect(db.projects[0].startDate).toBe("");
-  });
-
-  it("日数のない古いプロジェクトは、決まっていた日程から日数を出して日程調整に戻す", async () => {
+describe("メンバーが作成者だけのとき", () => {
+  it("仮決定した時点で確定する", async () => {
+    db.participants = [{ id: "pOwner", projectId: "trip", userId: "owner", availabilitySubmitted: true, tentativeAnswer: null }];
     loginAs("owner");
-    Object.assign(db.projects[0], { days: null, startDate: "2026-08-10", endDate: "2026-08-13" });
-    await reopenSchedule("trip");
-    expect(db.projects[0]).toMatchObject({ startDate: "", days: 4 });
+    await proposeSchedule("trip", "2026-11-14");
+    expect(trip()).toMatchObject({ startDate: "2026-11-14", endDate: "2026-11-16" });
   });
 });

@@ -36,6 +36,9 @@ vi.mock("@/lib/prisma", () => {
             ? { ...participant, _count: { payments: db.payments.filter((p) => p.payerId === participant.id).length } }
             : { ...participant };
         },
+        updateMany: async ({ where, data }) => {
+          db.participants.filter((p) => matches(p, where)).forEach((p) => Object.assign(p, data));
+        },
         delete: async ({ where }) => {
           // DB の制約（支払いが残っている参加者は消せない）を真似する
           if (db.payments.some((p) => p.payerId === where.id)) {
@@ -210,6 +213,35 @@ describe("editProject", () => {
     loginAs("owner");
     await editProject("trip", form([["title", "宮古島旅行"]]));
     expect(db.projects[0].title).toBe("宮古島旅行");
+  });
+});
+
+describe("日程調整との関係", () => {
+  beforeEach(() => {
+    loginAs("owner");
+    Object.assign(db.projects[0], { days: 3, rangeStart: "2026-11-01", rangeEnd: "2026-11-30", tentativeStart: "2026-11-14", startDate: "", endDate: "" });
+    db.participants.filter((p) => p.projectId === "trip").forEach((p) => Object.assign(p, { availabilitySubmitted: true, tentativeAnswer: "yes" }));
+    db.participants.find((p) => p.id === "pQuiet").tentativeAnswer = null;
+  });
+  const undecided = (rangeEnd) =>
+    form([["title", "沖縄旅行"], ["dateMode", "undecided"], ["days", "3"], ["rangeStart", "2026-11-01"], ["rangeEnd", rangeEnd]]);
+
+  it("編集で期間を変えると、行ける日の提出と仮決定をやり直す", async () => {
+    await editProject("trip", undecided("2026-12-15"));
+    expect(db.projects[0].tentativeStart).toBeNull();
+    const trip = db.participants.filter((p) => p.projectId === "trip");
+    expect(trip.every((p) => !p.availabilitySubmitted && p.tentativeAnswer === null)).toBe(true);
+  });
+
+  it("期間も日数も変えなければ、日程調整はそのまま", async () => {
+    await editProject("trip", undecided("2026-11-30"));
+    expect(db.projects[0].tentativeStart).toBe("2026-11-14");
+    expect(db.participants.find((p) => p.id === "pMember").availabilitySubmitted).toBe(true);
+  });
+
+  it("まだ答えていない人を外すと、残りの全員が ○ なので日程が確定する", async () => {
+    expect(await removeParticipant("trip", "pQuiet")).toEqual({ ok: true });
+    expect(db.projects[0]).toMatchObject({ startDate: "2026-11-14", endDate: "2026-11-16", tentativeStart: null });
   });
 });
 

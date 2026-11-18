@@ -16,9 +16,8 @@ export default async function ProjectDetailPage({ params }) {
     include: {
       participants: {
         orderBy: { id: "asc" },
-        include: { unavailableDays: { select: { date: true } } },
+        include: { availableDays: { select: { date: true } } },
       },
-      candidates: { orderBy: { startDate: "asc" }, include: { votes: true } },
       payments: { orderBy: { createdAt: "asc" } },
     },
   });

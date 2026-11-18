@@ -1,12 +1,12 @@
 import { addDays, daysBetween, eachDay } from "./dates";
 
 export const MAX_DAYS = 14; // 旅行の日数の上限
-export const MAX_RANGE_DAYS = 92; // 行けない日を聞く期間は3か月まで
+export const MAX_RANGE_DAYS = 92; // 行ける日を聞く期間は3か月まで
 
+// 仮決定の日程への答え
 export const ANSWERS = [
-  { id: "yes", label: "○", text: "行ける", score: 2 },
-  { id: "maybe", label: "△", text: "たぶん", score: 1 },
-  { id: "no", label: "×", text: "行けない", score: 0 },
+  { id: "yes", label: "○", text: "行ける" },
+  { id: "no", label: "×", text: "行けない" },
 ];
 
 // 旅行の日数として受け付けられるか
@@ -19,50 +19,57 @@ export function tripEndDate(startDate, days) {
   return addDays(startDate, days - 1);
 }
 
-// participants: [{ id, unavailableDays: ["YYYY-MM-DD", ...] }]
-// 期間内のすべての開始日について、その日数の旅行に行けない人を数え、行けない人が少ない順に並べる
+// その開始日の旅行が、期間の中に収まるか
+export function fitsInRange(startDate, { rangeStart, rangeEnd, days }) {
+  return daysBetween(rangeStart, startDate) >= 0 && daysBetween(tripEndDate(startDate, days), rangeEnd) >= 0;
+}
+
+// 日程調整の段階
+// - "decided"    : 日程が確定した
+// - "voting"     : 作成者が仮決定し、メンバーが ○× で答えている
+// - "choosing"   : 全員が行ける日を提出し、作成者が仮決定するのを待っている
+// - "collecting" : メンバーが行ける日を付けて提出している
+// - "notStarted" : 日数や期間が決まっていない（日程を決めずに作った古いプロジェクトなど）
+export function schedulePhase(project, participants) {
+  if (project.startDate || project.endDate) return "decided";
+  if (!isValidDays(project.days) || !project.rangeStart || !project.rangeEnd) return "notStarted";
+  if (project.tentativeStart) return "voting";
+  if (participants.length > 0 && participants.every((p) => p.availabilitySubmitted)) return "choosing";
+  return "collecting";
+}
+
+// participants: [{ id, availableDays: ["YYYY-MM-DD", ...] }]
+// 期間内のすべての開始日について、その日数の旅行に全日行ける人を数え、多い順に並べる
 export function findBestWindows({ rangeStart, rangeEnd, days, participants }) {
   if (!rangeStart || !rangeEnd || !days) return [];
   const lastStart = addDays(rangeEnd, -(days - 1));
   if (daysBetween(rangeStart, lastStart) < 0) return [];
 
-  const unavailable = participants.map((p) => ({ id: p.id, dates: new Set(p.unavailableDays) }));
+  const available = participants.map((p) => ({ id: p.id, dates: new Set(p.availableDays) }));
 
   return eachDay(rangeStart, lastStart)
     .map((startDate) => {
       const window = eachDay(startDate, tripEndDate(startDate, days));
-      const absentIds = unavailable
-        .filter((p) => window.some((date) => p.dates.has(date)))
-        .map((p) => p.id);
-      return { startDate, endDate: tripEndDate(startDate, days), absentIds };
+      const availableIds = available.filter((p) => window.every((date) => p.dates.has(date))).map((p) => p.id);
+      return {
+        startDate,
+        endDate: tripEndDate(startDate, days),
+        availableIds,
+        unavailableIds: available.filter((p) => !availableIds.includes(p.id)).map((p) => p.id),
+      };
     })
-    .sort((a, b) => a.absentIds.length - b.absentIds.length || a.startDate.localeCompare(b.startDate));
+    .sort((a, b) => b.availableIds.length - a.availableIds.length || a.startDate.localeCompare(b.startDate));
 }
 
-// その日に行ける人数（期間の表の一番下の行に出す）
+// その日に行ける人数（表の一番下の行に出す）
 export function availableCount(date, participants) {
-  return participants.filter((p) => !p.unavailableDays.includes(date)).length;
+  return participants.filter((p) => p.availableDays.includes(date)).length;
 }
 
-// 候補ごとの投票を集計する。○=2点・△=1点で点数が高い候補を「いちばん人気」にする
-export function tallyVotes(candidate, participantIds) {
-  const byAnswer = Object.fromEntries(ANSWERS.map((a) => [a.id, []]));
-  for (const vote of candidate.votes) {
-    if (participantIds.includes(vote.participantId) && byAnswer[vote.answer]) {
-      byAnswer[vote.answer].push(vote.participantId);
-    }
-  }
-  const voted = new Set(Object.values(byAnswer).flat());
-  const score = ANSWERS.reduce((sum, a) => sum + a.score * byAnswer[a.id].length, 0);
-  return { byAnswer, score, notVoted: participantIds.filter((id) => !voted.has(id)) };
-}
-
-// いちばん点数が高い候補のID（同点なら日付が早い方。誰も投票していなければ null）
-export function bestCandidateId(candidates, participantIds) {
-  let best = null;
-  for (const candidate of [...candidates].sort((a, b) => a.startDate.localeCompare(b.startDate))) {
-    const { score } = tallyVotes(candidate, participantIds);
-    if (score > 0 && (!best || score > best.score)) best = { id: candidate.id, score };
-  }
-  return best?.id ?? null;
+// 仮決定の日程への答えを集計する。全員が ○ なら確定してよい
+export function tallyAnswers(participants) {
+  const yes = participants.filter((p) => p.tentativeAnswer === "yes").map((p) => p.id);
+  const no = participants.filter((p) => p.tentativeAnswer === "no").map((p) => p.id);
+  const waiting = participants.filter((p) => !p.tentativeAnswer).map((p) => p.id);
+  return { yes, no, waiting, allAgreed: participants.length > 0 && yes.length === participants.length };
 }
