@@ -5,6 +5,7 @@ import {
   cancelTentative,
   proposeSchedule,
   reopenSchedule,
+  replaceAvailability,
   setAvailable,
   submitAvailability,
   unsubmitAvailability,
@@ -43,9 +44,10 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
   const me = participants.find((p) => p.id === currentParticipantId);
 
   // 自分の行ける日・提出・○× の答えは、押した直後に画面へ反映する
-  const [myDates, applyMyDate] = useOptimistic(me?.availableDays.map((d) => d.date) ?? [], (dates, { date, available }) =>
-    available ? [...new Set([...dates, date])] : dates.filter((d) => d !== date)
-  );
+  const [myDates, applyMyDate] = useOptimistic(me?.availableDays.map((d) => d.date) ?? [], (dates, change) => {
+    if (change.replace) return change.replace;
+    return change.available ? [...new Set([...dates, change.date])] : dates.filter((d) => d !== change.date);
+  });
   const [mySubmitted, setMySubmitted] = useOptimistic(Boolean(me?.availabilitySubmitted));
   const [myAnswer, setMyAnswer] = useOptimistic(me?.tentativeAnswer ?? null);
 
@@ -69,6 +71,11 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
       optimistic?.();
       await save(action);
     });
+  };
+
+  // 「全部」「土日祝だけ」「全部外す」で、行ける日をまとめて置き換える
+  const replaceDates = (dates) => {
+    run(() => applyMyDate({ replace: dates }), () => replaceAvailability(project.id, dates));
   };
 
   const toggleDate = (date) => {
@@ -189,6 +196,12 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
             note={mySubmitted ? undefined : "行ける日をタップして選び、付け終わったら「提出する」を押してください。"}>
             自分の行ける日
           </SectionTitle>
+          {!mySubmitted && (
+            <QuickSelect
+              dates={eachDay(project.rangeStart, project.rangeEnd)}
+              onSelect={replaceDates}
+            />
+          )}
           <MonthCalendars
             rangeStart={project.rangeStart}
             rangeEnd={project.rangeEnd}
@@ -360,6 +373,28 @@ function TentativeVote({ project, people, isOwner, myAnswer, displayNames, onAns
         </button>
       )}
     </section>
+  );
+}
+
+// 行ける日をまとめて選ぶボタン。1日ずつタップする手間を減らす
+function QuickSelect({ dates, onSelect }) {
+  const options = [
+    { label: "全部", dates },
+    { label: "土日祝だけ", dates: dates.filter((date) => dayKind(date) !== "weekday") },
+    { label: "全部外す", dates: [] },
+  ];
+  return (
+    <div role="group" aria-label="まとめて選ぶ" className="grid grid-cols-3 gap-2">
+      {options.map((option) => (
+        <button
+          key={option.label}
+          type="button"
+          onClick={() => onSelect(option.dates)}
+          className="inline-flex min-h-10 items-center justify-center rounded-full border-[1.5px] border-line-dashed bg-paper px-2 text-sm font-bold text-ink transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }
 

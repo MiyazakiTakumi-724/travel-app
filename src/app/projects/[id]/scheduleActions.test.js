@@ -29,6 +29,7 @@ vi.mock("@/lib/prisma", () => {
     deleteMany: async ({ where }) => {
       db[name] = db[name].filter((row) => !matches(row, where));
     },
+    createMany: async ({ data }) => data.forEach((row) => db[name].push({ id: `${name}-${++seq}`, ...row })),
   });
   return {
     prisma: {
@@ -53,6 +54,7 @@ const {
   cancelTentative,
   proposeSchedule,
   reopenSchedule,
+  replaceAvailability,
   setAvailable,
   submitAvailability,
   unsubmitAvailability,
@@ -91,10 +93,20 @@ describe("1. 行ける日を付けて提出する", () => {
     expect(db.availableDays).toEqual([]);
   });
 
+  it("行ける日をまとめて置き換えられる（期間の外の日は入れない）", async () => {
+    await setAvailable("trip", "2026-11-03", true);
+    expect(await replaceAvailability("trip", ["2026-11-07", "2026-11-08", "2026-11-08", "2026-12-01", "bad"])).toEqual({ ok: true });
+    expect(db.availableDays.map((d) => d.date)).toEqual(["2026-11-07", "2026-11-08"]);
+
+    await replaceAvailability("trip", []);
+    expect(db.availableDays).toEqual([]);
+  });
+
   it("提出すると変えられなくなり、「修正する」で付け直せる", async () => {
     await submitAvailability("trip");
     expect(person("pMember").availabilitySubmitted).toBe(true);
     expect((await setAvailable("trip", "2026-11-03", true)).error).toContain("提出済み");
+    expect((await replaceAvailability("trip", ["2026-11-03"])).error).toContain("提出済み");
 
     await unsubmitAvailability("trip");
     expect(await setAvailable("trip", "2026-11-03", true)).toEqual({ ok: true });

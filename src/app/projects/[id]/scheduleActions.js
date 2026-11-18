@@ -61,6 +61,24 @@ export async function setAvailable(projectId, date, available) {
   return { ok: true };
 }
 
+// 自分の行ける日を、まとめて置き換える（「全部」「土日祝だけ」「全部外す」のボタン用）
+export async function replaceAvailability(projectId, dates) {
+  const { me, project, error } = await requireMe(projectId);
+  if (error) return error;
+
+  if (schedulePhase(project, project.participants) === "notStarted" || !Array.isArray(dates)) return INVALID_INPUT;
+  if (me.availabilitySubmitted) return { error: "提出済みです。変えるときは「修正する」を押してください" };
+
+  // 期間の外の日や、おかしな日付は入れない
+  const valid = [...new Set(dates.map(String))].filter((date) => inRange(project, date));
+  await prisma.availableDay.deleteMany({ where: { participantId: me.id } });
+  if (valid.length > 0) {
+    await prisma.availableDay.createMany({ data: valid.map((date) => ({ participantId: me.id, date })) });
+  }
+  refresh(projectId);
+  return { ok: true };
+}
+
 // 行ける日を提出する
 export async function submitAvailability(projectId) {
   const { me, project, error } = await requireMe(projectId);
