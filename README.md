@@ -33,6 +33,7 @@ Googleでログインして旅行を作り、招待URLで友人を招くと、�
 | 認証 | Auth.js（next-auth v5）＋ Google OAuth |
 | ORM / DB | Prisma 7 / PostgreSQL |
 | ホスティング | Vercel（関数はシンガポールリージョン）、Neon（PostgreSQL） |
+| テスト | Vitest |
 
 ## 工夫した点
 
@@ -135,6 +136,14 @@ Googleでログインして旅行を作り、招待URLで友人を招くと、�
    ```bash
    npm run dev
    ```
+
+### テスト
+
+[Vitest](https://vitest.dev/) で、精算の計算と支払い・メンバー操作のサーバー処理をテストしています。DB とログインはテスト用の偽物に置き換えているので、DB を起動しなくても実行できます。
+
+```bash
+npm test
+```
 
 ## デプロイ
 
