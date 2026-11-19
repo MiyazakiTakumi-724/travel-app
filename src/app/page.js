@@ -9,7 +9,7 @@ import SiteFooter from "@/components/SiteFooter";
 
 const steps = [
   {
-    title: "Googleでログイン",
+    title: "Googleかゲストで始める",
     description: "はじめにメンバーに表示するニックネームを決めます。",
   },
   {
@@ -38,6 +38,32 @@ const sampleTransfers = [
   ["はなこ → ゆうき", "¥11,000"],
 ];
 
+
+// 「Googleでログイン」と「ゲストでプロジェクトを作成」を並べ、どちらでも始められるようにする
+function StartButtons({ signInAction, className = "", showNote = true }) {
+  return (
+    <div className={className}>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+        <GoogleSignInButton action={signInAction} />
+        <span aria-hidden="true" className="text-center text-xs font-bold text-ink-muted">
+          または
+        </span>
+        <Link href="/guest/new" className={`${secondaryButtonClass} min-h-13 rounded-full! px-6 text-[15px] whitespace-nowrap`}>
+          ゲストでプロジェクトを作成
+        </Link>
+      </div>
+      {showNote && (
+        <p className="phrase mt-2.5 text-xs leading-relaxed text-ink-muted">
+          始めると、
+          <Link href="/terms" className="underline hover:text-primary">利用規約</Link>
+          と
+          <Link href="/privacy" className="underline hover:text-primary">プライバシーポリシー</Link>
+          に同意したことになります。ゲストはアカウントなしで使え、あとからGoogleに引き継げます。
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default async function Home({ searchParams }) {
   const { callbackUrl, guest } = await searchParams;
@@ -70,19 +96,10 @@ export default async function Home({ searchParams }) {
             <h1 className="heading text-[clamp(38px,6vw,64px)] leading-[1.2]">
               旅行<span className="text-primary">清算</span>アプリ
             </h1>
-            <p className="mt-4 max-w-[26em] text-[17px] leading-[1.9] text-ink-sub">
-              支払いを記録するだけで、誰が誰にいくら払えばいいかを自動で計算します。Googleアカウントでも、ゲストとしてでも、すぐに始められます。
+            <p className="phrase mt-4 max-w-[26em] text-[17px] leading-[1.9] text-ink-sub">
+              支払いを記録するだけで、誰が誰にいくら払えばいいかを自動で計算します。Googleアカウントでもゲストでも、すぐに始められます。
             </p>
-            <div className="mt-7">
-              <GoogleSignInButton action={signInWithGoogle} />
-              <p className="mt-2.5 text-xs leading-relaxed text-ink-muted">
-                ログインすると、
-                <Link href="/terms" className="underline hover:text-primary">利用規約</Link>
-                と
-                <Link href="/privacy" className="underline hover:text-primary">プライバシーポリシー</Link>
-                に同意したことになります。
-              </p>
-            </div>
+            <StartButtons signInAction={signInWithGoogle} className="mt-7" />
             <ul className="mt-7 flex flex-wrap gap-2.5">
               {points.map(([strong, rest]) => (
                 <li key={strong} className="rounded-full bg-paper px-3.5 py-1.5 text-[13px] font-bold text-ink-sub">
@@ -92,13 +109,8 @@ export default async function Home({ searchParams }) {
               ))}
             </ul>
 
-            {/* アカウントなしで使う人向け */}
-            <div className="mt-8 flex flex-col gap-3 rounded-xl bg-paper px-5 py-4.5">
-              <p className="font-bold">ゲストで使う</p>
-              <p className="-mt-2 text-xs leading-relaxed text-ink-muted">Googleアカウントがなくても使えます。</p>
-              <Link href="/guest/new" className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
-                ゲストでプロジェクトを作成
-              </Link>
+            {/* ゲストとして使っていた人が、別の端末から戻るとき */}
+            <div className="mt-7 rounded-xl bg-paper px-5 py-4.5">
               <GuestCodeForm
                 initialError={guest === "invalid" ? "リンクのコードが見つかりませんでした。コードを入力してください" : ""}
               />
@@ -168,9 +180,7 @@ export default async function Home({ searchParams }) {
             {/* 使い方を読み終えた位置にもう一度ボタンを置き、上まで戻らずに始められるようにする */}
             <div className="mt-14 flex flex-col items-start gap-4 border-t-2 border-dashed border-line-dashed pt-10 sm:flex-row sm:items-center sm:justify-between">
               <p className="heading text-xl">さっそく始めましょう</p>
-              <div className="w-full sm:w-auto">
-                <GoogleSignInButton action={signInWithGoogle} />
-              </div>
+              <StartButtons signInAction={signInWithGoogle} showNote={false} className="w-full sm:w-auto" />
             </div>
           </div>
         </section>

@@ -18,10 +18,11 @@ import { availableCount, fitsInRange, schedulePhase, tallyAnswers, tripEndDate }
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 const KIND_TEXT = { holiday: "text-pay", saturday: "text-primary", weekday: "text-ink" };
+// 狭い画面で2行になるときは、区切ったところ（「行ける日を／提出」）で改行する
 const STEPS = [
-  { phase: "collecting", label: "行ける日を提出" },
-  { phase: "choosing", label: "作成者が仮決定" },
-  { phase: "voting", label: "全員が○で確定" },
+  { phase: "collecting", label: ["行ける日を", "提出"] },
+  { phase: "choosing", label: ["作成者が", "仮決定"] },
+  { phase: "voting", label: ["全員が○で", "確定"] },
 ];
 
 function SectionTitle({ children, note, id }) {
@@ -161,7 +162,12 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
                 index === stepIndex ? "bg-primary text-white" : index < stepIndex ? "bg-line-soft text-primary" : "bg-sky-ground text-ink-faint"
               }`}>
               {index < stepIndex && <span aria-hidden="true">✓ </span>}
-              {index + 1}. {step.label}
+              {index + 1}.{" "}
+              {step.label.map((part) => (
+                <span key={part} className="inline-block">
+                  {part}
+                </span>
+              ))}
             </li>
           ))}
         </ol>

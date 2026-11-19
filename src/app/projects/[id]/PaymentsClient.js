@@ -469,7 +469,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
             {payments.length > 0 && (
               <div className="flex flex-col gap-2.5">
                 {/* 支払った人で絞り込む。複数人を選べる。「全員」で選択をすべて外す */}
-                <div role="group" aria-label="支払った人で絞り込む" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 sm:mx-0 sm:flex-wrap sm:px-0">
+                <div role="group" aria-label="支払った人で絞り込む" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
                   {[{ id: null, name: "全員" }, ...project.participants.map((p) => ({ id: p.id, name: displayNames.get(p.id) }))].map(
                     (option) => (
                       <button
@@ -536,16 +536,23 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
                     }`}>
                     {participant.name.slice(0, 1)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate font-bold">{displayNames.get(participant.id)}</span>
-                  {participant.isOwner && (
-                    <span className="shrink-0 rounded-full bg-sky-ground px-2.5 py-0.5 text-xs font-bold text-ink-sub">作成者</span>
-                  )}
-                  {participant.isGuest && (
-                    <span className="shrink-0 rounded-full border border-line-dashed px-2.5 py-0.5 text-xs font-bold text-ink-muted">ゲスト</span>
-                  )}
-                  {participant.id === currentParticipantId && (
-                    <span className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-white">あなた</span>
-                  )}
+                  {/* 名前と印。幅が足りないときは印を名前の下に回し、名前が「あ…」のように切れないようにする */}
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="min-w-0 font-bold wrap-break-word">{displayNames.get(participant.id)}</span>
+                    {(participant.isOwner || participant.isGuest || participant.id === currentParticipantId) && (
+                      <span className="flex shrink-0 gap-1.5">
+                        {participant.isOwner && (
+                          <span className="rounded-full bg-sky-ground px-2.5 py-0.5 text-xs font-bold text-ink-sub">作成者</span>
+                        )}
+                        {participant.isGuest && (
+                          <span className="rounded-full border border-line-dashed px-2.5 py-0.5 text-xs font-bold text-ink-muted">ゲスト</span>
+                        )}
+                        {participant.id === currentParticipantId && (
+                          <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-white">あなた</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
                   {/* 作成者は、ほかのゲストの復帰用コードを発行し直せる（コードをなくしたとき用） */}
                   {isOwner && participant.isGuest && participant.id !== currentParticipantId && (
                     <button
@@ -602,7 +609,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
               </div>
             )}
             <div className="flex flex-col gap-2.5 rounded-xl border-2 border-dashed border-line-dashed px-4.5 py-4">
-              <p className="text-sm leading-relaxed text-ink-sub">
+              <p className="phrase text-sm leading-relaxed text-ink-sub">
                 招待リンクを送ると、友達がGoogleでログインするか、ゲストとしてメンバーになれます。
               </p>
               <button

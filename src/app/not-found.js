@@ -21,7 +21,7 @@ export default async function NotFound() {
         <p className="amount text-6xl text-primary-light">404</p>
         <h1 className="heading text-2xl">ページが見つかりません</h1>
         <p className="leading-relaxed text-ink-sub">URLが間違っていないか、確かめてください。</p>
-        <p className="text-sm leading-relaxed text-ink-muted">
+        <p className="phrase text-sm leading-relaxed text-balance text-ink-muted">
           プロジェクトのページの場合は、プロジェクトが削除されたか、メンバーから外されている可能性があります。
         </p>
         <Link href={home.href} className={`${primaryButtonClass} mt-3 min-h-12 px-6`}>

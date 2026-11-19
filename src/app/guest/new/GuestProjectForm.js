@@ -24,8 +24,8 @@ export default function GuestProjectForm() {
   return (
     <div className="w-full max-w-md">
       <h1 className="heading text-[clamp(26px,4vw,34px)] leading-tight">ゲストでプロジェクトを作成</h1>
-      <p className="mt-2 text-sm leading-relaxed text-ink-sub">
-        アカウントなしで作れます。作ったあとに出る「復帰用コード」で、ほかの端末からも戻れます。あとから Google アカウントに引き継ぐこともできます。
+      <p className="phrase mt-2 text-sm leading-relaxed text-ink-sub">
+        アカウントなしで作れます。作ったあとに出る「復帰用コード」で、ほかの端末からも戻れます。あとからGoogleアカウントに引き継ぐこともできます。
       </p>
 
       <form onSubmit={submit} className="mt-6 flex flex-col gap-5 rounded-2xl bg-paper p-5 sm:p-7">

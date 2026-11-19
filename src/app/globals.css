@@ -25,6 +25,14 @@ body {
   padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
+  /* 最後の行に1〜2文字だけ残らないようにする */
+  text-wrap: pretty;
+}
+
+/* 見出し・ボタンなどの短い文は、日本語を文節の切れ目で改行する（「Google / アカウント」「同意し / た」のような切れ方を防ぐ）。
+   長い文章は行がガタガタになるので、ふつうの改行のまま。短い説明文には .phrase を付ける。対応していないブラウザでは今までどおり */
+:where(h1, h2, h3, h4, button, label, th, .phrase) {
+  word-break: auto-phrase;
 }
 
 /* 見出し用。M PLUS 1 の極太を少し字間を空けて使う */
