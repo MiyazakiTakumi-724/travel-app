@@ -39,29 +39,12 @@ const sampleTransfers = [
 ];
 
 
-// 「Googleでログイン」と「ゲストでプロジェクトを作成」を並べ、どちらでも始められるようにする
-function StartButtons({ signInAction, className = "", showNote = true }) {
+// 「ゲストでプロジェクトを作成」のボタン（Google のボタンと同じ高さ・丸さにそろえる）
+function GuestStartLink() {
   return (
-    <div className={className}>
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-        <GoogleSignInButton action={signInAction} />
-        <span aria-hidden="true" className="text-center text-xs font-bold text-ink-muted">
-          または
-        </span>
-        <Link href="/guest/new" className={`${secondaryButtonClass} min-h-13 rounded-full! px-6 text-[15px] whitespace-nowrap`}>
-          ゲストでプロジェクトを作成
-        </Link>
-      </div>
-      {showNote && (
-        <p className="phrase mt-2.5 text-xs leading-relaxed text-ink-muted">
-          始めると、
-          <Link href="/terms" className="underline hover:text-primary">利用規約</Link>
-          と
-          <Link href="/privacy" className="underline hover:text-primary">プライバシーポリシー</Link>
-          に同意したことになります。ゲストはアカウントなしで使え、あとからGoogleに引き継げます。
-        </p>
-      )}
-    </div>
+    <Link href="/guest/new" className={`${secondaryButtonClass} min-h-13 rounded-full! px-7 text-[15px] whitespace-nowrap`}>
+      ゲストでプロジェクトを作成
+    </Link>
   );
 }
 
@@ -99,8 +82,7 @@ export default async function Home({ searchParams }) {
             <p className="phrase mt-4 max-w-[26em] text-[17px] leading-[1.9] text-ink-sub">
               支払いを記録するだけで、誰が誰にいくら払えばいいかを自動で計算します。Googleアカウントでもゲストでも、すぐに始められます。
             </p>
-            <StartButtons signInAction={signInWithGoogle} className="mt-7" />
-            <ul className="mt-7 flex flex-wrap gap-2.5">
+            <ul className="mt-5 flex flex-wrap gap-2.5">
               {points.map(([strong, rest]) => (
                 <li key={strong} className="rounded-full bg-paper px-3.5 py-1.5 text-[13px] font-bold text-ink-sub">
                   <b className="text-primary">{strong}</b>
@@ -109,11 +91,22 @@ export default async function Home({ searchParams }) {
               ))}
             </ul>
 
-            {/* ゲストとして使っていた人が、別の端末から戻るとき */}
-            <div className="mt-7 rounded-xl bg-paper px-5 py-4.5">
-              <GuestCodeForm
-                initialError={guest === "invalid" ? "リンクのコードが見つかりませんでした。コードを入力してください" : ""}
-              />
+            {/* 始め方をまとめて置く：Googleでログイン／ゲストで作成／（ゲストだった人は）コードで戻る */}
+            <div className="mt-8 flex w-full max-w-md flex-col gap-3">
+              <GoogleSignInButton action={signInWithGoogle} />
+              <GuestStartLink />
+              <p className="phrase text-xs leading-relaxed text-ink-muted">
+                始めると、
+                <Link href="/terms" className="underline hover:text-primary">利用規約</Link>
+                と
+                <Link href="/privacy" className="underline hover:text-primary">プライバシーポリシー</Link>
+                に同意したことになります。
+              </p>
+              <div className="mt-2 rounded-xl bg-paper px-4.5 pt-3.5 pb-4">
+                <GuestCodeForm
+                  initialError={guest === "invalid" ? "リンクのコードが見つかりませんでした。コードを入力してください" : ""}
+                />
+              </div>
             </div>
           </div>
 
@@ -180,7 +173,10 @@ export default async function Home({ searchParams }) {
             {/* 使い方を読み終えた位置にもう一度ボタンを置き、上まで戻らずに始められるようにする */}
             <div className="mt-14 flex flex-col items-start gap-4 border-t-2 border-dashed border-line-dashed pt-10 sm:flex-row sm:items-center sm:justify-between">
               <p className="heading text-xl">さっそく始めましょう</p>
-              <StartButtons signInAction={signInWithGoogle} showNote={false} className="w-full sm:w-auto" />
+              <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                <GoogleSignInButton action={signInWithGoogle} />
+                <GuestStartLink />
+              </div>
             </div>
           </div>
         </section>
