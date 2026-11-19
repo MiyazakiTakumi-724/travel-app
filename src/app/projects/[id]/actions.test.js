@@ -236,6 +236,21 @@ describe("restorePayment", () => {
     await restorePayment("trip", { ...db.payments[0] });
     expect(db.payments).toHaveLength(1);
   });
+
+  it("おかしなID・内容・未来の作成日時は受け付けない", async () => {
+    await deletePayment("trip", "pay1");
+    const base = { id: "pay1", payerId: "pMember", memo: "宿", amount: 9000 };
+    for (const payment of [
+      { ...base, id: "../pay1" },
+      { ...base, id: 123 },
+      { ...base, memo: 123 },
+      { ...base, createdAt: "not-a-date" },
+      { ...base, createdAt: new Date(Date.now() + 86_400_000).toISOString() },
+    ]) {
+      expect(await restorePayment("trip", payment)).toEqual({ error: "入力内容を確認してください" });
+    }
+    expect(db.payments).toHaveLength(0);
+  });
 });
 
 describe("editProject", () => {

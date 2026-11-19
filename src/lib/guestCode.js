@@ -1,4 +1,5 @@
 import { createHash, randomInt } from "node:crypto";
+import { keyedHash } from "./secretHash";
 
 // ゲストの復帰用コード。読み間違えやすい文字（0/O・1/I/L）を除いた31文字から10文字を選ぶ（約50ビット）
 const ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -24,8 +25,14 @@ export function normalizeGuestCode(input) {
   return chars;
 }
 
-// DB にはコードそのものではなく、元に戻せないハッシュだけを保存する
+// DB にはコードそのものではなく、サーバーの鍵を使ったハッシュだけを保存する
+// （コードは約50ビットなので、鍵なしのハッシュだと DB が漏れたときに総当たりで割り出せてしまう）
 export function hashGuestCode(normalized) {
+  return keyedHash("guest-code", normalized);
+}
+
+// 以前の形式（鍵なしの SHA-256）。この形式で保存されたコードは、使われたときに新しい形式へ置き換える
+export function legacyHashGuestCode(normalized) {
   return createHash("sha256").update(normalized).digest("hex");
 }
 
@@ -33,6 +40,20 @@ export function hashGuestCode(normalized) {
 export function guestCookieName(projectId) {
   return `guest_${projectId}`;
 }
+
+// 「Googleでログインして引き継ぐ」を本人が押したことの印（引き継ぎのページは、この印があるときだけ動く）。
+// ほかのサイトから引き継ぎのページを開かせて、勝手に引き継がせることを防ぐ
+export function claimCookieName(projectId) {
+  return `claim_${projectId}`;
+}
+
+export const CLAIM_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  path: "/",
+  maxAge: 10 * 60, // Googleでのログインが終わるまでの10分だけ
+};
 
 export const GUEST_COOKIE_OPTIONS = {
   httpOnly: true,

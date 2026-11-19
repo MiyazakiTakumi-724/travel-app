@@ -71,7 +71,7 @@ vi.mock("@/lib/prisma", () => {
 
 const { createGuestProject, enterGuestCode, joinAsGuest, reissueGuestCode } = await import("./guestActions");
 const { claimGuestParticipant, issueGuestCode } = await import("@/lib/guestSession");
-const { formatGuestCode, guestCookieName, hashGuestCode, normalizeGuestCode } = await import("@/lib/guestCode");
+const { formatGuestCode, guestCookieName, hashGuestCode, legacyHashGuestCode, normalizeGuestCode } = await import("@/lib/guestCode");
 
 const form = (values) => {
   const data = new FormData();
@@ -149,6 +149,14 @@ describe("enterGuestCode", () => {
     await expect(enterGuestCode(form({ code }))).rejects.toMatchObject({ path: "/projects/trip" });
   });
 
+  it("以前の形式（鍵なし）で保存されたコードでも戻れ、そのとき新しい形式に置き換わる", async () => {
+    const guest = db.participants.find((p) => p.name === "たろう");
+    guest.guestCodeHash = legacyHashGuestCode(normalizeGuestCode(code));
+
+    await expect(enterGuestCode(form({ code }))).rejects.toMatchObject({ path: "/projects/trip" });
+    expect(guest.guestCodeHash).toBe(hashGuestCode(normalizeGuestCode(code)));
+  });
+
   it("IPアドレスはそのまま保存しない", async () => {
     await enterGuestCode(form({ code: "AAAAA-BBBBB" }));
     expect(JSON.stringify(db.attempts)).not.toContain("203.0.113.1");
@@ -172,6 +180,16 @@ describe("createGuestProject", () => {
     expect((await createGuestProject(form({ nickname: "", title: "温泉旅行" }))).error).toBe("ニックネームを入力してください");
     expect((await createGuestProject(form({ nickname: "はなこ", title: "あ".repeat(31) }))).error).toContain("30文字以内");
     expect(db.projects).toHaveLength(1);
+  });
+
+  it("同じ端末からは、1時間に10件までしか作れない（別の端末からは作れる）", async () => {
+    for (let i = 0; i < 10; i++) await createGuest({ nickname: "はなこ", title: `旅行${i}` });
+    expect((await createGuestProject(form({ nickname: "はなこ", title: "11件目" }))).error).toContain("しばらく作れません");
+    expect(db.projects).toHaveLength(11);
+
+    requestHeaders.set("x-forwarded-for", "198.51.100.7");
+    await createGuest({ nickname: "はなこ", title: "別の端末" });
+    expect(db.projects).toHaveLength(12);
   });
 });
 

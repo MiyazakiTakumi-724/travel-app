@@ -29,10 +29,10 @@ export default async function ProjectDetailPage({ params, searchParams }) {
   });
   if (!project) notFound();
 
-  // ゲストのコードのハッシュはブラウザに送らない。代わりに「ゲストかどうか」だけを付ける
-  const participants = project.participants.map(({ guestCodeHash, ...participant }) => ({
+  // ゲストのコードのハッシュと、Google のユーザーIDはブラウザに送らない。代わりに「ゲストかどうか」だけを付ける
+  const participants = project.participants.map(({ guestCodeHash, userId, ...participant }) => ({
     ...participant,
-    isGuest: !participant.userId && Boolean(guestCodeHash),
+    isGuest: !userId && Boolean(guestCodeHash),
   }));
 
   return (

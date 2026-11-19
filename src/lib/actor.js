@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "./prisma";
-import { guestCookieName, hashGuestCode, normalizeGuestCode } from "./guestCode";
+import { guestCookieName, normalizeGuestCode } from "./guestCode";
+import { findParticipantByGuestCode } from "./guestSession";
 import { LOGIN_REQUIRED, NOT_MEMBER, OWNER_ONLY } from "./access";
 
 // このプロジェクトで操作しているのは誰か（参加者）を調べる。
@@ -14,10 +15,8 @@ export async function getActor(projectId) {
   }
 
   const code = normalizeGuestCode((await cookies()).get(guestCookieName(projectId))?.value);
-  if (code) {
-    const participant = await prisma.participant.findUnique({ where: { guestCodeHash: hashGuestCode(code) } });
-    if (participant?.projectId === projectId) return { participant, session, isGuest: true };
-  }
+  const participant = await findParticipantByGuestCode(code);
+  if (participant?.projectId === projectId) return { participant, session, isGuest: true };
 
   return { participant: null, session, isGuest: false };
 }

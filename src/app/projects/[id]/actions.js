@@ -123,13 +123,33 @@ export async function editPayment(projectId, paymentId, formData) {
   return { ok: true };
 }
 
+// 「元に戻す」で送られてくる値は、ブラウザから来るのでそのまま信じない
+const RESTORE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+function parseRestoredDate(value) {
+  if (value === undefined || value === null) return undefined;
+  const date = new Date(value);
+  // おかしな日時や、未来の日時（並び順を操作できてしまう）は受け付けない
+  if (Number.isNaN(date.getTime()) || date.getTime() > Date.now() + 60_000) return null;
+  return date;
+}
+
 // 削除を「元に戻す」ときに、同じIDと作成日時のまま作り直す（一覧の並び順も元どおりになる）
 export async function restorePayment(projectId, payment) {
   const { error: actorError } = await requireParticipant(projectId);
   if (actorError) return actorError;
 
   const amount = Number(payment?.amount);
-  if (!payment?.id || !isValidAmount(amount) || !isWithinLength(payment.memo, LIMITS.memo)) {
+  const memo = payment?.memo ?? "";
+  const createdAt = parseRestoredDate(payment?.createdAt);
+  if (
+    typeof payment?.id !== "string" ||
+    !RESTORE_ID.test(payment.id) ||
+    typeof payment.payerId !== "string" ||
+    typeof memo !== "string" ||
+    !isValidAmount(amount) ||
+    !isWithinLength(memo, LIMITS.memo) ||
+    createdAt === null
+  ) {
     return INVALID_INPUT;
   }
   if ((await filterParticipantIds(projectId, [payment.payerId])).length === 0) return INVALID_INPUT;
@@ -142,9 +162,9 @@ export async function restorePayment(projectId, payment) {
     data: {
       id: payment.id,
       payerId: payment.payerId,
-      memo: payment.memo ?? "",
+      memo,
       amount,
-      createdAt: payment.createdAt ? new Date(payment.createdAt) : undefined,
+      createdAt,
       projectId,
     },
   });

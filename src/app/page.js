@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
+import { safeCallbackPath } from "@/lib/loginRedirect";
 import SiteHeader, { GuideLink } from "@/components/SiteHeader";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import GuestCodeForm from "@/components/GuestCodeForm";
@@ -50,10 +51,8 @@ function GuestStartLink() {
 
 export default async function Home({ searchParams }) {
   const { callbackUrl, guest } = await searchParams;
-  const redirectTarget =
-    typeof callbackUrl === "string" && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
-      ? callbackUrl
-      : "/projects";
+  // ログインしたら戻るページ（外のサイトは受け付けない）
+  const redirectTarget = safeCallbackPath(callbackUrl);
 
   const session = await auth();
 

@@ -1,10 +1,12 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth, signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { issueGuestCode, setGuestCookie, signInWithGuestCode } from "@/lib/guestSession";
+import { CLAIM_COOKIE_OPTIONS, claimCookieName } from "@/lib/guestCode";
+import { isRateLimited, issueGuestCode, recordRateLimit, setGuestCookie, signInWithGuestCode } from "@/lib/guestSession";
 import { isWithinLength, LIMITS } from "@/lib/limits";
 import { requireParticipant } from "@/lib/actor";
 import { parseProjectForm } from "@/lib/projectInput";
@@ -42,6 +44,12 @@ export async function createGuestProject(formData) {
   const { data, error } = parseProjectForm(formData);
   if (error) return { error };
 
+  // だれでも作れるので、同じ端末から短い時間にたくさん作れないようにする
+  if (await isRateLimited("guest-create")) {
+    return { error: "短い時間にたくさんのプロジェクトが作られたため、しばらく作れません。1時間ほど待ってからお試しください" };
+  }
+  await recordRateLimit("guest-create");
+
   const project = await prisma.project.create({
     data: { ...data, participants: { create: [{ name: nickname, isOwner: true }] } },
     include: { participants: true },
@@ -78,6 +86,8 @@ export async function reissueGuestCode(projectId, participantId) {
 // ゲストから Google アカウントに引き継ぐ。Googleでログインしたあと、引き継ぎのページに戻ってくる
 export async function startGuestClaim(projectId) {
   const claimPath = `/projects/${projectId}/claim`;
+  // 本人がこのボタンを押した印。引き継ぎのページは、この印があるときだけ引き継ぐ
+  (await cookies()).set(claimCookieName(projectId), "1", CLAIM_COOKIE_OPTIONS);
   if ((await auth())?.user?.id) redirect(claimPath);
   await signIn("google", { redirectTo: claimPath });
 }

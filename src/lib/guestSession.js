@@ -1,11 +1,45 @@
-import { createHash } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { prisma } from "./prisma";
-import { generateGuestCode, GUEST_COOKIE_OPTIONS, guestCookieName, hashGuestCode, normalizeGuestCode } from "./guestCode";
+import { keyedHash } from "./secretHash";
+import {
+  generateGuestCode,
+  GUEST_COOKIE_OPTIONS,
+  guestCookieName,
+  hashGuestCode,
+  legacyHashGuestCode,
+  normalizeGuestCode,
+} from "./guestCode";
 
-// コードの入力ミスの制限：同じ端末（IPアドレス）から、15分のあいだに10回まで
-const ATTEMPT_WINDOW_MS = 15 * 60 * 1000;
-const MAX_ATTEMPTS = 10;
+// 回数の制限。同じ端末（IPアドレス）から、決まった時間のあいだに何回までできるか
+const RATE_LIMITS = {
+  // 復帰用コードの入力ミス：15分に10回まで
+  "guest-code": { windowMs: 15 * 60 * 1000, max: 10 },
+  // ゲストでのプロジェクト作成：1時間に10件まで
+  "guest-create": { windowMs: 60 * 60 * 1000, max: 10 },
+};
+// 記録はいちばん長い制限の時間だけ残し、それより古いものは消す
+const KEEP_RECORDS_MS = Math.max(...Object.values(RATE_LIMITS).map((limit) => limit.windowMs));
+
+// IPアドレスはそのまま保存せず、サーバーの鍵を使ったハッシュにして回数を数える
+async function rateLimitKey(kind) {
+  const forwarded = (await headers()).get("x-forwarded-for") ?? "";
+  const ip = forwarded.split(",")[0].trim() || "unknown";
+  return keyedHash("rate-limit", `${kind}:${ip}`);
+}
+
+// 制限を超えていれば true
+export async function isRateLimited(kind) {
+  const { windowMs, max } = RATE_LIMITS[kind];
+  const key = await rateLimitKey(kind);
+  const since = new Date(Date.now() - windowMs);
+  return (await prisma.guestCodeAttempt.count({ where: { key, createdAt: { gte: since } } })) >= max;
+}
+
+// 1回分を記録する（古い記録はついでに消す）
+export async function recordRateLimit(kind) {
+  await prisma.guestCodeAttempt.create({ data: { key: await rateLimitKey(kind) } });
+  await prisma.guestCodeAttempt.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - KEEP_RECORDS_MS) } } });
+}
 
 // 参加者に新しい復帰用コードを発行し、ハッシュを保存してコードを返す（前のコードは使えなくなる）
 export async function issueGuestCode(participantId) {
@@ -25,6 +59,19 @@ export async function issueGuestCode(participantId) {
   throw new Error("復帰用コードを発行できませんでした");
 }
 
+// 復帰用コード（そろえた形）から参加者を探す。
+// 以前の形式（鍵なしのハッシュ）で保存されていたら、見つけたときに新しい形式へ置き換える
+export async function findParticipantByGuestCode(normalized) {
+  if (!normalized) return null;
+  const hash = hashGuestCode(normalized);
+  const participant = await prisma.participant.findUnique({ where: { guestCodeHash: hash } });
+  if (participant) return participant;
+
+  const legacy = await prisma.participant.findUnique({ where: { guestCodeHash: legacyHashGuestCode(normalized) } });
+  if (!legacy) return null;
+  return prisma.participant.update({ where: { id: legacy.id }, data: { guestCodeHash: hash } });
+}
+
 // このブラウザに、そのプロジェクトのゲストとしてのログイン状態を保存する
 export async function setGuestCookie(projectId, code) {
   (await cookies()).set(guestCookieName(projectId), normalizeGuestCode(code), GUEST_COOKIE_OPTIONS);
@@ -34,31 +81,24 @@ export async function clearGuestCookie(projectId) {
   (await cookies()).delete(guestCookieName(projectId));
 }
 
-// IPアドレスはそのまま保存せず、ハッシュにして入力ミスの回数を数えるのに使う
-async function attemptKey() {
-  const forwarded = (await headers()).get("x-forwarded-for") ?? "";
-  const ip = forwarded.split(",")[0].trim() || "unknown";
-  return createHash("sha256").update(`guest-code:${ip}`).digest("hex");
+// このブラウザにある、ゲストのログイン状態をすべて消す（ログアウト・アカウント削除のとき）
+export async function clearAllGuestCookies() {
+  const jar = await cookies();
+  for (const cookie of jar.getAll()) {
+    if (cookie.name.startsWith(guestCookieName(""))) jar.delete(cookie.name);
+  }
 }
 
 // 復帰用コードを確かめる。正しければプロジェクトのIDと、Cookie に入れる値を返す（Cookie はまだ保存しない）
 export async function verifyGuestCode(rawCode) {
-  const key = await attemptKey();
-  const since = new Date(Date.now() - ATTEMPT_WINDOW_MS);
-  const recentFailures = await prisma.guestCodeAttempt.count({ where: { key, createdAt: { gte: since } } });
-  if (recentFailures >= MAX_ATTEMPTS) {
+  if (await isRateLimited("guest-code")) {
     return { error: "コードの入力を何度も間違えたため、しばらく受け付けられません。15分ほど待ってからお試しください" };
   }
 
   const code = normalizeGuestCode(rawCode);
-  const participant = code
-    ? await prisma.participant.findUnique({ where: { guestCodeHash: hashGuestCode(code) } })
-    : null;
-
+  const participant = await findParticipantByGuestCode(code);
   if (!participant) {
-    await prisma.guestCodeAttempt.create({ data: { key } });
-    // 古い記録は消しておく
-    await prisma.guestCodeAttempt.deleteMany({ where: { createdAt: { lt: since } } });
+    await recordRateLimit("guest-code");
     return { error: "コードが見つかりません。入力した文字を確かめてください" };
   }
 
@@ -76,8 +116,7 @@ export async function signInWithGuestCode(rawCode) {
 // 支払い・行ける日・回答などはそのままで、参加者に Google のユーザーを結びつけ、復帰用コードを消す。
 // 結果は "done"（引き継いだ）・"conflict"（そのアカウントで、すでに参加している）・"none"（ゲストではない）
 export async function claimGuestParticipant({ projectId, userId, code }) {
-  const normalized = normalizeGuestCode(code);
-  const guest = normalized ? await prisma.participant.findUnique({ where: { guestCodeHash: hashGuestCode(normalized) } }) : null;
+  const guest = await findParticipantByGuestCode(normalizeGuestCode(code));
   if (!guest || guest.projectId !== projectId || guest.userId) return "none";
 
   // 同じ Google アカウントで、すでにこのプロジェクトに参加していたら、2人をひとつにはまとめられない

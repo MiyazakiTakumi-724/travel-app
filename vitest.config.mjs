@@ -9,5 +9,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.js"],
+    // 復帰用コードなどのハッシュに使う鍵（テスト用の値）
+    env: { AUTH_SECRET: "test-secret" },
   },
 });

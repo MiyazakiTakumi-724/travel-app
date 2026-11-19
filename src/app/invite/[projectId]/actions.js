@@ -14,9 +14,14 @@ async function ensureParticipant(projectId, userId, name) {
   });
 
   if (!existing) {
-    await prisma.participant.create({
-      data: { projectId, userId, name },
-    });
+    try {
+      await prisma.participant.create({
+        data: { projectId, userId, name },
+      });
+    } catch (error) {
+      // 同時に2回開いたときなどは、もう一方で参加できているので、そのまま進む
+      if (error?.code !== "P2002") throw error;
+    }
   }
 }
 

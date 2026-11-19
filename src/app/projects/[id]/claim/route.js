@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { guestCookieName } from "@/lib/guestCode";
+import { claimCookieName, guestCookieName } from "@/lib/guestCode";
 import { claimGuestParticipant } from "@/lib/guestSession";
 
 // ゲストから Google アカウントへの引き継ぎ。Googleでログインしたあとに戻ってくる
 export async function GET(request, { params }) {
   const { id } = await params;
-  const back = (query = "") => NextResponse.redirect(new URL(`/projects/${id}${query}`, request.url));
+  // 引き継ぎの印は1回きり。どの結果でも消す
+  const back = (query = "") => {
+    const response = NextResponse.redirect(new URL(`/projects/${id}${query}`, request.url));
+    response.cookies.delete(claimCookieName(id));
+    return response;
+  };
+
+  // 本人が「Googleでログインして引き継ぐ」を押していなければ（ほかのサイトから開かされたなど）、何もしない
+  if (!request.cookies.get(claimCookieName(id))) return back();
 
   const session = await auth();
   if (!session?.user?.id) return back();
