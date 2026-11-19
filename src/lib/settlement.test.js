@@ -43,13 +43,26 @@ describe("calculateSettlements", () => {
     expect(calculateSettlements(participants, payments).transfers).toEqual([]);
   });
 
-  it("割り切れない金額でも、送金額は整数で合計が支払額と合う", () => {
+  it("割り切れない端数は多く払った人が持ち、受け取る金額と送金の合計がぴったり合う", () => {
     const participants = people("あきら", "ゆうき", "はなこ");
 
-    const { transfers } = calculateSettlements(participants, [pay("p1", 1000)]);
+    const { transfers, balances } = calculateSettlements(participants, [pay("p1", 10000)]);
 
-    expect(transfers.every((t) => Number.isInteger(t.amount))).toBe(true);
-    expect(transfers.map((t) => t.amount)).toEqual([333, 333]);
+    // 10,000 ÷ 3 = 3,333 あまり 1。あまりの1円は、払ったあきらが負担する
+    expect(Object.fromEntries(balances)).toEqual({ p1: 6666, p2: -3333, p3: -3333 });
+    expect(transfers).toEqual([
+      { from: "p2", to: "p1", amount: 3333 },
+      { from: "p3", to: "p1", amount: 3333 },
+    ]);
+  });
+
+  it("端数が2円以上なら、多く払った順に1円ずつ持つ", () => {
+    const participants = people("A", "B", "C", "D");
+    // 合計 10,003 ÷ 4 = 2,500 あまり 3 → 多く払った B・A・D の順に1円ずつ
+    const { balances } = calculateSettlements(participants, [pay("p1", 3000), pay("p2", 7000), pay("p4", 3)]);
+
+    expect(Object.fromEntries(balances)).toEqual({ p1: 499, p2: 4499, p3: -2500, p4: -2498 });
+    expect(sum(balances)).toBe(0);
   });
 
   it("支払いがない・参加者がいないときは空を返す", () => {
@@ -63,14 +76,15 @@ describe("calculateSettlements", () => {
 
     const { transfers, balances } = calculateSettlements(participants, payments);
 
-    expect(sum(balances)).toBeCloseTo(0, 6);
+    expect(sum(balances)).toBe(0);
     const after = new Map(balances);
     for (const { from, to, amount } of transfers) {
+      expect(Number.isInteger(amount)).toBe(true);
       after.set(from, after.get(from) + amount);
       after.set(to, after.get(to) - amount);
     }
-    // 送金額は四捨五入しているので、残りは1人あたり1円未満
-    for (const rest of after.values()) expect(Math.abs(rest)).toBeLessThan(1);
+    // 送金のあとは、全員の収支がちょうど0になる
+    for (const rest of after.values()) expect(rest).toBe(0);
     // 送金回数は「人数 − 1」以下
     expect(transfers.length).toBeLessThanOrEqual(participants.length - 1);
   });
@@ -116,6 +130,13 @@ describe("summarizeSettlement", () => {
       { from: "p3", to: "p1", amount: 8300 },
       { from: "p2", to: "p1", amount: 5600 },
     ]);
+  });
+
+  it("割り切れないときは、端数を持つ人の負担額が1円多くなる", () => {
+    const summary = summarizeSettlement(people("あきら", "ゆうき", "はなこ"), [pay("p2", 10000)]);
+
+    expect(summary).toMatchObject({ total: 10000, share: 3333, remainder: 1, extraIds: ["p2"] });
+    expect(summary.rows.map((row) => row.share)).toEqual([3333, 3334, 3333]);
   });
 
   it("支払いがなければ、すべて0で送金もない", () => {

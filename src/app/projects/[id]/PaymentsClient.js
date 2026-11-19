@@ -343,7 +343,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
   const scheduleTodo = myScheduleTodo(project, project.participants, currentParticipantId, isOwner);
   const { balances } = calculateSettlements(project.participants, payments);
 
-  const myBalance = Math.round(balances.get(currentParticipantId) ?? 0);
+  const myBalance = balances.get(currentParticipantId) ?? 0;
   // 支払い記録の絞り込み（支払った人で見る。複数人を選べ、だれも選ばなければ全員分）
   const [payerFilter, setPayerFilter] = useState([]);
   const togglePayerFilter = (id) =>

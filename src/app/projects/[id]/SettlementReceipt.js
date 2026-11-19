@@ -58,7 +58,7 @@ export default function SettlementReceipt({ participants, payments, displayNames
   }
 
   const summary = summarizeSettlement(participants, payments);
-  const myBalance = Math.round(summary.rows.find((row) => row.id === currentParticipantId)?.balance ?? 0);
+  const myBalance = summary.rows.find((row) => row.id === currentParticipantId)?.balance ?? 0;
   const myLabel = balanceLabel(myBalance, "あなた");
   const nameOf = (id) => `${displayNames.get(id)}${id === currentParticipantId ? "（あなた）" : ""}`;
   const involves = (id) => (transfer) => transfer.from === id || transfer.to === id;
@@ -76,7 +76,12 @@ export default function SettlementReceipt({ participants, payments, displayNames
           <Divider />
           <Label>支払い</Label>
           <Line label={`支払いの合計（${summary.count}件）`} amount={summary.total} />
-          <Line label={`1人あたり（÷ ${participants.length}人）`} amount={Math.round(summary.share)} />
+          <Line label={`1人あたり（÷ ${participants.length}人）`} amount={summary.share} />
+          {summary.remainder > 0 && (
+            <p className="mt-0.5 text-[12px] leading-relaxed text-ink-muted">
+              割り切れない{summary.remainder}円は、多く払った{summary.extraIds.map((id) => displayNames.get(id)).join("・")}が1円ずつ負担します
+            </p>
+          )}
 
           <Divider />
           <Label>メンバーごとの内訳</Label>
@@ -90,17 +95,14 @@ export default function SettlementReceipt({ participants, payments, displayNames
               </tr>
             </thead>
             <tbody>
-              {summary.rows.map((row) => {
-                const balance = Math.round(row.balance);
-                return (
-                  <tr key={row.id} className={row.id === currentParticipantId ? "font-bold" : ""}>
-                    <td className="max-w-24 truncate py-1 pr-2">{displayNames.get(row.id)}</td>
-                    <td className="py-1 text-right amount">{formatYen(row.paid)}</td>
-                    <td className="py-1 text-right amount">{formatYen(Math.round(row.share))}</td>
-                    <td className={`py-1 text-right amount ${toneOf(balance)}`}>{formatSignedYen(balance)}</td>
-                  </tr>
-                );
-              })}
+              {summary.rows.map((row) => (
+                <tr key={row.id} className={row.id === currentParticipantId ? "font-bold" : ""}>
+                  <td className="max-w-24 truncate py-1 pr-2">{displayNames.get(row.id)}</td>
+                  <td className="py-1 text-right amount">{formatYen(row.paid)}</td>
+                  <td className="py-1 text-right amount">{formatYen(row.share)}</td>
+                  <td className={`py-1 text-right amount ${toneOf(row.balance)}`}>{formatSignedYen(row.balance)}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
 
@@ -137,7 +139,7 @@ export default function SettlementReceipt({ participants, payments, displayNames
           </summary>
           <ul className="flex flex-col px-4.5 pb-3">
             {others.map((row) => {
-              const balance = Math.round(row.balance);
+              const balance = row.balance;
               const transfers = summary.transfers.filter(involves(row.id));
               return (
                 <li key={row.id} className="border-t-2 border-dashed border-line-soft py-3.5">
