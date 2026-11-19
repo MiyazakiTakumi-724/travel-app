@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { LinkIcon } from "@/components/icons";
 import { secondaryButtonClass, textButtonClass } from "@/components/ui";
 import { GuestCodeDetails } from "@/components/GuestCodePanel";
@@ -47,6 +48,7 @@ function SheetButton({ danger, children, ...props }) {
 export default function MembersPanel({ project, displayNames, payments, currentParticipantId, isOwner, isGuest, claimResult, className = "" }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [confirmDialog, confirm] = useConfirm();
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   // 下の方のボタン（抜ける など）を押したときも見えるよう、お知らせが出たらそこまで画面を動かす
@@ -89,56 +91,84 @@ export default function MembersPanel({ project, displayNames, payments, currentP
     ].filter(Boolean);
   };
 
-  const handleMakeOrganizer = (participant) => {
+  const handleMakeOrganizer = async (participant) => {
     const name = nameOf(participant);
-    if (!window.confirm(`${name}さんを幹事にしますか？\n幹事は、編集・削除・日程の仮決定・メンバーを外す・コードの再発行ができます。`)) return;
     setSelected(null);
+    const ok = await confirm({
+      title: `${name}さんを幹事にしますか？`,
+      message: "幹事は、編集・削除・日程の仮決定・メンバーを外す・コードの再発行ができます。",
+      confirmLabel: "幹事にする",
+    });
+    if (!ok) return;
     run(() => makeOrganizer(project.id, participant.id), () => setNotice(`${name}さんを幹事にしました`));
   };
 
-  const handleReissue = (participant) => {
+  const handleReissue = async (participant) => {
     const isSelf = participant.id === currentParticipantId;
     const name = nameOf(participant);
-    if (
-      !window.confirm(
-        isSelf
-          ? "コードを発行し直しますか？\n前のコードと専用リンクは使えなくなります。"
-          : `${name}さんのコードを発行し直しますか？\n前のコードは使えなくなるので、新しいコードを${name}さんに伝えてください。`
-      )
-    ) {
-      return;
-    }
     setSelected(null);
+    const ok = await confirm(
+      isSelf
+        ? { title: "コードを発行し直しますか？", message: "前のコードと専用リンクは使えなくなります。", confirmLabel: "発行し直す" }
+        : {
+            title: `${name}さんのコードを発行し直しますか？`,
+            message: `前のコードは使えなくなるので、新しいコードを${name}さんに伝えてください。`,
+            confirmLabel: "発行し直す",
+          }
+    );
+    if (!ok) return;
     run(() => reissueGuestCode(project.id, participant.id), (result) => setReissued({ ...result, isSelf }));
   };
 
-  const handleRemove = (participant) => {
+  const handleRemove = async (participant) => {
     const name = nameOf(participant);
     setSelected(null);
     if (hasPayments(participant.id)) {
       setError(`${name}さんの支払い記録があるため外せません。先に支払いを編集するか削除してください。`);
       return;
     }
-    if (!window.confirm(`${name}さんをメンバーから外しますか？\n外した人も、招待リンクからもう一度参加できます。`)) return;
+    const ok = await confirm({
+      title: `${name}さんをメンバーから外しますか？`,
+      message: "外した人も、招待リンクからもう一度参加できます。",
+      confirmLabel: "外す",
+      danger: true,
+    });
+    if (!ok) return;
     run(() => removeParticipant(project.id, participant.id));
   };
 
-  const handleStepDown = () => {
-    if (!window.confirm("幹事をやめますか？\nもう一度幹事になるには、ほかの幹事に頼む必要があります。")) return;
+  const handleStepDown = async () => {
+    const ok = await confirm({
+      title: "幹事をやめますか？",
+      message: "もう一度幹事になるには、ほかの幹事に頼む必要があります。",
+      confirmLabel: "やめる",
+    });
+    if (!ok) return;
     run(() => stepDownOrganizer(project.id), () => setNotice("幹事をやめました"));
   };
 
-  const handleLeave = () => {
+  const handleLeave = async () => {
     if (hasPayments(currentParticipantId)) {
       setError("あなたの支払い記録があるため抜けられません。先に支払いを編集するか削除してください。");
       return;
     }
-    if (!window.confirm(`「${project.title}」から抜けますか？\nあなたの行ける日や回答も消えます。もう一度参加するには、招待リンクが必要です。`)) return;
+    const ok = await confirm({
+      title: `「${project.title}」から抜けますか？`,
+      message: "あなたの行ける日や回答も消えます。もう一度参加するには、招待リンクが必要です。",
+      confirmLabel: "抜ける",
+      danger: true,
+    });
+    if (!ok) return;
     run(() => leaveProject(project.id), () => router.push(isGuest ? "/" : "/projects"));
   };
 
-  const handleGuestLogout = () => {
-    if (!window.confirm("このブラウザからログアウトしますか？\nもう一度開くには、復帰用コードか専用リンクが必要です。")) return;
+  const handleGuestLogout = async () => {
+    const ok = await confirm({
+      title: "このブラウザからログアウトしますか？",
+      message: "もう一度開くには、復帰用コードか専用リンクが必要です。",
+      confirmLabel: "ログアウト",
+    });
+    if (!ok) return;
     startTransition(async () => {
       await logoutGuest(project.id);
     });
@@ -158,8 +188,13 @@ export default function MembersPanel({ project, displayNames, payments, currentP
     }
   };
 
-  const handleResetInvite = () => {
-    if (!window.confirm("招待リンクを作り直しますか？\n今の招待リンクは使えなくなります（参加済みのメンバーはそのままです）。")) return;
+  const handleResetInvite = async () => {
+    const ok = await confirm({
+      title: "招待リンクを作り直しますか？",
+      message: "今の招待リンクは使えなくなります（参加済みのメンバーはそのままです）。",
+      confirmLabel: "作り直す",
+    });
+    if (!ok) return;
     run(() => resetInviteLink(project.id), () => setNotice("新しい招待リンクにしました。参加してほしい人には、新しいリンクを送ってください"));
   };
 
@@ -323,6 +358,8 @@ export default function MembersPanel({ project, displayNames, payments, currentP
           </div>
         </Modal>
       )}
+
+      {confirmDialog}
 
       {reissued && (
         <Modal

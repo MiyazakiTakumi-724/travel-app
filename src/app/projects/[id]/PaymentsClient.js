@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { addPayment, deletePayment, deleteProject, editPayment, editProject, restorePayment } from "./actions";
 import Modal, { ModalActions } from "@/components/Modal";
+import { useConfirm } from "@/components/ConfirmDialog";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import { CloseIcon, CalendarIcon, ListIcon, PlusIcon, ReceiptIcon, UsersIcon } from "@/components/icons";
 import { primaryButtonClass, textButtonClass } from "@/components/ui";
@@ -68,6 +69,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
   const [editingPayment, setEditingPayment] = useState(null);
   const [isEditingProject, setIsEditingProject] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [confirmDialog, confirm] = useConfirm();
   // 保存中に読み直すと楽観的更新の表示が揺れるので、その間は止める
   useAutoRefresh({ paused: isPending });
   // 直前に削除した支払い。「元に戻す」を出している間だけ持つ
@@ -175,8 +177,14 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
     });
   };
 
-  const handleDeleteProject = () => {
-    if (!window.confirm(`「${project.title}」を削除しますか？\n支払い記録・日程・旅行の予定もすべて削除され、元に戻せません。`)) return;
+  const handleDeleteProject = async () => {
+    const ok = await confirm({
+      title: `「${project.title}」を削除しますか？`,
+      message: "支払い記録・日程・旅行の予定もすべて削除され、元に戻せません。",
+      confirmLabel: "削除する",
+      danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       if (await save(() => deleteProject(project.id))) router.push(isGuest ? "/" : "/projects");
     });
@@ -470,6 +478,8 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
           )}
         </div>
       )}
+
+      {confirmDialog}
 
       {isEditingProject && (
         <Modal title="プロジェクトを編集" onClose={() => setIsEditingProject(false)}>

@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { useConfirm } from "@/components/ConfirmDialog";
+import { useEffect, useOptimistic, useState, useSyncExternalStore, useTransition } from "react";
 import {
   answerTentative,
   cancelTentative,
@@ -41,6 +42,7 @@ const namesOf = (ids, displayNames) => ids.map((id) => displayNames.get(id)).joi
 
 export default function ScheduleSection({ project, currentParticipantId, isOwner, displayNames, save }) {
   const [, startTransition] = useTransition();
+  const [confirmDialog, confirm] = useConfirm();
   const days = project.days;
   const participants = project.participants;
   const me = participants.find((p) => p.id === currentParticipantId);
@@ -86,21 +88,36 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
     run(() => applyMyDate({ date, available }), () => setAvailable(project.id, date, available));
   };
 
-  const submit = () => {
-    if (myDates.length === 0 && !window.confirm("行ける日が1日も付いていません。このまま提出しますか？")) return;
+  const submit = async () => {
+    if (
+      myDates.length === 0 &&
+      !(await confirm({ title: "行ける日が1日も付いていません", message: "このまま提出しますか？", confirmLabel: "提出する" }))
+    ) {
+      return;
+    }
     run(() => setMySubmitted(true), () => submitAvailability(project.id));
   };
 
-  const propose = (startDate) => {
+  const propose = async (startDate) => {
     const range = formatTripDates(startDate, tripEndDate(startDate, days));
-    if (!window.confirm(`${range} で仮決定しますか？`)) return;
+    const ok = await confirm({
+      title: `${range} で仮決定しますか？`,
+      message: "メンバーに ○× で答えてもらい、全員が ○ ならこの日程に決まります。",
+      confirmLabel: "仮決定する",
+    });
+    if (!ok) return;
     run(null, () => proposeSchedule(project.id, startDate));
   };
 
   // ---- 確定 ----
   if (phase === "decided") {
-    const reopen = () => {
-      if (!window.confirm("日程を決め直しますか？")) return;
+    const reopen = async () => {
+      const ok = await confirm({
+        title: "日程を決め直しますか？",
+        message: "みんなの行ける日はそのままで、仮決定からやり直します。",
+        confirmLabel: "決め直す",
+      });
+      if (!ok) return;
       run(null, () => reopenSchedule(project.id));
     };
     const decidedDays = project.startDate && project.endDate ? daysBetween(project.startDate, project.endDate) + 1 : null;
@@ -123,6 +140,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
           </div>
         </div>
         {decidedDays && <ItinerarySection project={{ ...project, days: decidedDays }} save={save} />}
+        {confirmDialog}
       </div>
     );
   }
@@ -187,8 +205,14 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
           myAnswer={myAnswer}
           displayNames={displayNames}
           onAnswer={(answer) => run(() => setMyAnswer(answer), () => answerTentative(project.id, answer))}
-          onCancel={() => {
-            if (!window.confirm("仮決定を取り消して、日程を選び直しますか？\nみんなの ○× はリセットされます。")) return;
+          onCancel={async () => {
+            const ok = await confirm({
+              title: "仮決定を取り消しますか？",
+              message: "日程を選び直します。みんなの ○× はリセットされます。",
+              confirmLabel: "取り消す",
+              danger: true,
+            });
+            if (!ok) return;
             run(null, () => cancelTentative(project.id));
           }}
         />
@@ -263,14 +287,41 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
 
       {/* みんなの行ける日を見ながら選べるよう、表のすぐ下に置く */}
       {phase === "choosing" && isOwner && <ChooseSchedule project={project} onPropose={propose} />}
+      {confirmDialog}
     </div>
   );
 }
 
+// 保存してある値は変わったことを知らせる必要がない（このタブの中で書き換えるだけ）
+const noopSubscribe = () => () => {};
+
 // 幹事が、提出された行ける日（上の表）を見て、出発日を選んで仮決定する
 function ChooseSchedule({ project, onPropose }) {
   const lastStart = addDays(project.rangeEnd, -(project.days - 1));
-  const [startDate, setStartDate] = useState(project.rangeStart);
+  // 選んだ出発日は、このブラウザに覚えておく（読み込み直しても、選び直さなくてよいように）
+  const storageKey = `choose-start:${project.id}`;
+  const saved = useSyncExternalStore(
+    noopSubscribe,
+    () => {
+      try {
+        return window.localStorage.getItem(storageKey);
+      } catch {
+        return null;
+      }
+    },
+    () => null
+  );
+  const [edited, setEdited] = useState(null);
+  const savedIsValid = Boolean(saved && parseDate(saved) && fitsInRange(saved, project));
+  const startDate = edited ?? (savedIsValid ? saved : project.rangeStart);
+  const setStartDate = (value) => {
+    setEdited(value);
+    try {
+      window.localStorage.setItem(storageKey, value);
+    } catch {
+      // 保存できなくても、選ぶことはできる
+    }
+  };
   const valid = Boolean(parseDate(startDate)) && fitsInRange(startDate, project);
 
   return (
@@ -507,7 +558,7 @@ function EveryoneTable({ dates, people, displayNames, currentParticipantId }) {
               <tr key={person.id} className={person.availabilitySubmitted ? "" : "opacity-50"}>
                 <th
                   scope="row"
-                  className={`sticky left-0 z-10 max-w-36 truncate border-t border-sky-ground bg-paper px-3 py-2 text-left font-bold ${
+                  className={`sticky left-0 z-10 max-w-36 border-t border-sky-ground bg-paper px-3 py-2 text-left leading-snug font-bold wrap-anywhere ${
                     person.id === currentParticipantId ? "text-primary" : ""
                   }`}>
                   {displayNames.get(person.id)}

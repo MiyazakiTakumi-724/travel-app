@@ -88,7 +88,7 @@ export default function SettlementReceipt({ participants, payments, displayNames
           <table className="w-full border-collapse text-[13px]">
             <thead>
               <tr className="text-[11px] text-ink-muted">
-                <th className="pb-1 text-left font-bold">人</th>
+                <th className="w-[30%] pb-1 text-left font-bold">人</th>
                 <th className="pb-1 text-right font-bold">払った額</th>
                 <th className="pb-1 text-right font-bold">負担額</th>
                 <th className="pb-1 text-right font-bold">収支</th>
@@ -97,10 +97,11 @@ export default function SettlementReceipt({ participants, payments, displayNames
             <tbody>
               {summary.rows.map((row) => (
                 <tr key={row.id} className={row.id === currentParticipantId ? "font-bold" : ""}>
-                  <td className="max-w-24 truncate py-1 pr-2">{displayNames.get(row.id)}</td>
-                  <td className="py-1 text-right amount">{formatYen(row.paid)}</td>
-                  <td className="py-1 text-right amount">{formatYen(row.share)}</td>
-                  <td className={`py-1 text-right amount ${toneOf(row.balance)}`}>{formatSignedYen(row.balance)}</td>
+                  {/* 名前は省略せず、長いときは折り返す */}
+                  <td className="py-1 pr-2 leading-snug wrap-anywhere">{displayNames.get(row.id)}</td>
+                  <td className="py-1 pl-1.5 text-right whitespace-nowrap amount">{formatYen(row.paid)}</td>
+                  <td className="py-1 pl-1.5 text-right whitespace-nowrap amount">{formatYen(row.share)}</td>
+                  <td className={`py-1 pl-1.5 text-right whitespace-nowrap amount ${toneOf(row.balance)}`}>{formatSignedYen(row.balance)}</td>
                 </tr>
               ))}
             </tbody>
