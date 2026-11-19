@@ -71,3 +71,22 @@ export async function signInWithGuestCode(rawCode) {
   if (result.ok) await setGuestCookie(result.projectId, result.code);
   return result;
 }
+
+// ゲストとして参加していた分を、Googleでログインしたアカウントに引き継ぐ。
+// 支払い・行ける日・回答などはそのままで、参加者に Google のユーザーを結びつけ、復帰用コードを消す。
+// 結果は "done"（引き継いだ）・"conflict"（そのアカウントで、すでに参加している）・"none"（ゲストではない）
+export async function claimGuestParticipant({ projectId, userId, code }) {
+  const normalized = normalizeGuestCode(code);
+  const guest = normalized ? await prisma.participant.findUnique({ where: { guestCodeHash: hashGuestCode(normalized) } }) : null;
+  if (!guest || guest.projectId !== projectId || guest.userId) return "none";
+
+  // 同じ Google アカウントで、すでにこのプロジェクトに参加していたら、2人をひとつにはまとめられない
+  const already = await prisma.participant.findFirst({ where: { projectId, userId } });
+  if (already) return "conflict";
+
+  await prisma.participant.update({ where: { id: guest.id }, data: { userId, guestCodeHash: null } });
+  // まだニックネームを決めていなければ、ゲストのときのニックネームを使う
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.nickname) await prisma.user.update({ where: { id: userId }, data: { nickname: guest.name } });
+  return "done";
+}

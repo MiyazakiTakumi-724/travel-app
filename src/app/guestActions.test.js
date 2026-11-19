@@ -11,6 +11,10 @@ vi.mock("next/headers", () => ({
   }),
   headers: async () => ({ get: (name) => requestHeaders.get(name) ?? null }),
 }));
+// ログイン状態（Googleでログインした人）。テストごとに入れ替える
+const session = { current: null };
+vi.mock("@/auth", () => ({ auth: async () => session.current, signIn: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: (path) => {
     throw Object.assign(new Error("NEXT_REDIRECT"), { path });
@@ -48,6 +52,11 @@ vi.mock("@/lib/prisma", () => {
         },
         update: async ({ where, data }) => Object.assign(db.participants.find((p) => p.id === where.id), data),
         findUnique: async ({ where }) => db.participants.find((p) => matches(p, where)) ?? null,
+        findFirst: async ({ where }) => db.participants.find((p) => matches(p, where)) ?? null,
+      },
+      user: {
+        findUnique: async ({ where }) => db.users.find((u) => u.id === where.id) ?? null,
+        update: async ({ where, data }) => Object.assign(db.users.find((u) => u.id === where.id), data),
       },
       guestCodeAttempt: {
         count: async ({ where }) => db.attempts.filter((a) => matches(a, where)).length,
@@ -60,7 +69,8 @@ vi.mock("@/lib/prisma", () => {
   };
 });
 
-const { createGuestProject, enterGuestCode, joinAsGuest } = await import("./guestActions");
+const { createGuestProject, enterGuestCode, joinAsGuest, reissueGuestCode } = await import("./guestActions");
+const { claimGuestParticipant, issueGuestCode } = await import("@/lib/guestSession");
 const { guestCookieName, hashGuestCode, normalizeGuestCode } = await import("@/lib/guestCode");
 
 const form = (values) => {
@@ -76,6 +86,8 @@ beforeEach(() => {
   db.projects = [{ id: "trip", title: "沖縄旅行" }];
   db.participants = [];
   db.attempts = [];
+  db.users = [];
+  session.current = null;
 });
 
 describe("joinAsGuest", () => {
@@ -147,5 +159,64 @@ describe("createGuestProject", () => {
     expect((await createGuestProject(form({ nickname: "", title: "温泉旅行" }))).error).toBe("ニックネームを入力してください");
     expect((await createGuestProject(form({ nickname: "はなこ", title: "あ".repeat(31) }))).error).toContain("30文字以内");
     expect(db.projects).toHaveLength(1);
+  });
+});
+
+describe("reissueGuestCode", () => {
+  let guest;
+  let owner;
+  beforeEach(async () => {
+    const created = await createGuestProject(form({ nickname: "はなこ", title: "温泉旅行" }));
+    owner = db.participants.find((p) => p.projectId === created.projectId);
+    const joined = await joinAsGuest(created.projectId, form({ nickname: "たろう" }));
+    guest = db.participants.find((p) => p.name === "たろう");
+    guest.code = joined.code;
+  });
+
+  it("ゲスト本人は自分のコードを発行し直せ、前のコードは使えなくなる", async () => {
+    const result = await reissueGuestCode(guest.projectId, guest.id);
+    expect(result).toMatchObject({ ok: true, name: "たろう" });
+    expect(result.code).not.toBe(guest.code);
+    expect(guest.guestCodeHash).toBe(hashGuestCode(normalizeGuestCode(result.code)));
+    expect((await enterGuestCode(form({ code: guest.code }))).error).toContain("コードが見つかりません");
+  });
+
+  it("作成者は、ほかのゲストのコードを発行し直せる", async () => {
+    // 作成者として操作する（このブラウザの Cookie を、作成者のコードに切り替える）
+    const ownerCode = await issueGuestCode(owner.id);
+    cookieJar.set(guestCookieName(owner.projectId), normalizeGuestCode(ownerCode));
+    expect((await reissueGuestCode(owner.projectId, guest.id)).ok).toBe(true);
+  });
+
+  it("作成者でないゲストは、ほかの人のコードを発行し直せない", async () => {
+    expect((await reissueGuestCode(owner.projectId, owner.id)).error).toBeDefined();
+  });
+});
+
+describe("claimGuestParticipant（Google アカウントへの引き継ぎ）", () => {
+  let guest;
+  let code;
+  beforeEach(async () => {
+    code = (await joinAsGuest("trip", form({ nickname: "たろう" }))).code;
+    guest = db.participants.find((p) => p.name === "たろう");
+    db.users = [{ id: "u1", nickname: null }];
+  });
+
+  it("ゲストの参加者に Google のユーザーを結びつけ、コードを消す（ニックネームも引き継ぐ）", async () => {
+    expect(await claimGuestParticipant({ projectId: "trip", userId: "u1", code })).toBe("done");
+    expect(guest).toMatchObject({ userId: "u1", guestCodeHash: null });
+    expect(db.users[0].nickname).toBe("たろう");
+  });
+
+  it("そのアカウントで、すでにこのプロジェクトに参加していたら引き継がない", async () => {
+    db.participants.push({ id: "pU1", projectId: "trip", userId: "u1", name: "まさのり" });
+    expect(await claimGuestParticipant({ projectId: "trip", userId: "u1", code })).toBe("conflict");
+    expect(guest.userId).toBeNull();
+  });
+
+  it("コードがない・違うプロジェクトのコードのときは何もしない", async () => {
+    expect(await claimGuestParticipant({ projectId: "trip", userId: "u1", code: undefined })).toBe("none");
+    expect(await claimGuestParticipant({ projectId: "other", userId: "u1", code })).toBe("none");
+    expect(guest.userId).toBeNull();
   });
 });

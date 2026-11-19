@@ -33,6 +33,9 @@ import {
 import { formatSignedYen, formatTripPeriod, formatYen } from "@/lib/format";
 import ScheduleSection from "./ScheduleSection";
 import SettlementReceipt from "./SettlementReceipt";
+import { reissueGuestCode, startGuestClaim } from "@/app/guestActions";
+import { GuestCodeDetails } from "@/components/GuestCodePanel";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
 import { applyPaymentChange, filterPayments } from "@/lib/payments";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
@@ -194,7 +197,10 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
   }, [deletedPayment]);
 
   // 保存に失敗したときのメッセージ。楽観的更新の表示は自動で元に戻るので、何が起きたかを知らせる
-  const [saveError, setSaveError] = useState("");
+  const claimResult = searchParams.get("claim");
+  const [saveError, setSaveError] = useState(
+    claimResult === "conflict" ? "このGoogleアカウントは、すでにこのプロジェクトのメンバーです。ゲストの分は引き継げませんでした" : ""
+  );
 
   useEffect(() => {
     if (!saveError) return;
@@ -285,6 +291,19 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
     startTransition(async () => {
       applyOptimistic({ type: "restore", payment });
       await save(() => restorePayment(project.id, payment));
+    });
+  };
+
+  // ゲストの復帰用コードを発行し直した結果（モーダルで見せる）
+  const [reissued, setReissued] = useState(null);
+  const handleReissue = (participant) => {
+    const isSelf = participant.id === currentParticipantId;
+    const name = displayNames.get(participant.id);
+    if (!window.confirm(isSelf ? "コードを発行し直しますか？\n前のコードと専用リンクは使えなくなります。" : `${name}さんのコードを発行し直しますか？\n前のコードは使えなくなるので、新しいコードを${name}さんに伝えてください。`)) return;
+    startTransition(async () => {
+      const result = await runServerAction(() => reissueGuestCode(project.id, participant.id));
+      if (result.error) setSaveError(result.error);
+      else setReissued({ ...result, isSelf });
     });
   };
 
@@ -521,8 +540,21 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
                   {participant.isOwner && (
                     <span className="shrink-0 rounded-full bg-sky-ground px-2.5 py-0.5 text-xs font-bold text-ink-sub">作成者</span>
                   )}
+                  {participant.isGuest && (
+                    <span className="shrink-0 rounded-full border border-line-dashed px-2.5 py-0.5 text-xs font-bold text-ink-muted">ゲスト</span>
+                  )}
                   {participant.id === currentParticipantId && (
                     <span className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-white">あなた</span>
+                  )}
+                  {/* 作成者は、ほかのゲストの復帰用コードを発行し直せる（コードをなくしたとき用） */}
+                  {isOwner && participant.isGuest && participant.id !== currentParticipantId && (
+                    <button
+                      onClick={() => handleReissue(participant)}
+                      disabled={isPending}
+                      aria-label={`${displayNames.get(participant.id)}さんの復帰用コードを発行し直す`}
+                      className={`${textButtonClass} -mr-1 shrink-0 hover:text-primary`}>
+                      コード再発行
+                    </button>
                   )}
                   {/* 作成者だけが、自分以外のメンバーを外せる */}
                   {isOwner && !participant.isOwner && (
@@ -542,9 +574,36 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
                 {memberError}
               </p>
             )}
+            {claimResult === "done" && !isGuest && (
+              <p role="status" className="rounded-lg bg-line-soft/70 px-4 py-3 text-sm font-bold text-primary">
+                Googleアカウントに引き継ぎました。マイプロジェクトからも開けます。
+              </p>
+            )}
+            {isGuest && (
+              <div className="flex flex-col gap-3 rounded-xl bg-paper px-4.5 py-4">
+                <p className="font-bold">ゲストとして参加しています</p>
+                <p className="text-sm leading-relaxed text-ink-sub">
+                  別のスマホやブラウザで開くときは、復帰用コードが必要です。コードをなくしたときは、ここで発行し直せます。
+                </p>
+                <button
+                  onClick={() => handleReissue({ id: currentParticipantId })}
+                  disabled={isPending}
+                  className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
+                  復帰用コードを発行し直す
+                </button>
+                <div className="border-t-2 border-dashed border-line-soft pt-3">
+                  <p className="text-sm leading-relaxed text-ink-sub">
+                    Googleでログインすると、ここまでの記録をそのまま引き継げます。マイプロジェクトからも開けるようになります。
+                  </p>
+                  <div className="mt-2.5">
+                    <GoogleSignInButton action={startGuestClaim.bind(null, project.id)} label="Googleでログインして引き継ぐ" />
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex flex-col gap-2.5 rounded-xl border-2 border-dashed border-line-dashed px-4.5 py-4">
               <p className="text-sm leading-relaxed text-ink-sub">
-                招待リンクを送ると、友達がログインしてメンバーになれます。
+                招待リンクを送ると、友達がGoogleでログインするか、ゲストとしてメンバーになれます。
               </p>
               <button
                 onClick={handleCopyInviteLink}
@@ -655,6 +714,19 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
             </div>
           )}
         </div>
+      )}
+
+      {reissued && (
+        <Modal
+          title={reissued.isSelf ? "新しい復帰用コード" : `${reissued.name}さんの新しいコード`}
+          description={
+            reissued.isSelf
+              ? "前のコードと専用リンクは使えなくなりました。このブラウザでは、そのまま使い続けられます。"
+              : `前のコードは使えなくなりました。このコードを${reissued.name}さんに伝えてください。`
+          }
+          onClose={() => setReissued(null)}>
+          <GuestCodeDetails code={reissued.code} projectTitle={project.title} />
+        </Modal>
       )}
 
       {isEditingProject && (
