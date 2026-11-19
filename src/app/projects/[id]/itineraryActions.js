@@ -7,6 +7,7 @@ import { requireParticipant } from "@/lib/actor";
 import { isValidTime } from "@/lib/itinerary";
 import { isWithinLength, LIMITS } from "@/lib/limits";
 import { daysBetween } from "@/lib/dates";
+import { isRestorableId, parseRestoredDate } from "@/lib/restore";
 
 // 旅行の予定（日ごとのメモ）。メンバーなら誰でも追加・編集・削除できる
 
@@ -54,6 +55,29 @@ export async function updateItineraryItem(projectId, itemId, time, text) {
   await prisma.itineraryItem.updateMany({
     where: { id: itemId, projectId },
     data: { time: clean(time), text: clean(text) },
+  });
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
+// 削除を「元に戻す」ときに、同じIDと作成日時のまま作り直す（同じ時刻の予定の並び順も元どおりになる）
+export async function restoreItineraryItem(projectId, item) {
+  const { project, error } = await requireMember(projectId);
+  if (error) return error;
+
+  const createdAt = parseRestoredDate(item?.createdAt);
+  const dayIndex = item?.dayIndex;
+  if (!isRestorableId(item?.id) || !Number.isInteger(dayIndex) || dayIndex < 1 || dayIndex > tripLength(project) || createdAt === null) {
+    return INVALID_INPUT;
+  }
+  const itemError = checkItem(clean(item.time), clean(item.text));
+  if (itemError) return itemError;
+
+  // すでにある（二重に押された）ときは、元に戻せている状態なので成功扱い
+  if (await prisma.itineraryItem.findUnique({ where: { id: item.id } })) return { ok: true };
+
+  await prisma.itineraryItem.create({
+    data: { id: item.id, projectId, dayIndex, time: clean(item.time), text: clean(item.text), createdAt },
   });
   revalidatePath(`/projects/${projectId}`);
   return { ok: true };

@@ -1,6 +1,6 @@
 "use client";
-import { useOptimistic, useState, useTransition } from "react";
-import { addItineraryItem, deleteItineraryItem, updateItineraryItem } from "./itineraryActions";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { addItineraryItem, deleteItineraryItem, restoreItineraryItem, updateItineraryItem } from "./itineraryActions";
 import { PlusIcon } from "@/components/icons";
 import { primaryButtonClass, textButtonClass, textFieldClass } from "@/components/ui";
 import { formatShortDate } from "@/lib/dates";
@@ -80,11 +80,40 @@ export default function ItinerarySection({ project, save }) {
   // 開いている入力欄（{ dayIndex } なら追加、{ itemId } なら編集）
   const [open, setOpen] = useState(null);
 
+  // 直前に削除した予定。「元に戻す」を出している間だけ持つ
+  const [deleted, setDeleted] = useState(null);
+  useEffect(() => {
+    if (!deleted) return;
+    const timer = setTimeout(() => setDeleted(null), 6000);
+    return () => clearTimeout(timer);
+  }, [deleted]);
+
   const run = (change, action) => {
     setOpen(null);
     startTransition(async () => {
       applyItem(change);
       await save(action);
+    });
+  };
+
+  // 確認は出さずにすぐ消し、代わりに「元に戻す」を数秒間表示する（支払いの削除と同じ）
+  const handleDelete = (item) => {
+    setOpen(null);
+    setDeleted(item);
+    startTransition(async () => {
+      applyItem({ type: "delete", id: item.id });
+      // 削除に失敗したら「元に戻す」は出さない（消えていないので）
+      if (!(await save(() => deleteItineraryItem(project.id, item.id)))) setDeleted(null);
+    });
+  };
+
+  const handleUndoDelete = () => {
+    const item = deleted;
+    if (!item) return;
+    setDeleted(null);
+    startTransition(async () => {
+      applyItem({ type: "add", item });
+      await save(() => restoreItineraryItem(project.id, item));
     });
   };
 
@@ -121,9 +150,7 @@ export default function ItinerarySection({ project, save }) {
                             updateItineraryItem(project.id, item.id, changes.time, changes.text)
                           )
                         }
-                        onDelete={() =>
-                          run({ type: "delete", id: item.id }, () => deleteItineraryItem(project.id, item.id))
-                        }
+                        onDelete={() => handleDelete(item)}
                       />
                     </li>
                   ) : (
@@ -171,6 +198,20 @@ export default function ItinerarySection({ project, save }) {
           </li>
         ))}
       </ol>
+
+      {/* 削除の取り消し。スマホでは画面下のタブの上に出す */}
+      {deleted && (
+        <div
+          role="status"
+          className="fixed inset-x-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl bg-ink py-2 pr-2 pl-4.5 text-sm text-white shadow-[0_12px_28px_rgb(16_53_74/0.35)] lg:bottom-8">
+          <span className="min-w-0 truncate">「{deleted.text}」を削除しました</span>
+          <button
+            onClick={handleUndoDelete}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3.5 font-bold text-primary-light transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-primary-light">
+            元に戻す
+          </button>
+        </div>
+      )}
     </section>
   );
 }

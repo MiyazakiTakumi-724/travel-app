@@ -31,6 +31,7 @@ vi.mock("@/lib/prisma", () => {
       },
       itineraryItem: {
         create: async ({ data }) => db.items.push({ id: `item-${++seq}`, ...data }),
+        findUnique: async ({ where }) => db.items.find((row) => row.id === where.id) ?? null,
         updateMany: async ({ where, data }) => db.items.filter((row) => matches(row, where)).forEach((row) => Object.assign(row, data)),
         deleteMany: async ({ where }) => {
           db.items = db.items.filter((row) => !matches(row, where));
@@ -40,7 +41,7 @@ vi.mock("@/lib/prisma", () => {
   };
 });
 
-const { addItineraryItem, deleteItineraryItem, updateItineraryItem } = await import("./itineraryActions");
+const { addItineraryItem, deleteItineraryItem, restoreItineraryItem, updateItineraryItem } = await import("./itineraryActions");
 
 const loginAs = (userId) => {
   session.current = userId ? { user: { id: userId } } : null;
@@ -111,5 +112,26 @@ describe("updateItineraryItem / deleteItineraryItem", () => {
     await updateItineraryItem("trip", "x", "", "書き換え");
     await deleteItineraryItem("trip", "x");
     expect(db.items.find((i) => i.id === "x")).toMatchObject({ text: "別の旅行の予定" });
+  });
+});
+
+describe("restoreItineraryItem（削除の取り消し）", () => {
+  const item = { id: "it1", dayIndex: 2, time: "09:00", text: "美ら海水族館", createdAt: "2026-11-01T00:00:00.000Z" };
+
+  it("削除した予定を、同じIDと作成日時で作り直す", async () => {
+    expect(await restoreItineraryItem("trip", item)).toEqual({ ok: true });
+    expect(db.items.find((row) => row.id === "it1")).toMatchObject({ projectId: "trip", dayIndex: 2, text: "美ら海水族館" });
+    // 二重に押しても1件だけ
+    expect(await restoreItineraryItem("trip", item)).toEqual({ ok: true });
+    expect(db.items.filter((row) => row.id === "it1")).toHaveLength(1);
+  });
+
+  it("おかしなID・日にち・未来の作成日時は受け付けず、メンバーでなければ作れない", async () => {
+    for (const bad of [{ ...item, id: "../x" }, { ...item, dayIndex: 9 }, { ...item, createdAt: "2999-01-01T00:00:00Z" }]) {
+      expect((await restoreItineraryItem("trip", bad)).error).toBeDefined();
+    }
+    loginAs("outsider");
+    expect((await restoreItineraryItem("trip", item)).error).toBeDefined();
+    expect(db.items.map((row) => row.id)).toEqual(["x"]);
   });
 });
