@@ -80,16 +80,16 @@ const steps = [
         <p>
           「精算」タブのレシートに、支払いの合計・1人あたり・メンバーごとの内訳と、「あなたが受け取る金額／支払う金額」、だれがだれにいくら送ればいいかが表示されます。
         </p>
-        <div className="mt-4 rounded-lg border border-line-soft bg-paper px-4.5 py-4">
+        <div className="mt-4 rounded-lg border border-line-soft bg-paper px-3.5 py-4 sm:px-4.5">
           <p className="font-bold text-ink">計算のしかた（4人で ¥76,000 使った例）</p>
           <div className="mt-2 overflow-x-auto">
-            <table className="w-full min-w-[22rem] border-collapse text-sm">
+            <table className="w-full border-collapse text-[13px] sm:text-sm">
               <thead>
                 <tr className="text-ink-muted">
-                  <th className="py-2 pr-2 text-left font-bold">人</th>
-                  <th className="px-2 py-2 text-right font-bold">払った額</th>
-                  <th className="px-2 py-2 text-right font-bold">負担額</th>
-                  <th className="py-2 pl-2 text-right font-bold">収支</th>
+                  <th className="py-2 pr-1 text-left font-bold">人</th>
+                  <th className="px-1 py-2 text-right font-bold sm:px-2">払った額</th>
+                  <th className="px-1 py-2 text-right font-bold sm:px-2">負担額</th>
+                  <th className="py-2 pl-1 text-right font-bold">収支</th>
                 </tr>
               </thead>
               <tbody className="amount font-semibold">
@@ -97,10 +97,10 @@ const steps = [
                   const balance = paid - SHARE;
                   return (
                     <tr key={name} className="border-t border-line-soft">
-                      <td className="py-2 pr-2 font-sans font-medium">{name}</td>
-                      <td className="px-2 py-2 text-right">{formatYen(paid)}</td>
-                      <td className="px-2 py-2 text-right">{formatYen(SHARE)}</td>
-                      <td className={`py-2 pl-2 text-right ${balance > 0 ? "text-primary" : "text-pay"}`}>
+                      <td className="py-2 pr-1 font-sans font-medium">{name}</td>
+                      <td className="px-1 py-2 text-right sm:px-2">{formatYen(paid)}</td>
+                      <td className="px-1 py-2 text-right sm:px-2">{formatYen(SHARE)}</td>
+                      <td className={`py-2 pl-1 text-right ${balance > 0 ? "text-primary" : "text-pay"}`}>
                         {balance > 0 ? "+" : "−"}
                         {formatYen(Math.abs(balance))}
                       </td>
