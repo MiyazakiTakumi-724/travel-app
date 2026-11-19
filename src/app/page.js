@@ -71,7 +71,7 @@ export default async function Home({ searchParams }) {
               旅行<span className="text-primary">清算</span>アプリ
             </h1>
             <p className="mt-4 max-w-[26em] text-[17px] leading-[1.9] text-ink-sub">
-              支払いを記録するだけで、誰が誰にいくら払えばいいかを自動で計算します。Googleアカウントですぐに始められます。
+              支払いを記録するだけで、誰が誰にいくら払えばいいかを自動で計算します。Googleアカウントでも、ゲストとしてでも、すぐに始められます。
             </p>
             <div className="mt-7">
               <GoogleSignInButton action={signInWithGoogle} />
