@@ -6,7 +6,7 @@ import { secondaryButtonClass, textFieldClass } from "@/components/ui";
 import { LIMITS } from "@/lib/limits";
 
 // ログインしていない人に、「Googleでログインして参加」と「ゲストとして参加」を選んでもらう
-export default function InviteChoice({ projectId, projectTitle, signInAction }) {
+export default function InviteChoice({ inviteToken, projectTitle, signInAction }) {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -16,7 +16,7 @@ export default function InviteChoice({ projectId, projectTitle, signInAction }) 
     setError("");
     startTransition(async () => {
       // 参加できたら、サーバーが復帰用コードの画面へ移動させる
-      const result = await joinAsGuest(projectId, formData);
+      const result = await joinAsGuest(inviteToken, formData);
       if (result?.error) setError(result.error);
     });
   };

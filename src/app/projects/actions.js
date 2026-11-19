@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { isWithinLength, LIMITS } from "@/lib/limits";
 import { parseProjectForm } from "@/lib/projectInput";
+import { newInviteToken } from "@/lib/invite";
 
 export async function setNickname(formData) {
   const session = await auth();
@@ -32,6 +33,7 @@ export async function createProject(formData) {
   const project = await prisma.project.create({
     data: {
       ...data,
+      inviteToken: newInviteToken(),
       participants: {
         create: [{ name: session.user.nickname, userId: session.user.id, isOwner: true }],
       },

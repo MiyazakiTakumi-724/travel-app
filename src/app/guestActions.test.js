@@ -31,7 +31,7 @@ vi.mock("@/lib/prisma", () => {
   return {
     prisma: {
       project: {
-        findUnique: async ({ where }) => db.projects.find((p) => p.id === where.id) ?? null,
+        findUnique: async ({ where }) => db.projects.find((p) => matches(p, where)) ?? null,
         create: async ({ data }) => {
           const { participants, ...fields } = data;
           const project = { id: `project-${++seq}`, ...fields };
@@ -89,14 +89,16 @@ const followRedirect = async (promise) => {
   const projectId = err.path.match(/^\/projects\/([^/]+)\/welcome/)[1];
   return { path: err.path, projectId, code: formatGuestCode(cookieJar.get(guestCookieName(projectId))) };
 };
-const joinGuest = (projectId, nickname) => followRedirect(joinAsGuest(projectId, form({ nickname })));
+// 招待リンクの鍵で参加する（テストではプロジェクトから鍵を引いてくる）
+const tokenOf = (projectId) => db.projects.find((p) => p.id === projectId).inviteToken;
+const joinGuest = (projectId, nickname) => followRedirect(joinAsGuest(tokenOf(projectId), form({ nickname })));
 const createGuest = (values) => followRedirect(createGuestProject(form(values)));
 
 beforeEach(() => {
   cookieJar.clear();
   requestHeaders.clear();
   requestHeaders.set("x-forwarded-for", "203.0.113.1");
-  db.projects = [{ id: "trip", title: "沖縄旅行" }];
+  db.projects = [{ id: "trip", title: "沖縄旅行", inviteToken: "invite-trip" }];
   db.participants = [];
   db.attempts = [];
   db.users = [];
@@ -107,7 +109,7 @@ describe("joinAsGuest", () => {
   it("ニックネームで参加すると、コードが発行され、ハッシュだけが保存され、Cookie も保存されて、コードの画面へ移動する", async () => {
     const result = await joinGuest("trip", " たろう ");
 
-    expect(result.path).toBe("/projects/trip/welcome");
+    expect(result.path).toBe("/projects/trip/welcome?joined=1");
     expect(result.code).toMatch(/^[2-9A-Z]{5}-[2-9A-Z]{5}$/);
     const [guest] = db.participants;
     expect(guest).toMatchObject({ name: "たろう", projectId: "trip", userId: null });
@@ -117,9 +119,14 @@ describe("joinAsGuest", () => {
   });
 
   it("ニックネームが空・長すぎる、プロジェクトがないときは参加できない", async () => {
-    expect((await joinAsGuest("trip", form({ nickname: "  " }))).error).toBe("ニックネームを入力してください");
-    expect((await joinAsGuest("trip", form({ nickname: "あ".repeat(21) }))).error).toContain("20文字以内");
-    expect((await joinAsGuest("none", form({ nickname: "たろう" }))).error).toBe("プロジェクトが見つかりません");
+    expect((await joinAsGuest("invite-trip", form({ nickname: "  " }))).error).toBe("ニックネームを入力してください");
+    expect((await joinAsGuest("invite-trip", form({ nickname: "あ".repeat(21) }))).error).toContain("20文字以内");
+    expect((await joinAsGuest("none", form({ nickname: "たろう" }))).error).toContain("招待リンクが見つかりません");
+    expect(db.participants).toEqual([]);
+  });
+
+  it("プロジェクトIDだけでは参加できない（招待リンクの鍵が必要）", async () => {
+    expect((await joinAsGuest("trip", form({ nickname: "たろう" }))).error).toContain("招待リンクが見つかりません");
     expect(db.participants).toEqual([]);
   });
 });

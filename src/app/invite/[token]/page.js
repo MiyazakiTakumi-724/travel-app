@@ -7,35 +7,36 @@ import { joinProject } from "./actions";
 import JoinNicknameForm from "./JoinNicknameForm";
 import InviteChoice from "./InviteChoice";
 
+// 招待リンク（/invite/〇〇）。〇〇はプロジェクトIDではなく、作り直せる招待用の鍵
 export default async function InvitePage({ params }) {
-  const { projectId } = await params;
+  const { token } = await params;
 
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  const project = await prisma.project.findUnique({ where: { inviteToken: token } });
   if (!project) notFound();
 
   // すでに参加している（Googleでもゲストでも）なら、そのままプロジェクトを開く
-  const { participant, session } = await getActor(projectId);
-  if (participant) redirect(`/projects/${projectId}`);
+  const { participant, session } = await getActor(project.id);
+  if (participant) redirect(`/projects/${project.id}`);
 
   // ログインしていなければ、「Googleで参加」か「ゲストで参加」を選んでもらう
   if (!session?.user?.id) {
     async function signInWithGoogle() {
       "use server";
-      await signIn("google", { redirectTo: `/invite/${projectId}` });
+      await signIn("google", { redirectTo: `/invite/${token}` });
     }
     return (
       <div className="flex min-h-screen flex-col">
         <SiteHeader logoHref="/" />
         <main className="flex flex-1 items-center justify-center px-5 py-12">
-          <InviteChoice projectId={projectId} projectTitle={project.title} signInAction={signInWithGoogle} />
+          <InviteChoice inviteToken={token} projectTitle={project.title} signInAction={signInWithGoogle} />
         </main>
       </div>
     );
   }
 
   if (!session.user.nickname) {
-    return <JoinNicknameForm projectId={projectId} projectTitle={project.title} />;
+    return <JoinNicknameForm inviteToken={token} projectTitle={project.title} />;
   }
 
-  await joinProject(projectId);
+  await joinProject(token);
 }

@@ -8,6 +8,7 @@ import { filterParticipantIds, INVALID_INPUT, OWNER_ONLY } from "@/lib/access";
 import { requireOwner, requireParticipant } from "@/lib/actor";
 import { parseProjectForm } from "@/lib/projectInput";
 import { confirmIfAllAgreed, resetAnswers } from "@/lib/scheduleServer";
+import { newInviteToken } from "@/lib/invite";
 
 const INVALID_AMOUNT = { error: "金額は1円〜1,000万円の整数で入力してください" };
 const MEMO_TOO_LONG = { error: `支払い内容は${LIMITS.memo}文字以内で入力してください` };
@@ -68,6 +69,16 @@ export async function removeParticipant(projectId, participantId) {
 
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/projects");
+  return { ok: true };
+}
+
+// 招待リンクを作り直す。前の招待リンクは使えなくなる（参加済みのメンバーはそのまま）
+export async function resetInviteLink(projectId) {
+  const { error: actorError } = await requireOwner(projectId);
+  if (actorError) return actorError;
+
+  await prisma.project.update({ where: { id: projectId }, data: { inviteToken: newInviteToken() } });
+  revalidatePath(`/projects/${projectId}`);
   return { ok: true };
 }
 

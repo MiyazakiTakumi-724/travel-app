@@ -58,6 +58,8 @@ model VerificationToken {
 
 model Project {
   id             String          @id @default(cuid())
+  // 招待リンク（/invite/〇〇）の鍵。作成者が作り直すと、前の招待リンクは使えなくなる
+  inviteToken    String          @unique
   title          String
   destination    String
   startDate      String          @default("")

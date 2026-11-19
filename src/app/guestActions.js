@@ -10,6 +10,7 @@ import { isRateLimited, issueGuestCode, recordRateLimit, setGuestCookie, signInW
 import { isWithinLength, LIMITS } from "@/lib/limits";
 import { requireParticipant } from "@/lib/actor";
 import { parseProjectForm } from "@/lib/projectInput";
+import { newInviteToken } from "@/lib/invite";
 
 // ニックネームをチェックする（問題なければ null）
 function checkNickname(nickname) {
@@ -21,18 +22,19 @@ function checkNickname(nickname) {
 // 招待リンクから、ゲストとしてプロジェクトに参加する。成功したら、復帰用コードを見せる画面へ移動する。
 // （Cookie を保存すると今の画面が描き直され、招待ページが参加済みの人をプロジェクトへ移してしまうため、
 //   コードは戻り値ではなく、移動先の画面で Cookie から読んで見せる）
-export async function joinAsGuest(projectId, formData) {
+export async function joinAsGuest(inviteToken, formData) {
   const nickname = formData.get("nickname")?.toString().trim() ?? "";
   const nicknameError = checkNickname(nickname);
   if (nicknameError) return nicknameError;
 
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project) return { error: "プロジェクトが見つかりません" };
+  // プロジェクトIDではなく、招待リンクの鍵で探す（IDを知っているだけでは参加できない）
+  const project = await prisma.project.findUnique({ where: { inviteToken: String(inviteToken) } });
+  if (!project) return { error: "招待リンクが見つかりません。新しいリンクをもらってください" };
 
-  const participant = await prisma.participant.create({ data: { projectId, name: nickname } });
+  const participant = await prisma.participant.create({ data: { projectId: project.id, name: nickname } });
   const code = await issueGuestCode(participant.id);
-  await setGuestCookie(projectId, code);
-  redirect(`/projects/${projectId}/welcome`);
+  await setGuestCookie(project.id, code);
+  redirect(`/projects/${project.id}/welcome?joined=1`);
 }
 
 // ゲストのままプロジェクトを作る。作った人は作成者になる。成功したら、復帰用コードを見せる画面へ移動する
@@ -51,7 +53,7 @@ export async function createGuestProject(formData) {
   await recordRateLimit("guest-create");
 
   const project = await prisma.project.create({
-    data: { ...data, participants: { create: [{ name: nickname, isOwner: true }] } },
+    data: { ...data, inviteToken: newInviteToken(), participants: { create: [{ name: nickname, isOwner: true }] } },
     include: { participants: true },
   });
   const code = await issueGuestCode(project.participants[0].id);

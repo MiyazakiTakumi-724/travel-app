@@ -222,7 +222,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
     const result = await shareOrCopy({
       title: `${project.title}の招待`,
       text: `旅行清算アプリの「${project.title}」に参加してください`,
-      url: `${window.location.origin}/invite/${project.id}`,
+      url: `${window.location.origin}/invite/${project.inviteToken}`,
     });
     if (result === "copied") {
       setCopied(true);

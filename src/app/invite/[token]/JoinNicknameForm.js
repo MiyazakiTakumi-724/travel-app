@@ -5,7 +5,7 @@ import SiteHeader from "@/components/SiteHeader";
 import { primaryButtonClass, textFieldClass } from "@/components/ui";
 import { LIMITS } from "@/lib/limits";
 
-export default function JoinNicknameForm({ projectId, projectTitle }) {
+export default function JoinNicknameForm({ inviteToken, projectTitle }) {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
@@ -20,7 +20,7 @@ export default function JoinNicknameForm({ projectId, projectTitle }) {
           </div>
 
           <form
-            action={setNicknameAndJoin.bind(null, projectId)}
+            action={setNicknameAndJoin.bind(null, inviteToken)}
             className="ticket-bottom flex flex-col gap-5 px-7 pt-6 pb-7"
           >
             <input

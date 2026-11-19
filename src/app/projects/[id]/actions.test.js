@@ -76,6 +76,7 @@ const {
   editPayment,
   editProject,
   removeParticipant,
+  resetInviteLink,
   restorePayment,
 } = await import("./actions");
 const { hashGuestCode, guestCookieName } = await import("@/lib/guestCode");
@@ -92,8 +93,8 @@ const loginAs = (userId) => {
 beforeEach(() => {
   // owner（作成者）・member（参加者）・outsider（無関係な人）の3人と、プロジェクト2つ
   db.projects = [
-    { id: "trip", title: "沖縄旅行" },
-    { id: "other", title: "別の旅行" },
+    { id: "trip", title: "沖縄旅行", inviteToken: "invite-trip" },
+    { id: "other", title: "別の旅行", inviteToken: "invite-other" },
   ];
   db.participants = [
     { id: "pOwner", name: "まさのり", projectId: "trip", userId: "owner", isOwner: true },
@@ -250,6 +251,20 @@ describe("restorePayment", () => {
       expect(await restorePayment("trip", payment)).toEqual({ error: "入力内容を確認してください" });
     }
     expect(db.payments).toHaveLength(0);
+  });
+});
+
+describe("resetInviteLink", () => {
+  it("作成者は招待リンクを作り直せ、新しい鍵は推測できない長さの乱数になる", async () => {
+    loginAs("owner");
+    expect(await resetInviteLink("trip")).toEqual({ ok: true });
+    expect(db.projects[0].inviteToken).not.toBe("invite-trip");
+    expect(db.projects[0].inviteToken).toMatch(/^[A-Za-z0-9_-]{24}$/);
+  });
+
+  it("作成者でないメンバーは作り直せない", async () => {
+    expect((await resetInviteLink("trip")).error).toBeDefined();
+    expect(db.projects[0].inviteToken).toBe("invite-trip");
   });
 });
 
