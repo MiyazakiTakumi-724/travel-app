@@ -32,9 +32,8 @@ export async function createProject(formData) {
   const project = await prisma.project.create({
     data: {
       ...data,
-      ownerId: session.user.id,
       participants: {
-        create: [{ name: session.user.nickname, userId: session.user.id }],
+        create: [{ name: session.user.nickname, userId: session.user.id, isOwner: true }],
       },
     },
   });

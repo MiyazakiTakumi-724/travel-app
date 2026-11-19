@@ -1,9 +1,9 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { assertMember, INVALID_INPUT, LOGIN_REQUIRED, NOT_MEMBER } from "@/lib/access";
+import { INVALID_INPUT } from "@/lib/access";
+import { requireParticipant } from "@/lib/actor";
 import { isValidTime } from "@/lib/itinerary";
 import { isWithinLength, LIMITS } from "@/lib/limits";
 import { daysBetween } from "@/lib/dates";
@@ -11,9 +11,8 @@ import { daysBetween } from "@/lib/dates";
 // 旅行の予定（日ごとのメモ）。メンバーなら誰でも追加・編集・削除できる
 
 async function requireMember(projectId) {
-  const session = await auth();
-  if (!session?.user?.id) return { error: LOGIN_REQUIRED };
-  if (!(await assertMember(projectId, session.user.id))) return { error: NOT_MEMBER };
+  const { error } = await requireParticipant(projectId);
+  if (error) return { error };
   return { project: await prisma.project.findUnique({ where: { id: projectId } }) };
 }
 

@@ -4,6 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const session = { current: null };
 vi.mock("@/auth", () => ({ auth: async () => session.current }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// ゲストの Cookie（復帰用コード）。テストごとに入れ替える
+const guestCookies = new Map();
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: (name) => (guestCookies.has(name) ? { value: guestCookies.get(name) } : undefined) }),
+}));
 
 const db = {};
 vi.mock("@/lib/prisma", () => {
@@ -69,9 +74,9 @@ const submitAll = () => db.participants.forEach((p) => (p.availabilitySubmitted 
 
 beforeEach(() => {
   db.projects = [
-    { id: "trip", ownerId: "owner", days: 3, rangeStart: "2026-11-01", rangeEnd: "2026-11-30", startDate: "", endDate: "", tentativeStart: null },
+    { id: "trip", days: 3, rangeStart: "2026-11-01", rangeEnd: "2026-11-30", startDate: "", endDate: "", tentativeStart: null },
   ];
-  const member = (id, userId) => ({ id, projectId: "trip", userId, availabilitySubmitted: false, tentativeAnswer: null });
+  const member = (id, userId) => ({ id, projectId: "trip", userId, isOwner: id === "pOwner", availabilitySubmitted: false, tentativeAnswer: null });
   db.participants = [member("pOwner", "owner"), member("pMember", "member"), member("pThird", "third")];
   db.availableDays = [];
   loginAs("member");
@@ -208,7 +213,7 @@ describe("3. ○× で答えて、全員 ○ なら確定する", () => {
 
 describe("メンバーが作成者だけのとき", () => {
   it("仮決定した時点で確定する", async () => {
-    db.participants = [{ id: "pOwner", projectId: "trip", userId: "owner", availabilitySubmitted: true, tentativeAnswer: null }];
+    db.participants = [{ id: "pOwner", projectId: "trip", userId: "owner", isOwner: true, availabilitySubmitted: true, tentativeAnswer: null }];
     loginAs("owner");
     await proposeSchedule("trip", "2026-11-14");
     expect(trip()).toMatchObject({ startDate: "2026-11-14", endDate: "2026-11-16" });

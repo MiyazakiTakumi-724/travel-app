@@ -1,14 +1,16 @@
 import { notFound } from "next/navigation";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getActor } from "@/lib/actor";
 import { redirectToLogin } from "@/lib/loginRedirect";
 import PaymentsClient from "./PaymentsClient";
 
 export default async function ProjectDetailPage({ params, searchParams }) {
   const { id } = await params;
-  const session = await auth();
+  // Googleでログインした人か、ゲスト（復帰用コードの Cookie）のどちらかで参加している人だけが見られる
+  const { participant: me, session, isGuest } = await getActor(id);
 
-  if (!session) {
+  if (!me) {
+    if (session?.user?.id) notFound();
     // 開いていたタブ（?tab=）も含めて、ログイン後に同じ画面へ戻す
     const { tab } = await searchParams;
     redirectToLogin(`/projects/${id}${typeof tab === "string" ? `?tab=${encodeURIComponent(tab)}` : ""}`);
@@ -25,24 +27,20 @@ export default async function ProjectDetailPage({ params, searchParams }) {
       itineraryItems: { orderBy: { createdAt: "asc" } },
     },
   });
+  if (!project) notFound();
 
-  const isMember =
-    project?.ownerId === session.user.id ||
-    project?.participants.some((p) => p.userId === session.user.id);
-
-  if (!project || !isMember) {
-    notFound();
-  }
-
-  const currentParticipant = project.participants.find(
-    (p) => p.userId === session.user.id
-  );
+  // ゲストのコードのハッシュはブラウザに送らない。代わりに「ゲストかどうか」だけを付ける
+  const participants = project.participants.map(({ guestCodeHash, ...participant }) => ({
+    ...participant,
+    isGuest: !participant.userId && Boolean(guestCodeHash),
+  }));
 
   return (
     <PaymentsClient
-      project={project}
-      currentParticipantId={currentParticipant?.id}
-      isOwner={project.ownerId === session.user.id}
+      project={{ ...project, participants }}
+      currentParticipantId={me.id}
+      isOwner={me.isOwner}
+      isGuest={isGuest}
     />
   );
 }

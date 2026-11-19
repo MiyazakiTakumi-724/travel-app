@@ -18,7 +18,6 @@ model User {
   nickname       String?
   accounts       Account[]
   sessions       Session[]
-  projects       Project[]
   participations Participant[]
 }
 
@@ -70,8 +69,6 @@ model Project {
   // 作成者が仮決定した日程の開始日。全員が ○ と答えると startDate・endDate に確定する
   tentativeStart String?
   createdAt      DateTime        @default(now())
-  ownerId        String
-  owner          User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   participants   Participant[]
   payments       Payment[]
   itineraryItems ItineraryItem[]
@@ -84,6 +81,10 @@ model Participant {
   project               Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId                String?
   user                  User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // プロジェクトを作った人（日程の仮決定や、メンバーを外すことができる）
+  isOwner               Boolean        @default(false)
+  // ゲストの復帰用コード。元に戻せない形（SHA-256）で保存する。Googleでログインした人は null
+  guestCodeHash         String?        @unique
   payments              Payment[]
   availableDays         AvailableDay[]
   // 行ける日を提出したか（全員が提出すると、作成者が日程を仮決定できる）
@@ -125,4 +126,13 @@ model ItineraryItem {
   createdAt DateTime @default(now())
   projectId String
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ゲストの復帰用コードの入力ミス。短い時間に何度も間違えた端末からの入力を止めるために使う
+model GuestCodeAttempt {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
 }

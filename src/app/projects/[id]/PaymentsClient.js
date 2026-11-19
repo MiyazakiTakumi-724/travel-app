@@ -517,14 +517,14 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
                     {participant.name.slice(0, 1)}
                   </span>
                   <span className="min-w-0 flex-1 truncate font-bold">{displayNames.get(participant.id)}</span>
-                  {participant.userId === project.ownerId && (
+                  {participant.isOwner && (
                     <span className="shrink-0 rounded-full bg-sky-ground px-2.5 py-0.5 text-xs font-bold text-ink-sub">作成者</span>
                   )}
                   {participant.id === currentParticipantId && (
                     <span className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-white">あなた</span>
                   )}
                   {/* 作成者だけが、自分以外のメンバーを外せる */}
-                  {isOwner && participant.userId !== project.ownerId && (
+                  {isOwner && !participant.isOwner && (
                     <button
                       onClick={() => handleRemoveMember(participant)}
                       disabled={isPending}

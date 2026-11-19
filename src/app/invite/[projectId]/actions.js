@@ -9,8 +9,6 @@ async function ensureParticipant(projectId, userId, name) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return;
 
-  if (project.ownerId === userId) return;
-
   const existing = await prisma.participant.findFirst({
     where: { projectId, userId },
   });

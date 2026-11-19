@@ -4,6 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const session = { current: null };
 vi.mock("@/auth", () => ({ auth: async () => session.current }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// ゲストの Cookie（復帰用コード）。テストごとに入れ替える
+const guestCookies = new Map();
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: (name) => (guestCookies.has(name) ? { value: guestCookies.get(name) } : undefined) }),
+}));
 
 // サーバー処理が使う分だけを、メモリ上で真似する小さなDB
 const db = { projects: [], participants: [], payments: [] };
@@ -28,6 +33,7 @@ vi.mock("@/lib/prisma", () => {
         },
       },
       participant: {
+        findUnique: async ({ where }) => db.participants.find((p) => matches(p, where)) ?? null,
         findMany: async ({ where }) => db.participants.filter((p) => matches(p, where)),
         findFirst: async ({ where, include }) => {
           const participant = db.participants.find((p) => matches(p, where));
@@ -72,6 +78,7 @@ const {
   removeParticipant,
   restorePayment,
 } = await import("./actions");
+const { hashGuestCode, guestCookieName } = await import("@/lib/guestCode");
 
 const form = (entries) => {
   const data = new FormData();
@@ -85,14 +92,14 @@ const loginAs = (userId) => {
 beforeEach(() => {
   // owner（作成者）・member（参加者）・outsider（無関係な人）の3人と、プロジェクト2つ
   db.projects = [
-    { id: "trip", title: "沖縄旅行", ownerId: "owner" },
-    { id: "other", title: "別の旅行", ownerId: "outsider" },
+    { id: "trip", title: "沖縄旅行" },
+    { id: "other", title: "別の旅行" },
   ];
   db.participants = [
-    { id: "pOwner", name: "まさのり", projectId: "trip", userId: "owner" },
+    { id: "pOwner", name: "まさのり", projectId: "trip", userId: "owner", isOwner: true },
     { id: "pMember", name: "はなこ", projectId: "trip", userId: "member" },
     { id: "pQuiet", name: "じろう", projectId: "trip", userId: "quiet" },
-    { id: "pOther", name: "よそ", projectId: "other", userId: "outsider" },
+    { id: "pOther", name: "よそ", projectId: "other", userId: "outsider", isOwner: true },
   ];
   db.payments = [{ id: "pay1", payerId: "pMember", memo: "宿", amount: 9000, projectId: "trip" }];
   loginAs("member");
@@ -162,6 +169,35 @@ describe("入力値の上限", () => {
     loginAs("owner");
     expect((await editProject("trip", form([["title", "あ".repeat(31)]]))).error).toContain("30文字以内");
     expect(db.projects[0].title).toBe("沖縄旅行");
+  });
+});
+
+describe("ゲスト（復帰用コードの Cookie）", () => {
+  beforeEach(() => {
+    loginAs(null);
+    guestCookies.clear();
+    db.participants.push({ id: "pGuest", name: "ゲスト", projectId: "trip", userId: null, guestCodeHash: hashGuestCode("K7QM3XRP4N") });
+  });
+
+  it("ログインしていなくても、コードの Cookie があればそのプロジェクトで操作できる", async () => {
+    guestCookies.set(guestCookieName("trip"), "K7QM3-XRP4N");
+    expect(await addPayment("trip", form([["payerId", "pGuest"], ["amount", "500"]]))).toEqual({ ok: true });
+  });
+
+  it("コードが違う・ほかのプロジェクトの Cookie では操作できない", async () => {
+    guestCookies.set(guestCookieName("trip"), "AAAAA-BBBBB");
+    expect(await addPayment("trip", form([["payerId", "pGuest"], ["amount", "500"]]))).toEqual({ error: "ログインし直してください" });
+    guestCookies.clear();
+    guestCookies.set(guestCookieName("other"), "K7QM3-XRP4N");
+    expect((await addPayment("trip", form([["payerId", "pGuest"], ["amount", "500"]]))).error).toBeDefined();
+    expect(db.payments).toHaveLength(1);
+  });
+
+  it("ゲストでも作成者なら、作成者だけの操作ができる", async () => {
+    db.participants.find((p) => p.id === "pGuest").isOwner = true;
+    guestCookies.set(guestCookieName("trip"), "K7QM3-XRP4N");
+    await editProject("trip", form([["title", "宮古島旅行"]]));
+    expect(db.projects[0].title).toBe("宮古島旅行");
   });
 });
 

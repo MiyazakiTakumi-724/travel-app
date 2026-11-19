@@ -4,6 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const session = { current: null };
 vi.mock("@/auth", () => ({ auth: async () => session.current }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+// ゲストの Cookie（復帰用コード）。テストごとに入れ替える
+const guestCookies = new Map();
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: (name) => (guestCookies.has(name) ? { value: guestCookies.get(name) } : undefined) }),
+}));
 
 const db = {};
 vi.mock("@/lib/prisma", () => {
@@ -19,6 +24,10 @@ vi.mock("@/lib/prisma", () => {
             ? { ...project, participants: db.participants.filter((p) => p.projectId === project.id) }
             : { ...project };
         },
+      },
+      participant: {
+        findFirst: async ({ where }) => db.participants.find((row) => matches(row, where)) ?? null,
+        findUnique: async ({ where }) => db.participants.find((row) => matches(row, where)) ?? null,
       },
       itineraryItem: {
         create: async ({ data }) => db.items.push({ id: `item-${++seq}`, ...data }),
@@ -39,13 +48,13 @@ const loginAs = (userId) => {
 
 beforeEach(() => {
   db.projects = [
-    { id: "trip", ownerId: "owner", days: 3, startDate: "2026-11-14", endDate: "2026-11-16" },
-    { id: "other", ownerId: "outsider", days: 2, startDate: "2026-12-01", endDate: "2026-12-02" },
+    { id: "trip", days: 3, startDate: "2026-11-14", endDate: "2026-11-16" },
+    { id: "other", days: 2, startDate: "2026-12-01", endDate: "2026-12-02" },
   ];
   db.participants = [
-    { id: "pOwner", projectId: "trip", userId: "owner" },
+    { id: "pOwner", projectId: "trip", userId: "owner", isOwner: true },
     { id: "pMember", projectId: "trip", userId: "member" },
-    { id: "pOther", projectId: "other", userId: "outsider" },
+    { id: "pOther", projectId: "other", userId: "outsider", isOwner: true },
   ];
   db.items = [{ id: "x", projectId: "other", dayIndex: 1, time: "", text: "別の旅行の予定" }];
   loginAs("member");

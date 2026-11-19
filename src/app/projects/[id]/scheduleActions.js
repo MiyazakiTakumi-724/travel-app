@@ -1,9 +1,9 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { assertOwner, findMyParticipant, INVALID_INPUT, LOGIN_REQUIRED, NOT_MEMBER, OWNER_ONLY } from "@/lib/access";
+import { INVALID_INPUT } from "@/lib/access";
+import { requireOwner as requireOwnerActor, requireParticipant } from "@/lib/actor";
 import { daysBetween, isValidDate } from "@/lib/dates";
 import { ANSWERS, fitsInRange, schedulePhase } from "@/lib/schedule";
 import { confirmIfAllAgreed, resetAnswers } from "@/lib/scheduleServer";
@@ -21,20 +21,17 @@ const refresh = (projectId) => {
 const loadProject = (projectId) =>
   prisma.project.findUnique({ where: { id: projectId }, include: { participants: true } });
 
-// ログイン中の人の、このプロジェクトでの参加者を取り出す
+// 操作している人（Googleでログインした人かゲスト）の、このプロジェクトでの参加者を取り出す
 async function requireMe(projectId) {
-  const session = await auth();
-  if (!session?.user?.id) return { error: LOGIN_REQUIRED };
-  const me = await findMyParticipant(projectId, session.user.id);
-  if (!me) return { error: NOT_MEMBER };
-  return { me, project: await loadProject(projectId) };
+  const { participant, error } = await requireParticipant(projectId);
+  if (error) return { error };
+  return { me: participant, project: await loadProject(projectId) };
 }
 
 async function requireOwner(projectId) {
-  const session = await auth();
-  if (!session?.user?.id) return { error: LOGIN_REQUIRED };
-  if (!(await assertOwner(projectId, session.user.id))) return { error: OWNER_ONLY };
-  return { me: await findMyParticipant(projectId, session.user.id), project: await loadProject(projectId) };
+  const { participant, error } = await requireOwnerActor(projectId);
+  if (error) return { error };
+  return { me: participant, project: await loadProject(projectId) };
 }
 
 const inRange = (project, date) =>

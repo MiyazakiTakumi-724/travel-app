@@ -1,19 +1,11 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { isValidAmount, isWithinLength, LIMITS } from "@/lib/limits";
 
-import {
-  assertMember,
-  assertOwner,
-  filterParticipantIds,
-  INVALID_INPUT,
-  LOGIN_REQUIRED,
-  NOT_MEMBER,
-  OWNER_ONLY,
-} from "@/lib/access";
+import { filterParticipantIds, INVALID_INPUT, OWNER_ONLY } from "@/lib/access";
+import { requireOwner, requireParticipant } from "@/lib/actor";
 import { parseProjectForm } from "@/lib/projectInput";
 import { confirmIfAllAgreed, resetAnswers } from "@/lib/scheduleServer";
 
@@ -21,9 +13,8 @@ const INVALID_AMOUNT = { error: "金額は1円〜1,000万円の整数で入力�
 const MEMO_TOO_LONG = { error: `支払い内容は${LIMITS.memo}文字以内で入力してください` };
 
 export async function editProject(projectId, formData) {
-  const session = await auth();
-  if (!session?.user?.id) return LOGIN_REQUIRED;
-  if (!(await assertOwner(projectId, session.user.id))) return OWNER_ONLY;
+  const { error: actorError } = await requireOwner(projectId);
+  if (actorError) return actorError;
 
   const { data, error } = parseProjectForm(formData);
   if (error) return { error };
@@ -49,20 +40,16 @@ export async function editProject(projectId, formData) {
 
 // 作成者がメンバーを外す。支払い記録が残っている人は、記録が消えたり精算額が変わったりしないよう外せない
 export async function removeParticipant(projectId, participantId) {
-  const session = await auth();
-  if (!session?.user?.id) return LOGIN_REQUIRED;
-
-  const project = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!project || project.ownerId !== session.user.id) {
-    return { error: "メンバーを外せるのは作成者だけです" };
-  }
+  const { error: actorError } = await requireOwner(projectId);
+  if (actorError === OWNER_ONLY) return { error: "メンバーを外せるのは作成者だけです" };
+  if (actorError) return actorError;
 
   const participant = await prisma.participant.findFirst({
     where: { id: participantId, projectId },
     include: { _count: { select: { payments: true } } },
   });
   if (!participant) return { error: "メンバーが見つかりません" };
-  if (participant.userId === project.ownerId) return { error: "作成者は外せません" };
+  if (participant.isOwner) return { error: "作成者は外せません" };
   if (participant._count.payments > 0) {
     return { error: `${participant.name}さんの支払い記録があるため外せません。先に支払いを編集するか削除してください` };
   }
@@ -85,9 +72,8 @@ export async function removeParticipant(projectId, participantId) {
 }
 
 export async function deleteProject(projectId) {
-  const session = await auth();
-  if (!session?.user?.id) return LOGIN_REQUIRED;
-  if (!(await assertOwner(projectId, session.user.id))) return OWNER_ONLY;
+  const { error: actorError } = await requireOwner(projectId);
+  if (actorError) return actorError;
 
   await prisma.project.delete({ where: { id: projectId } });
 
@@ -96,9 +82,8 @@ export async function deleteProject(projectId) {
 }
 
 export async function addPayment(projectId, formData) {
-  const session = await auth();
-  if (!session?.user?.id) return LOGIN_REQUIRED;
-  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
+  const { error: actorError } = await requireParticipant(projectId);
+  if (actorError) return actorError;
 
   // 支払者は1人だけ
   const payerIds = formData.getAll("payerId").map((id) => id.toString()).filter(Boolean);
@@ -117,9 +102,8 @@ export async function addPayment(projectId, formData) {
 }
 
 export async function editPayment(projectId, paymentId, formData) {
-  const session = await auth();
-  if (!session?.user?.id) return LOGIN_REQUIRED;
-  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
+  const { error: actorError } = await requireParticipant(projectId);
+  if (actorError) return actorError;
 
   const payerId = formData.get("payerId")?.toString();
   const memo = formData.get("memo")?.toString().trim();
@@ -141,9 +125,8 @@ export async function editPayment(projectId, paymentId, formData) {
 
 // 削除を「元に戻す」ときに、同じIDと作成日時のまま作り直す（一覧の並び順も元どおりになる）
 export async function restorePayment(projectId, payment) {
-  const session = await auth();
-  if (!session?.user?.id) return LOGIN_REQUIRED;
-  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
+  const { error: actorError } = await requireParticipant(projectId);
+  if (actorError) return actorError;
 
   const amount = Number(payment?.amount);
   if (!payment?.id || !isValidAmount(amount) || !isWithinLength(payment.memo, LIMITS.memo)) {
@@ -171,9 +154,8 @@ export async function restorePayment(projectId, payment) {
 }
 
 export async function deletePayment(projectId, paymentId) {
-  const session = await auth();
-  if (!session?.user?.id) return LOGIN_REQUIRED;
-  if (!(await assertMember(projectId, session.user.id))) return NOT_MEMBER;
+  const { error: actorError } = await requireParticipant(projectId);
+  if (actorError) return actorError;
 
   await prisma.payment.deleteMany({
     where: { id: paymentId, projectId },

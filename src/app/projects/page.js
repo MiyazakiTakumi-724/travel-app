@@ -12,13 +12,9 @@ export default async function ProjectsPage() {
   }
 
   const projects = await prisma.project.findMany({
-    where: {
-      OR: [
-        { ownerId: session.user.id },
-        { participants: { some: { userId: session.user.id } } },
-      ],
-    },
-    include: { participants: true },
+    where: { participants: { some: { userId: session.user.id } } },
+    // カードには人数だけを出す（ゲストのコードのハッシュなどは読まない）
+    include: { participants: { select: { id: true } } },
     orderBy: { createdAt: "desc" },
   });
 
