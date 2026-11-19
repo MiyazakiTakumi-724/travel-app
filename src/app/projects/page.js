@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { redirectToLogin } from "@/lib/loginRedirect";
 import { prisma } from "@/lib/prisma";
 import ProjectsList from "./ProjectsList";
 import NicknameOverlay from "./NicknameOverlay";
@@ -8,7 +8,7 @@ export default async function ProjectsPage() {
   const session = await auth();
 
   if (!session) {
-    redirect("/");
+    redirectToLogin("/projects");
   }
 
   const projects = await prisma.project.findMany({

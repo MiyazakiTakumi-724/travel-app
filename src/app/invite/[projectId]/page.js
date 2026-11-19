@@ -1,6 +1,7 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { redirectToLogin } from "@/lib/loginRedirect";
 import { joinProject } from "./actions";
 import JoinNicknameForm from "./JoinNicknameForm";
 
@@ -9,7 +10,7 @@ export default async function InvitePage({ params }) {
   const session = await auth();
 
   if (!session) {
-    redirect(`/?callbackUrl=${encodeURIComponent(`/invite/${projectId}`)}`);
+    redirectToLogin(`/invite/${projectId}`);
   }
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });

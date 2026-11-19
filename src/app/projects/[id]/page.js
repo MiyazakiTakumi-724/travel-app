@@ -1,14 +1,17 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { redirectToLogin } from "@/lib/loginRedirect";
 import PaymentsClient from "./PaymentsClient";
 
-export default async function ProjectDetailPage({ params }) {
+export default async function ProjectDetailPage({ params, searchParams }) {
   const { id } = await params;
   const session = await auth();
 
   if (!session) {
-    redirect("/");
+    // 開いていたタブ（?tab=）も含めて、ログイン後に同じ画面へ戻す
+    const { tab } = await searchParams;
+    redirectToLogin(`/projects/${id}${typeof tab === "string" ? `?tab=${encodeURIComponent(tab)}` : ""}`);
   }
 
   const project = await prisma.project.findUnique({
