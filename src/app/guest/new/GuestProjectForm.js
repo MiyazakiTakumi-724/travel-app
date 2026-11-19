@@ -1,37 +1,23 @@
 "use client";
 import { useState, useTransition } from "react";
 import { createGuestProject } from "@/app/guestActions";
-import GuestCodePanel from "@/components/GuestCodePanel";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import { fieldLabelClass, primaryButtonClass, textFieldClass } from "@/components/ui";
 import { LIMITS } from "@/lib/limits";
-import { runServerAction } from "@/lib/runServerAction";
 
 // ゲストのまま、ニックネームとプロジェクトの内容を入れて作る
 export default function GuestProjectForm() {
-  const [created, setCreated] = useState(null);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
-
-  if (created) {
-    return (
-      <GuestCodePanel
-        code={created.code}
-        projectId={created.projectId}
-        projectTitle={created.projectTitle}
-        heading="プロジェクトを作りました"
-      />
-    );
-  }
 
   const submit = (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setError("");
     startTransition(async () => {
-      const result = await runServerAction(() => createGuestProject(formData));
-      if (result.error) setError(result.error);
-      else setCreated(result);
+      // 作れたら、サーバーが復帰用コードの画面へ移動させる
+      const result = await createGuestProject(formData);
+      if (result?.error) setError(result.error);
     });
   };
 

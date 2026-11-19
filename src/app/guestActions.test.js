@@ -71,13 +71,26 @@ vi.mock("@/lib/prisma", () => {
 
 const { createGuestProject, enterGuestCode, joinAsGuest, reissueGuestCode } = await import("./guestActions");
 const { claimGuestParticipant, issueGuestCode } = await import("@/lib/guestSession");
-const { guestCookieName, hashGuestCode, normalizeGuestCode } = await import("@/lib/guestCode");
+const { formatGuestCode, guestCookieName, hashGuestCode, normalizeGuestCode } = await import("@/lib/guestCode");
 
 const form = (values) => {
   const data = new FormData();
   for (const [key, value] of Object.entries(values)) data.append(key, value);
   return data;
 };
+
+// 参加・作成に成功すると、復帰用コードの画面へ移動する。移動先と、Cookie に保存されたコードを返す
+const followRedirect = async (promise) => {
+  const err = await promise.then(
+    () => null,
+    (e) => e
+  );
+  expect(err?.message).toBe("NEXT_REDIRECT");
+  const projectId = err.path.match(/^\/projects\/([^/]+)\/welcome/)[1];
+  return { path: err.path, projectId, code: formatGuestCode(cookieJar.get(guestCookieName(projectId))) };
+};
+const joinGuest = (projectId, nickname) => followRedirect(joinAsGuest(projectId, form({ nickname })));
+const createGuest = (values) => followRedirect(createGuestProject(form(values)));
 
 beforeEach(() => {
   cookieJar.clear();
@@ -91,10 +104,10 @@ beforeEach(() => {
 });
 
 describe("joinAsGuest", () => {
-  it("ニックネームで参加すると、コードが発行され、ハッシュだけが保存され、Cookie も保存される", async () => {
-    const result = await joinAsGuest("trip", form({ nickname: " たろう " }));
+  it("ニックネームで参加すると、コードが発行され、ハッシュだけが保存され、Cookie も保存されて、コードの画面へ移動する", async () => {
+    const result = await joinGuest("trip", " たろう ");
 
-    expect(result).toMatchObject({ ok: true, projectId: "trip" });
+    expect(result.path).toBe("/projects/trip/welcome");
     expect(result.code).toMatch(/^[2-9A-Z]{5}-[2-9A-Z]{5}$/);
     const [guest] = db.participants;
     expect(guest).toMatchObject({ name: "たろう", projectId: "trip", userId: null });
@@ -114,7 +127,7 @@ describe("joinAsGuest", () => {
 describe("enterGuestCode", () => {
   let code;
   beforeEach(async () => {
-    code = (await joinAsGuest("trip", form({ nickname: "たろう" }))).code;
+    code = (await joinGuest("trip", "たろう")).code;
     cookieJar.clear();
   });
 
@@ -144,9 +157,9 @@ describe("enterGuestCode", () => {
 
 describe("createGuestProject", () => {
   it("ゲストのままプロジェクトを作ると、作った人が作成者になり、コードが発行される", async () => {
-    const result = await createGuestProject(form({ nickname: "はなこ", title: "温泉旅行", destination: "箱根" }));
+    const result = await createGuest({ nickname: "はなこ", title: "温泉旅行", destination: "箱根" });
 
-    expect(result).toMatchObject({ ok: true, projectTitle: "温泉旅行" });
+    expect(result.path).toBe(`/projects/${result.projectId}/welcome?created=1`);
     const project = db.projects.find((p) => p.id === result.projectId);
     expect(project).toMatchObject({ title: "温泉旅行", destination: "箱根" });
     const owner = db.participants.find((p) => p.projectId === result.projectId);
@@ -166,9 +179,9 @@ describe("reissueGuestCode", () => {
   let guest;
   let owner;
   beforeEach(async () => {
-    const created = await createGuestProject(form({ nickname: "はなこ", title: "温泉旅行" }));
+    const created = await createGuest({ nickname: "はなこ", title: "温泉旅行" });
     owner = db.participants.find((p) => p.projectId === created.projectId);
-    const joined = await joinAsGuest(created.projectId, form({ nickname: "たろう" }));
+    const joined = await joinGuest(created.projectId, "たろう");
     guest = db.participants.find((p) => p.name === "たろう");
     guest.code = joined.code;
   });
@@ -197,7 +210,7 @@ describe("claimGuestParticipant（Google アカウントへの引き継ぎ）", 
   let guest;
   let code;
   beforeEach(async () => {
-    code = (await joinAsGuest("trip", form({ nickname: "たろう" }))).code;
+    code = (await joinGuest("trip", "たろう")).code;
     guest = db.participants.find((p) => p.name === "たろう");
     db.users = [{ id: "u1", nickname: null }];
   });

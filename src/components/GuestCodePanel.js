@@ -40,11 +40,11 @@ export function GuestCodeDetails({ code, projectTitle }) {
         <p className="mt-1 amount text-[34px] leading-tight tracking-wider text-primary">{code}</p>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={copyCode} className={`${secondaryButtonClass} min-h-12 px-3 text-sm`}>
+        <button type="button" onClick={copyCode} className={`${secondaryButtonClass} min-h-12 px-2 text-sm whitespace-nowrap`}>
           コードをコピー
         </button>
-        <button type="button" onClick={sendLink} className={`${secondaryButtonClass} min-h-12 px-3 text-sm`}>
-          <LinkIcon />
+        <button type="button" onClick={sendLink} className={`${secondaryButtonClass} min-h-12 px-2 text-sm whitespace-nowrap`}>
+          <LinkIcon className="shrink-0" />
           リンクを送る
         </button>
       </div>

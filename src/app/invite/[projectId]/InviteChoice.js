@@ -2,27 +2,22 @@
 import { useState, useTransition } from "react";
 import { joinAsGuest } from "@/app/guestActions";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
-import GuestCodePanel from "@/components/GuestCodePanel";
 import { primaryButtonClass, textFieldClass } from "@/components/ui";
 import { LIMITS } from "@/lib/limits";
-import { runServerAction } from "@/lib/runServerAction";
 
 // ログインしていない人に、「Googleでログインして参加」と「ゲストとして参加」を選んでもらう
 export default function InviteChoice({ projectId, projectTitle, signInAction }) {
-  const [joined, setJoined] = useState(null);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
-
-  if (joined) return <GuestCodePanel code={joined.code} projectId={projectId} projectTitle={projectTitle} />;
 
   const join = (event) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setError("");
     startTransition(async () => {
-      const result = await runServerAction(() => joinAsGuest(projectId, formData));
-      if (result.error) setError(result.error);
-      else setJoined(result);
+      // 参加できたら、サーバーが復帰用コードの画面へ移動させる
+      const result = await joinAsGuest(projectId, formData);
+      if (result?.error) setError(result.error);
     });
   };
 

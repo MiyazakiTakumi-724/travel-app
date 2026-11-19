@@ -16,7 +16,9 @@ function checkNickname(nickname) {
   return null;
 }
 
-// 招待リンクから、ゲストとしてプロジェクトに参加する。成功したら復帰用コードを返す
+// 招待リンクから、ゲストとしてプロジェクトに参加する。成功したら、復帰用コードを見せる画面へ移動する。
+// （Cookie を保存すると今の画面が描き直され、招待ページが参加済みの人をプロジェクトへ移してしまうため、
+//   コードは戻り値ではなく、移動先の画面で Cookie から読んで見せる）
 export async function joinAsGuest(projectId, formData) {
   const nickname = formData.get("nickname")?.toString().trim() ?? "";
   const nicknameError = checkNickname(nickname);
@@ -28,10 +30,10 @@ export async function joinAsGuest(projectId, formData) {
   const participant = await prisma.participant.create({ data: { projectId, name: nickname } });
   const code = await issueGuestCode(participant.id);
   await setGuestCookie(projectId, code);
-  return { ok: true, code, projectId };
+  redirect(`/projects/${projectId}/welcome`);
 }
 
-// ゲストのままプロジェクトを作る。作った人は作成者になる。成功したら復帰用コードを返す
+// ゲストのままプロジェクトを作る。作った人は作成者になる。成功したら、復帰用コードを見せる画面へ移動する
 export async function createGuestProject(formData) {
   const nickname = formData.get("nickname")?.toString().trim() ?? "";
   const nicknameError = checkNickname(nickname);
@@ -46,7 +48,7 @@ export async function createGuestProject(formData) {
   });
   const code = await issueGuestCode(project.participants[0].id);
   await setGuestCookie(project.id, code);
-  return { ok: true, code, projectId: project.id, projectTitle: project.title };
+  redirect(`/projects/${project.id}/welcome?created=1`);
 }
 
 // トップページで復帰用コードを入力して、ゲストとしてプロジェクトに戻る

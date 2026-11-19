@@ -7,7 +7,12 @@ const LENGTH = 10;
 // 「K7QM3-XRP4N」のように、5文字ずつハイフンで区切って見せる
 export function generateGuestCode() {
   const chars = Array.from({ length: LENGTH }, () => ALPHABET[randomInt(ALPHABET.length)]).join("");
-  return `${chars.slice(0, 5)}-${chars.slice(5)}`;
+  return formatGuestCode(chars);
+}
+
+// そろえた形（ハイフンなし）のコードを、見せる形にする
+export function formatGuestCode(normalized) {
+  return `${normalized.slice(0, 5)}-${normalized.slice(5)}`;
 }
 
 // 入力されたコードを、比べられる形にそろえる（小文字・空白・ハイフンを許す）。形が違えば null
