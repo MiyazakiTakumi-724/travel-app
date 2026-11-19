@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
 import SiteHeader, { GuideLink } from "@/components/SiteHeader";
 import { GoogleIcon } from "@/components/icons";
+import SiteFooter from "@/components/SiteFooter";
 
 const steps = [
   {
@@ -87,6 +88,13 @@ export default async function Home({ searchParams }) {
             </p>
             <div className="mt-7">
               <GoogleSignInButton action={signInWithGoogle} />
+              <p className="mt-2.5 text-xs leading-relaxed text-ink-muted">
+                ログインすると、
+                <Link href="/terms" className="underline hover:text-primary">利用規約</Link>
+                と
+                <Link href="/privacy" className="underline hover:text-primary">プライバシーポリシー</Link>
+                に同意したことになります。
+              </p>
             </div>
             <ul className="mt-7 flex flex-wrap gap-2.5">
               {points.map(([strong, rest]) => (
@@ -169,9 +177,7 @@ export default async function Home({ searchParams }) {
         </section>
       </main>
 
-      <footer className="mx-auto w-full max-w-280 px-5 py-6 text-[13px] text-ink-muted sm:px-6">
-        © 旅行清算アプリ
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { createProject } from "./actions";
 import SiteHeader, { GuideLink } from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import Modal, { ModalActions } from "@/components/Modal";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import { PlusIcon } from "@/components/icons";
@@ -115,6 +116,7 @@ export default function ProjectsList({ projects }) {
                     </Link>
                 </div>
             </main>
+            <SiteFooter />
 
             {isOpen && (
                 <Modal title="新しいプロジェクトを作成" onClose={() => setisOpen(false)}>

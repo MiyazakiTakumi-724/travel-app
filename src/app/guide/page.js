@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { formatYen } from "@/lib/format";
 
 export const metadata = {
@@ -171,6 +172,7 @@ export default async function GuidePage() {
           </ol>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

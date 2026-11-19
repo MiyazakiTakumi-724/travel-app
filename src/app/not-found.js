@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import { primaryButtonClass } from "@/components/ui";
 
 export const metadata = {
@@ -27,6 +28,7 @@ export default async function NotFound() {
           {home.label}
         </Link>
       </main>
+      <SiteFooter />
     </div>
   );
 }
