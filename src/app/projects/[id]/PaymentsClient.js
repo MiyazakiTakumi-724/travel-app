@@ -315,7 +315,7 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
   const handleDeleteProject = () => {
     if (!window.confirm(`「${project.title}」を削除しますか？支払い記録もすべて削除されます。`)) return;
     startTransition(async () => {
-      if (await save(() => deleteProject(project.id))) router.push("/projects");
+      if (await save(() => deleteProject(project.id))) router.push(isGuest ? "/" : "/projects");
     });
   };
 

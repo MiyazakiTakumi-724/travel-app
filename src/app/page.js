@@ -4,6 +4,7 @@ import { auth, signIn } from "@/auth";
 import SiteHeader, { GuideLink } from "@/components/SiteHeader";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import GuestCodeForm from "@/components/GuestCodeForm";
+import { secondaryButtonClass } from "@/components/ui";
 import SiteFooter from "@/components/SiteFooter";
 
 const steps = [
@@ -94,6 +95,10 @@ export default async function Home({ searchParams }) {
             {/* アカウントなしで使う人向け */}
             <div className="mt-8 flex flex-col gap-3 rounded-xl bg-paper px-5 py-4.5">
               <p className="font-bold">ゲストで使う</p>
+              <p className="-mt-2 text-xs leading-relaxed text-ink-muted">Googleアカウントがなくても使えます。</p>
+              <Link href="/guest/new" className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
+                ゲストでプロジェクトを作成
+              </Link>
               <GuestCodeForm
                 initialError={guest === "invalid" ? "リンクのコードが見つかりませんでした。コードを入力してください" : ""}
               />

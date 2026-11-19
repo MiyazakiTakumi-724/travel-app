@@ -26,7 +26,20 @@ vi.mock("@/lib/prisma", () => {
   let seq = 0;
   return {
     prisma: {
-      project: { findUnique: async ({ where }) => db.projects.find((p) => p.id === where.id) ?? null },
+      project: {
+        findUnique: async ({ where }) => db.projects.find((p) => p.id === where.id) ?? null,
+        create: async ({ data }) => {
+          const { participants, ...fields } = data;
+          const project = { id: `project-${++seq}`, ...fields };
+          db.projects.push(project);
+          const created = participants.create.map((p) => {
+            const row = { id: `participant-${++seq}`, userId: null, guestCodeHash: null, projectId: project.id, ...p };
+            db.participants.push(row);
+            return row;
+          });
+          return { ...project, participants: created };
+        },
+      },
       participant: {
         create: async ({ data }) => {
           const row = { id: `participant-${++seq}`, userId: null, guestCodeHash: null, ...data };
@@ -47,7 +60,7 @@ vi.mock("@/lib/prisma", () => {
   };
 });
 
-const { enterGuestCode, joinAsGuest } = await import("./guestActions");
+const { createGuestProject, enterGuestCode, joinAsGuest } = await import("./guestActions");
 const { guestCookieName, hashGuestCode, normalizeGuestCode } = await import("@/lib/guestCode");
 
 const form = (values) => {
@@ -114,5 +127,25 @@ describe("enterGuestCode", () => {
   it("IPアドレスはそのまま保存しない", async () => {
     await enterGuestCode(form({ code: "AAAAA-BBBBB" }));
     expect(JSON.stringify(db.attempts)).not.toContain("203.0.113.1");
+  });
+});
+
+describe("createGuestProject", () => {
+  it("ゲストのままプロジェクトを作ると、作った人が作成者になり、コードが発行される", async () => {
+    const result = await createGuestProject(form({ nickname: "はなこ", title: "温泉旅行", destination: "箱根" }));
+
+    expect(result).toMatchObject({ ok: true, projectTitle: "温泉旅行" });
+    const project = db.projects.find((p) => p.id === result.projectId);
+    expect(project).toMatchObject({ title: "温泉旅行", destination: "箱根" });
+    const owner = db.participants.find((p) => p.projectId === result.projectId);
+    expect(owner).toMatchObject({ name: "はなこ", isOwner: true, userId: null });
+    expect(owner.guestCodeHash).toBe(hashGuestCode(normalizeGuestCode(result.code)));
+    expect(cookieJar.get(guestCookieName(result.projectId))).toBe(normalizeGuestCode(result.code));
+  });
+
+  it("ニックネームやタイトルがおかしいときは作らない", async () => {
+    expect((await createGuestProject(form({ nickname: "", title: "温泉旅行" }))).error).toBe("ニックネームを入力してください");
+    expect((await createGuestProject(form({ nickname: "はなこ", title: "あ".repeat(31) }))).error).toContain("30文字以内");
+    expect(db.projects).toHaveLength(1);
   });
 });
