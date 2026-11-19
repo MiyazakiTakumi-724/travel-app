@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
 import SiteHeader, { GuideLink } from "@/components/SiteHeader";
-import { GoogleIcon } from "@/components/icons";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
+import GuestCodeForm from "@/components/GuestCodeForm";
 import SiteFooter from "@/components/SiteFooter";
 
 const steps = [
@@ -36,24 +37,9 @@ const sampleTransfers = [
   ["はなこ → ゆうき", "¥11,000"],
 ];
 
-// Google のブランドガイドラインのダークテーマ（#131314 の塗り・#8E918F の枠）に合わせたピル型ボタン。
-// スマホでは親指で押しやすいよう横幅いっぱいにする
-function GoogleSignInButton({ action }) {
-  return (
-    <form action={action}>
-      <button
-        type="submit"
-        className="inline-flex min-h-13 w-full items-center justify-center gap-3 rounded-full border border-[#8E918F] bg-[#131314] pr-7 pl-5 font-medium whitespace-nowrap text-[#E3E3E3] transition-colors hover:bg-[#2A2A2C] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-primary sm:w-auto"
-      >
-        <GoogleIcon size={20} />
-        Googleでログイン
-      </button>
-    </form>
-  );
-}
 
 export default async function Home({ searchParams }) {
-  const { callbackUrl } = await searchParams;
+  const { callbackUrl, guest } = await searchParams;
   const redirectTarget =
     typeof callbackUrl === "string" && callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
       ? callbackUrl
@@ -104,6 +90,14 @@ export default async function Home({ searchParams }) {
                 </li>
               ))}
             </ul>
+
+            {/* アカウントなしで使う人向け */}
+            <div className="mt-8 flex flex-col gap-3 rounded-xl bg-paper px-5 py-4.5">
+              <p className="font-bold">ゲストで使う</p>
+              <GuestCodeForm
+                initialError={guest === "invalid" ? "リンクのコードが見つかりませんでした。コードを入力してください" : ""}
+              />
+            </div>
           </div>
 
           <div

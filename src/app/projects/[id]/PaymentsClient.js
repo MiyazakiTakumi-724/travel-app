@@ -155,7 +155,7 @@ const DESKTOP_TABS = [
   { id: "settle", label: "精算", Icon: ReceiptIcon },
 ];
 
-export default function PaymentsClient({ project, currentParticipantId, isOwner }) {
+export default function PaymentsClient({ project, currentParticipantId, isOwner, isGuest = false }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -342,11 +342,12 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner 
     <div className="flex min-h-screen flex-col">
       {/* スマホアプリと同じく、戻るは左上・プロジェクトの操作は右上に置く */}
       <header className="mx-auto flex w-full max-w-280 items-center justify-between gap-2 px-2.5 pt-2 sm:px-6 sm:pt-4">
+        {/* ゲストはマイプロジェクトを使えないので、トップに戻す */}
         <Link
-          href="/projects"
+          href={isGuest ? "/" : "/projects"}
           className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2.5 text-[15px] font-bold text-primary transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-primary">
           <span aria-hidden="true" className="text-xl leading-none">‹</span>
-          一覧
+          {isGuest ? "トップ" : "一覧"}
         </Link>
         {isOwner && (
           <div className="flex">
