@@ -15,7 +15,7 @@ export default function JoinNicknameForm({ inviteToken, projectTitle }) {
           <div className="ticket-top px-7 pt-7 pb-6">
             <h1 className="wrap-break-word heading text-2xl leading-snug">「{projectTitle}」に参加</h1>
             <p className="mt-2 text-sm leading-relaxed text-ink-sub">
-              他のメンバーに表示されるニックネームを設定してください
+              ほかのメンバーに表示されるニックネームを決めてください。
             </p>
           </div>
 

@@ -13,7 +13,7 @@ import {
 import { CheckIcon } from "@/components/icons";
 import ItinerarySection from "./ItinerarySection";
 import { fieldLabelClass, primaryButtonClass, textButtonClass, textFieldClass } from "@/components/ui";
-import { addDays, daysBetween, dayKind, eachDay, formatDateRange, formatDays, formatShortDate, holidayName, parseDate } from "@/lib/dates";
+import { addDays, daysBetween, dayKind, eachDay, formatDays, formatShortDate, formatTripDates, holidayName, parseDate } from "@/lib/dates";
 import { availableCount, fitsInRange, schedulePhase, tallyAnswers, tripEndDate } from "@/lib/schedule";
 
 const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -21,7 +21,7 @@ const KIND_TEXT = { holiday: "text-pay", saturday: "text-primary", weekday: "tex
 // 狭い画面で2行になるときは、区切ったところ（「行ける日を／提出」）で改行する
 const STEPS = [
   { phase: "collecting", label: ["行ける日を", "提出"] },
-  { phase: "choosing", label: ["作成者が", "仮決定"] },
+  { phase: "choosing", label: ["幹事が", "仮決定"] },
   { phase: "voting", label: ["全員が○で", "確定"] },
 ];
 
@@ -53,14 +53,15 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
   const [mySubmitted, setMySubmitted] = useOptimistic(Boolean(me?.availabilitySubmitted));
   const [myAnswer, setMyAnswer] = useOptimistic(me?.tentativeAnswer ?? null);
 
-  const people = participants.map((p) =>
+  // アカウントを削除して抜けた人（退会済み）は、日程調整には加わらない
+  const people = participants.filter((p) => !p.retired).map((p) =>
     p.id === currentParticipantId
       ? { ...p, availableDays: myDates, availabilitySubmitted: mySubmitted, tentativeAnswer: myAnswer }
       : { ...p, availableDays: p.availableDays.map((d) => d.date) }
   );
   const phase = schedulePhase(project, people);
 
-  // 全員の提出が終わった状態で作成者がページを開いたら、「日程を仮決定する」の欄から見せる
+  // 全員の提出が終わった状態で幹事がページを開いたら、「日程を仮決定する」の欄から見せる
   // （開いたときだけ。途中で全員の提出がそろっても、画面は勝手に動かさない）
   const [scrollToChoose] = useState(() => phase === "choosing" && isOwner);
   useEffect(() => {
@@ -91,7 +92,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
   };
 
   const propose = (startDate) => {
-    const range = formatDateRange(startDate, tripEndDate(startDate, days));
+    const range = formatTripDates(startDate, tripEndDate(startDate, days));
     if (!window.confirm(`${range} で仮決定しますか？`)) return;
     run(null, () => proposeSchedule(project.id, startDate));
   };
@@ -109,9 +110,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
           <div className="ticket-top px-6.5 pt-5.5 pb-4">
             <p className="text-sm font-bold text-ink-sub">日程が決まりました</p>
             <p className="mt-1 amount text-[34px] leading-tight text-primary sm:text-[40px]">
-              {project.startDate && project.endDate
-                ? formatDateRange(project.startDate, project.endDate)
-                : project.startDate || project.endDate}
+              {formatTripDates(project.startDate, project.endDate)}
             </p>
           </div>
           <div className="ticket-bottom flex items-center justify-between gap-3 px-6.5 pt-4 pb-5 text-sm text-ink-sub">
@@ -136,7 +135,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
         <p className="text-sm leading-relaxed text-ink-sub">
           {isOwner
             ? "右上の「編集」で、日程を「これから決める」にして、旅行の日数と行ける日を聞く期間を入れてください。"
-            : "作成者が旅行の日数と期間を決めると、日程調整が始まります。"}
+            : "幹事が旅行の日数と期間を決めると、日程調整が始まります。"}
         </p>
       </div>
     );
@@ -151,7 +150,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
       {/* 今の段階 */}
       <div className="flex flex-col gap-3 rounded-xl bg-paper px-5 py-4.5">
         <p className="text-sm text-ink-sub">
-          <b className="text-ink">{formatDays(days)}</b>・{formatDateRange(project.rangeStart, project.rangeEnd)} の中で調整中
+          <b className="text-ink">{formatDays(days)}</b>・{formatTripDates(project.rangeStart, project.rangeEnd)} の中で調整中
         </p>
         <ol className="grid grid-cols-3 gap-2 text-center text-xs font-bold">
           {STEPS.map((step, index) => (
@@ -191,7 +190,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
       {phase === "choosing" && !isOwner && (
         <div className="flex flex-col items-center gap-2 rounded-xl bg-paper px-6 py-8 text-center">
           <h3 className="font-black">全員の提出が終わりました</h3>
-          <p className="text-sm leading-relaxed text-ink-sub">作成者がみんなの行ける日を見て、日程を仮決定するのを待っています。</p>
+          <p className="text-sm leading-relaxed text-ink-sub">幹事がみんなの行ける日を見て、日程を仮決定するのを待っています。</p>
         </div>
       )}
 
@@ -261,7 +260,7 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
   );
 }
 
-// 作成者が、提出された行ける日（上の表）を見て、出発日を選んで仮決定する
+// 幹事が、提出された行ける日（上の表）を見て、出発日を選んで仮決定する
 function ChooseSchedule({ project, onPropose }) {
   const lastStart = addDays(project.rangeEnd, -(project.days - 1));
   const [startDate, setStartDate] = useState(project.rangeStart);
@@ -292,7 +291,7 @@ function ChooseSchedule({ project, onPropose }) {
         </label>
         {valid ? (
           <p className="font-bold">
-            {formatDateRange(startDate, tripEndDate(startDate, project.days))}
+            {formatTripDates(startDate, tripEndDate(startDate, project.days))}
             <span className="ml-2 text-sm font-medium text-ink-sub">{formatDays(project.days)}</span>
           </p>
         ) : (
@@ -309,7 +308,7 @@ function ChooseSchedule({ project, onPropose }) {
 // 仮決定の日程に ○× で答える。全員が ○ なら自動で確定する
 function TentativeVote({ project, people, isOwner, myAnswer, displayNames, onAnswer, onCancel }) {
   const { yes, no, waiting } = tallyAnswers(people);
-  const range = formatDateRange(project.tentativeStart, tripEndDate(project.tentativeStart, project.days));
+  const range = formatTripDates(project.tentativeStart, tripEndDate(project.tentativeStart, project.days));
 
   return (
     <section className="flex flex-col gap-3.5" aria-labelledby="tentative">
@@ -371,7 +370,7 @@ function TentativeVote({ project, people, isOwner, myAnswer, displayNames, onAns
         <p role="status" className="rounded-xl bg-[#FCECE8] px-4.5 py-3 text-sm leading-relaxed font-bold text-pay">
           {isOwner
             ? "× の人がいます。日程を選び直す場合は「仮決定を取り消す」を押してください。"
-            : "× の人がいるため、作成者が日程を選び直すかもしれません。"}
+            : "× の人がいるため、幹事が日程を選び直すかもしれません。"}
         </p>
       )}
       {isOwner && (

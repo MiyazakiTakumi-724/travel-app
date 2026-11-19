@@ -10,7 +10,7 @@ import { confirmIfAllAgreed, resetAnswers } from "@/lib/scheduleServer";
 
 // 日程調整の流れ
 // 1. メンバーが行ける日を付けて提出する（全員が提出するまで次に進めない）
-// 2. 作成者が、提出された行ける日を見て日程を仮決定する
+// 2. 幹事が、提出された行ける日を見て日程を仮決定する
 // 3. メンバーが仮決定の日程に ○× で答え、全員が ○ なら自動で確定する
 
 const refresh = (projectId) => {
@@ -87,7 +87,7 @@ export async function submitAvailability(projectId) {
   return { ok: true };
 }
 
-// 提出を取り消して、行ける日を付け直す（作成者が仮決定する前だけ）
+// 提出を取り消して、行ける日を付け直す（幹事が仮決定する前だけ）
 export async function unsubmitAvailability(projectId) {
   const { me, project, error } = await requireMe(projectId);
   if (error) return error;
@@ -102,7 +102,7 @@ export async function unsubmitAvailability(projectId) {
   return { ok: true };
 }
 
-// 作成者が日程を仮決定する（全員が提出したあとだけ）。作成者自身は ○ と答えたことにする
+// 幹事が日程を仮決定する（全員が提出したあとだけ）。幹事自身は ○ と答えたことにする
 export async function proposeSchedule(projectId, startDate) {
   const { me, project, error } = await requireOwner(projectId);
   if (error) return error;
@@ -115,7 +115,7 @@ export async function proposeSchedule(projectId, startDate) {
   await resetAnswers(projectId);
   await prisma.project.update({ where: { id: projectId }, data: { tentativeStart: startDate } });
   if (me) await prisma.participant.update({ where: { id: me.id }, data: { tentativeAnswer: "yes" } });
-  // メンバーが作成者だけなら、そのまま確定する
+  // メンバーが幹事だけなら、そのまま確定する
   await confirmIfAllAgreed(projectId);
 
   refresh(projectId);
@@ -139,7 +139,7 @@ export async function answerTentative(projectId, answer) {
   return { ok: true, confirmed };
 }
 
-// 作成者が仮決定を取り消して、日程を選び直す（行ける日の提出はそのまま）
+// 幹事が仮決定を取り消して、日程を選び直す（行ける日の提出はそのまま）
 export async function cancelTentative(projectId) {
   const { error } = await requireOwner(projectId);
   if (error) return error;
@@ -150,7 +150,7 @@ export async function cancelTentative(projectId) {
   return { ok: true };
 }
 
-// 作成者が、確定した日程を取り消して選び直す（行ける日の提出はそのまま）
+// 幹事が、確定した日程を取り消して選び直す（行ける日の提出はそのまま）
 export async function reopenSchedule(projectId) {
   const { project, error } = await requireOwner(projectId);
   if (error) return error;

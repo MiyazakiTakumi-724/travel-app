@@ -89,6 +89,28 @@ export async function clearAllGuestCookies() {
   }
 }
 
+// このブラウザでゲストとして参加しているプロジェクト（トップページなどから開けるようにする）。
+// Cookie に入っている復帰用コードを1つずつ確かめ、使えるものだけを返す（新しく作った順）
+export async function listBrowserGuestProjects({ exceptProjectIds = [] } = {}) {
+  const prefix = guestCookieName("");
+  const found = [];
+  for (const cookie of (await cookies()).getAll()) {
+    if (!cookie.name.startsWith(prefix) || found.length >= 20) continue;
+    const projectId = cookie.name.slice(prefix.length);
+    if (exceptProjectIds.includes(projectId)) continue;
+    const participant = await findParticipantByGuestCode(normalizeGuestCode(cookie.value));
+    if (participant?.projectId === projectId) found.push(participant);
+  }
+  if (found.length === 0) return [];
+
+  const projects = await prisma.project.findMany({
+    where: { id: { in: found.map((p) => p.projectId) } },
+    select: { id: true, title: true, destination: true, startDate: true, endDate: true, days: true, tentativeStart: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return projects.map((project) => ({ ...project, nickname: found.find((p) => p.projectId === project.id).name }));
+}
+
 // 復帰用コードを確かめる。正しければプロジェクトのIDと、Cookie に入れる値を返す（Cookie はまだ保存しない）
 export async function verifyGuestCode(rawCode) {
   if (await isRateLimited("guest-code")) {

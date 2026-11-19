@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyPaymentChange, filterPayments } from "./payments";
 import { formatPeriod, formatSignedYen, formatTripPeriod, formatYen } from "./format";
 
@@ -44,14 +44,23 @@ describe("format", () => {
     expect(formatSignedYen(0)).toBe("¥0");
   });
 
-  it("期間を表示する", () => {
-    expect(formatPeriod("2026-12-29", "2026-12-30")).toBe("2026-12-29 〜 2026-12-30");
-    expect(formatPeriod("2026-12-29", "")).toBe("2026-12-29 〜 未定");
+  // 「今年」で表示が変わるので、日付を 2026年11月19日 に固定する
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-19T12:00:00+09:00"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("期間を「12/29(火)〜12/30(水)」の形で表示し、今年でなければ年を付ける", () => {
+    expect(formatPeriod("2026-12-29", "2026-12-30")).toBe("12/29(火)〜12/30(水)");
+    expect(formatPeriod("2026-12-30", "2027-01-02")).toBe("12/30(水)〜2027/1/2(土)");
+    expect(formatPeriod("2027-01-02", "2027-01-03")).toBe("2027/1/2(土)〜1/3(日)");
+    expect(formatPeriod("2026-12-29", "")).toBe("12/29(火)〜未定");
     expect(formatPeriod("", "")).toBe("日程未定");
   });
 
   it("日程調整中のプロジェクトは日数を添える", () => {
-    expect(formatTripPeriod({ startDate: "2026-12-29", endDate: "2026-12-30", days: 2 })).toBe("2026-12-29 〜 2026-12-30");
+    expect(formatTripPeriod({ startDate: "2026-12-29", endDate: "2026-12-30", days: 2 })).toBe("12/29(火)〜12/30(水)");
     expect(formatTripPeriod({ startDate: "", endDate: "", days: 3 })).toBe("日程調整中（2泊3日）");
     expect(formatTripPeriod({ startDate: "", endDate: "", days: null })).toBe("日程未定");
     expect(formatTripPeriod({ startDate: "", endDate: "", days: 3, tentativeStart: "2026-11-14" })).toBe("仮決定 11/14(土)〜11/16(月)");

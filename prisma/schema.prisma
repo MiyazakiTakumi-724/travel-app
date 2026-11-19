@@ -58,7 +58,7 @@ model VerificationToken {
 
 model Project {
   id             String          @id @default(cuid())
-  // 招待リンク（/invite/〇〇）の鍵。作成者が作り直すと、前の招待リンクは使えなくなる
+  // 招待リンク（/invite/〇〇）の鍵。幹事が作り直すと、前の招待リンクは使えなくなる
   inviteToken    String          @unique
   title          String
   destination    String
@@ -68,7 +68,7 @@ model Project {
   days           Int?
   rangeStart     String?
   rangeEnd       String?
-  // 作成者が仮決定した日程の開始日。全員が ○ と答えると startDate・endDate に確定する
+  // 幹事が仮決定した日程の開始日。全員が ○ と答えると startDate・endDate に確定する
   tentativeStart String?
   createdAt      DateTime        @default(now())
   participants   Participant[]
@@ -83,16 +83,18 @@ model Participant {
   project               Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId                String?
   user                  User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // プロジェクトを作った人（日程の仮決定や、メンバーを外すことができる）
+  // 幹事（作った人と、幹事にしてもらった人。何人でもよい）。編集・削除・日程の仮決定・メンバーを外す・コードの再発行ができる
   isOwner               Boolean        @default(false)
-  // ゲストの復帰用コード。元に戻せない形（SHA-256）で保存する。Googleでログインした人は null
+  // ゲストの復帰用コード。サーバーの鍵を使ったハッシュ（HMAC-SHA256）で保存する。Googleでログインした人は null
   guestCodeHash         String?        @unique
   payments              Payment[]
   availableDays         AvailableDay[]
-  // 行ける日を提出したか（全員が提出すると、作成者が日程を仮決定できる）
+  // 行ける日を提出したか（全員が提出すると、幹事が日程を仮決定できる）
   availabilitySubmitted Boolean        @default(false)
   // 仮決定の日程への答え。"yes"（○）・"no"（×）・null（まだ）
   tentativeAnswer       String?
+  // アカウントを削除して抜けた人（支払いの記録があるので、精算のために残している）。日程調整の提出・回答は待たない
+  retired               Boolean        @default(false)
 
   @@unique([projectId, userId])
 }

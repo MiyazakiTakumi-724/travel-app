@@ -28,7 +28,7 @@ export async function requireParticipant(projectId) {
   return { error: actor.session?.user?.id ? NOT_MEMBER : LOGIN_REQUIRED };
 }
 
-// 作成者でなければエラーを返す（Server Action 用）
+// 幹事でなければエラーを返す（Server Action 用）
 export async function requireOwner(projectId) {
   const actor = await requireParticipant(projectId);
   if (actor.error) return actor;

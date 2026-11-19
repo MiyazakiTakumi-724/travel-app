@@ -26,7 +26,7 @@ export function GuestCodeDetails({ code, projectTitle }) {
   const sendLink = async () => {
     const result = await shareOrCopy({
       title: `${projectTitle}（ゲスト用）`,
-      text: `「${projectTitle}」にゲストとして戻るためのリンクです（人には教えないでください）`,
+      text: `「${projectTitle}」にゲストとして戻るための、自分用のリンクです（人には教えないでください）`,
       url: `${window.location.origin}/g/${code}`,
     });
     if (result === "copied") flash("専用リンクをコピーしました");
@@ -45,7 +45,7 @@ export function GuestCodeDetails({ code, projectTitle }) {
         </button>
         <button type="button" onClick={sendLink} className={`${secondaryButtonClass} min-h-12 px-2 text-sm whitespace-nowrap`}>
           <LinkIcon className="shrink-0" />
-          リンクを送る
+          自分あてに送る
         </button>
       </div>
       {done && (
@@ -62,15 +62,20 @@ export function GuestCodeDetails({ code, projectTitle }) {
 }
 
 // ゲストとして参加・作成したあとに、復帰用コードと専用リンクを見せる
-export default function GuestCodePanel({ code, projectId, projectTitle, heading = "ゲストとして参加しました" }) {
+export default function GuestCodePanel({ code, projectId, projectTitle, heading = "ゲストとして参加しました", organizerHint = false }) {
   return (
     <div className="w-full max-w-sm drop-shadow-[0_16px_24px_rgb(21_128_196/0.15)]">
       <div className="ticket-top px-7 pt-7 pb-6">
         <p className="text-sm font-bold text-ink-sub">{heading}</p>
         <h1 className="mt-1 wrap-break-word heading text-2xl leading-snug">「{projectTitle}」</h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-sub">
-          このブラウザでは、次からはコードなしで開けます。別のスマホやブラウザで開くときは、トップページで下のコードを入力するか、専用リンクを開いてください。
+          このブラウザでは、次からはトップページの「このブラウザで参加中のプロジェクト」から、コードなしで開けます。別のスマホやブラウザで開くときは、トップページで下のコードを入力するか、専用リンクを開いてください。
         </p>
+        {organizerHint && (
+          <p className="mt-3 rounded-lg bg-sky-ground px-3.5 py-2.5 text-sm leading-relaxed text-ink-sub">
+            あなたはこのプロジェクトの幹事です。コードをなくしたときに備えて、メンバーが参加したら、ほかの人も幹事にしておくと安心です（幹事どうしでコードを発行し直せます）。
+          </p>
+        )}
       </div>
       <div className="ticket-bottom flex flex-col gap-4 px-7 pt-6 pb-7">
         <GuestCodeDetails code={code} projectTitle={projectTitle} />

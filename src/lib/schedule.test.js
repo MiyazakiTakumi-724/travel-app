@@ -23,6 +23,10 @@ describe("schedulePhase", () => {
     expect(schedulePhase(project, [{ availabilitySubmitted: true }, { availabilitySubmitted: false }])).toBe("collecting");
   });
 
+  it("退会済みの人の提出は待たない", () => {
+    expect(schedulePhase(project, [{ availabilitySubmitted: true }, { availabilitySubmitted: false, retired: true }])).toBe("choosing");
+  });
+
   it("全員が提出したら choosing、仮決定したら voting、確定したら decided", () => {
     expect(schedulePhase(project, submitted)).toBe("choosing");
     expect(schedulePhase({ ...project, tentativeStart: "2026-11-14" }, submitted)).toBe("voting");
@@ -47,6 +51,14 @@ describe("tallyAnswers", () => {
 
     expect(tallyAnswers([{ id: "a", tentativeAnswer: "yes" }, { id: "b", tentativeAnswer: "yes" }]).allAgreed).toBe(true);
     expect(tallyAnswers([]).allAgreed).toBe(false);
+  });
+
+  it("アカウントを削除して抜けた人（退会済み）の答えは待たない", () => {
+    const result = tallyAnswers([
+      { id: "a", tentativeAnswer: "yes" },
+      { id: "b", tentativeAnswer: null, retired: true },
+    ]);
+    expect(result).toEqual({ yes: ["a"], no: [], waiting: [], allAgreed: true });
   });
 });
 
@@ -82,7 +94,7 @@ describe("myScheduleTodo", () => {
     expect(myScheduleTodo(project, people(true, false), "a", true)).toBeNull();
   });
 
-  it("全員が提出したら、作成者にだけ仮決定を頼む", () => {
+  it("全員が提出したら、幹事にだけ仮決定を頼む", () => {
     expect(myScheduleTodo(project, people(true, true), "a", true)).toBe("日程を仮決定してください");
     expect(myScheduleTodo(project, people(true, true), "b", false)).toBeNull();
   });

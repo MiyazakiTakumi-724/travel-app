@@ -49,6 +49,26 @@ export function formatDateRange(start, end) {
   return start === end ? formatShortDate(start) : `${formatShortDate(start)}〜${formatShortDate(end)}`;
 }
 
+// 今日の年（日本時間）。サーバー（UTC）とブラウザ（日本時間）で年末年始に食い違わないよう、日本時間で決める
+export function currentYear() {
+  return Number(new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Tokyo" }).slice(0, 4));
+}
+
+// 旅行の日程の表示「12/5(土)〜12/7(月)」。今年でなければ始まりに年を付け、年をまたぐときは終わりにも付ける。
+// どちらかが決まっていなければ「未定」にする
+export function formatTripDates(start, end, thisYear = currentYear()) {
+  if (!start && !end) return "日程未定";
+  const yearOf = (text) => Number(text.slice(0, 4));
+  const label = (text, showYear) => `${showYear ? `${yearOf(text)}/` : ""}${formatShortDate(text)}`;
+  if (!start || !end) {
+    const known = label(start || end, yearOf(start || end) !== thisYear);
+    return start ? `${known}〜未定` : `未定〜${known}`;
+  }
+  const startLabel = label(start, yearOf(start) !== thisYear);
+  if (start === end) return startLabel;
+  return `${startLabel}〜${label(end, yearOf(end) !== yearOf(start))}`;
+}
+
 // 「2泊3日」「日帰り」の形
 export function formatDays(days) {
   if (!days) return "";

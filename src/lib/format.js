@@ -1,8 +1,8 @@
-import { addDays, formatDateRange, formatDays } from "./dates";
+import { addDays, formatDays, formatTripDates } from "./dates";
 
+// 決まっている日程の表示（日程タブ・一覧・ヘッダーで同じ書き方にする）
 export function formatPeriod(startDate, endDate) {
-  if (!startDate && !endDate) return "日程未定";
-  return `${startDate || "未定"} 〜 ${endDate || "未定"}`;
+  return formatTripDates(startDate, endDate);
 }
 
 export function formatYen(amount) {
@@ -18,7 +18,7 @@ export function formatSignedYen(amount) {
 export function formatTripPeriod(project) {
   if (project.startDate || project.endDate) return formatPeriod(project.startDate, project.endDate);
   if (project.tentativeStart && project.days) {
-    return `仮決定 ${formatDateRange(project.tentativeStart, addDays(project.tentativeStart, project.days - 1))}`;
+    return `仮決定 ${formatTripDates(project.tentativeStart, addDays(project.tentativeStart, project.days - 1))}`;
   }
   if (project.days) return `日程調整中（${formatDays(project.days)}）`;
   return "日程未定";

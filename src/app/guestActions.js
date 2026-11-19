@@ -6,7 +6,14 @@ import { revalidatePath } from "next/cache";
 import { auth, signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { CLAIM_COOKIE_OPTIONS, claimCookieName } from "@/lib/guestCode";
-import { isRateLimited, issueGuestCode, recordRateLimit, setGuestCookie, signInWithGuestCode } from "@/lib/guestSession";
+import {
+  clearGuestCookie,
+  isRateLimited,
+  issueGuestCode,
+  recordRateLimit,
+  setGuestCookie,
+  signInWithGuestCode,
+} from "@/lib/guestSession";
 import { isWithinLength, LIMITS } from "@/lib/limits";
 import { requireParticipant } from "@/lib/actor";
 import { parseProjectForm } from "@/lib/projectInput";
@@ -37,7 +44,7 @@ export async function joinAsGuest(inviteToken, formData) {
   redirect(`/projects/${project.id}/welcome?joined=1`);
 }
 
-// ゲストのままプロジェクトを作る。作った人は作成者になる。成功したら、復帰用コードを見せる画面へ移動する
+// ゲストのままプロジェクトを作る。作った人は幹事になる。成功したら、復帰用コードを見せる画面へ移動する
 export async function createGuestProject(formData) {
   const nickname = formData.get("nickname")?.toString().trim() ?? "";
   const nicknameError = checkNickname(nickname);
@@ -68,7 +75,7 @@ export async function enterGuestCode(formData) {
   redirect(`/projects/${result.projectId}`);
 }
 
-// 復帰用コードを発行し直す（前のコードは使えなくなる）。ゲスト本人か、作成者だけができる
+// 復帰用コードを発行し直す（前のコードは使えなくなる）。ゲスト本人か、幹事だけができる
 export async function reissueGuestCode(projectId, participantId) {
   const { participant: me, error } = await requireParticipant(projectId);
   if (error) return error;
@@ -76,13 +83,20 @@ export async function reissueGuestCode(projectId, participantId) {
   const target = await prisma.participant.findFirst({ where: { id: participantId, projectId } });
   if (!target || target.userId) return { error: "ゲストのメンバーが見つかりません" };
   const isSelf = target.id === me.id;
-  if (!isSelf && !me.isOwner) return { error: "コードを発行し直せるのは、本人か作成者だけです" };
+  if (!isSelf && !me.isOwner) return { error: "コードを発行し直せるのは、本人か幹事だけです" };
 
   const code = await issueGuestCode(target.id);
   // 自分のコードなら、このブラウザの Cookie も新しいコードにする
   if (isSelf) await setGuestCookie(projectId, code);
   revalidatePath(`/projects/${projectId}`);
   return { ok: true, code, name: target.name };
+}
+
+// このブラウザでの、そのプロジェクトのゲストとしてのログイン状態を消す（共用のパソコンなどで使ったとき）。
+// もう一度開くには、復帰用コードか専用リンクが必要になる
+export async function logoutGuest(projectId) {
+  await clearGuestCookie(projectId);
+  redirect("/");
 }
 
 // ゲストから Google アカウントに引き継ぐ。Googleでログインしたあと、引き継ぎのページに戻ってくる

@@ -10,7 +10,7 @@ export const metadata = {
   title: "復帰用コード | 旅行清算アプリ",
 };
 
-// ゲストとして参加・作成した直後に、復帰用コードと専用リンクを見せる。
+// ゲストとして参加・作成した直後や、「メンバー」の画面の「復帰用コードを見る」から、復帰用コードと専用リンクを見せる。
 // コードはこのブラウザの Cookie から読む（本人のブラウザでしか見られない）
 export default async function GuestWelcomePage({ params, searchParams }) {
   const { id } = await params;
@@ -21,7 +21,8 @@ export default async function GuestWelcomePage({ params, searchParams }) {
   if (!code) redirect(`/projects/${id}`);
 
   const project = await prisma.project.findUnique({ where: { id }, select: { title: true } });
-  const { created } = await searchParams;
+  const { created, joined } = await searchParams;
+  const heading = created ? "プロジェクトを作りました" : joined ? "ゲストとして参加しました" : "あなたの復帰用コード";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -31,7 +32,9 @@ export default async function GuestWelcomePage({ params, searchParams }) {
           code={formatGuestCode(code)}
           projectId={id}
           projectTitle={project.title}
-          heading={created ? "プロジェクトを作りました" : "ゲストとして参加しました"}
+          heading={heading}
+          // ゲストで作った人は幹事。コードをなくしたときに備えて、ほかの人も幹事にしておくようすすめる
+          organizerHint={Boolean(created)}
         />
       </main>
     </div>

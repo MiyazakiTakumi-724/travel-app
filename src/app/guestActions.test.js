@@ -171,7 +171,7 @@ describe("enterGuestCode", () => {
 });
 
 describe("createGuestProject", () => {
-  it("ゲストのままプロジェクトを作ると、作った人が作成者になり、コードが発行される", async () => {
+  it("ゲストのままプロジェクトを作ると、作った人が幹事になり、コードが発行される", async () => {
     const result = await createGuest({ nickname: "はなこ", title: "温泉旅行", destination: "箱根" });
 
     expect(result.path).toBe(`/projects/${result.projectId}/welcome?created=1`);
@@ -219,14 +219,14 @@ describe("reissueGuestCode", () => {
     expect((await enterGuestCode(form({ code: guest.code }))).error).toContain("コードが見つかりません");
   });
 
-  it("作成者は、ほかのゲストのコードを発行し直せる", async () => {
-    // 作成者として操作する（このブラウザの Cookie を、作成者のコードに切り替える）
+  it("幹事は、ほかのゲストのコードを発行し直せる", async () => {
+    // 幹事として操作する（このブラウザの Cookie を、幹事のコードに切り替える）
     const ownerCode = await issueGuestCode(owner.id);
     cookieJar.set(guestCookieName(owner.projectId), normalizeGuestCode(ownerCode));
     expect((await reissueGuestCode(owner.projectId, guest.id)).ok).toBe(true);
   });
 
-  it("作成者でないゲストは、ほかの人のコードを発行し直せない", async () => {
+  it("幹事でないゲストは、ほかの人のコードを発行し直せない", async () => {
     expect((await reissueGuestCode(owner.projectId, owner.id)).error).toBeDefined();
   });
 });

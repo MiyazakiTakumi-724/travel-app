@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
 import { safeCallbackPath } from "@/lib/loginRedirect";
+import { listBrowserGuestProjects } from "@/lib/guestSession";
+import { formatTripPeriod } from "@/lib/format";
 import SiteHeader, { GuideLink } from "@/components/SiteHeader";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import GuestCodeForm from "@/components/GuestCodeForm";
@@ -50,7 +52,7 @@ function GuestStartLink() {
 }
 
 export default async function Home({ searchParams }) {
-  const { callbackUrl, guest } = await searchParams;
+  const { callbackUrl, guest, deleted } = await searchParams;
   // ログインしたら戻るページ（外のサイトは受け付けない）
   const redirectTarget = safeCallbackPath(callbackUrl);
 
@@ -65,6 +67,9 @@ export default async function Home({ searchParams }) {
     await signIn("google", { redirectTo: redirectTarget });
   }
 
+  // このブラウザでゲストとして参加しているプロジェクト（コードを入れなくても、ここから開ける）
+  const guestProjects = await listBrowserGuestProjects();
+
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader>
@@ -75,6 +80,11 @@ export default async function Home({ searchParams }) {
         {/* スマホでは「タイトル → 説明 → ログインボタン → 精算券」の順に縦に並べ、最初の画面でボタンが見えるようにする */}
         <section className="mx-auto grid w-full max-w-280 items-center gap-12 px-5 pt-8 pb-20 sm:px-6 md:grid-cols-[1.1fr_1fr] md:gap-14 md:pt-16 md:pb-24">
           <div className="flex min-w-0 flex-col">
+            {deleted && (
+              <p role="status" className="mb-6 rounded-xl bg-paper px-4.5 py-3.5 text-sm leading-relaxed font-bold text-primary">
+                アカウントを削除しました。ご利用ありがとうございました。
+              </p>
+            )}
             <h1 className="heading text-[clamp(38px,6vw,64px)] leading-[1.2]">
               旅行<span className="text-primary">清算</span>アプリ
             </h1>
@@ -92,6 +102,28 @@ export default async function Home({ searchParams }) {
 
             {/* 始め方をまとめて置く：Googleでログイン／ゲストで作成／（ゲストだった人は）コードで戻る */}
             <div className="mt-8 flex w-full max-w-md flex-col gap-3">
+              {guestProjects.length > 0 && (
+                <div className="mb-2 rounded-xl bg-paper px-4.5 pt-3.5 pb-2">
+                  <p className="text-sm font-bold text-ink-sub">このブラウザで参加中のプロジェクト</p>
+                  <ul className="mt-1 divide-y divide-sky-ground">
+                    {guestProjects.map((project) => (
+                      <li key={project.id}>
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="flex items-center gap-3 py-3 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-primary">
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-bold">{project.title}</span>
+                            <span className="block truncate text-xs text-ink-muted">
+                              ゲスト（{project.nickname}）・{formatTripPeriod(project)}
+                            </span>
+                          </span>
+                          <span aria-hidden="true" className="shrink-0 text-lg text-ink-faint">›</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <GoogleSignInButton action={signInWithGoogle} />
               <GuestStartLink />
               <p className="phrase text-xs leading-relaxed text-ink-muted">

@@ -7,16 +7,21 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 // ゲストの Cookie（復帰用コード）。テストごとに入れ替える
 const guestCookies = new Map();
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ get: (name) => (guestCookies.has(name) ? { value: guestCookies.get(name) } : undefined) }),
+  cookies: async () => ({
+    get: (name) => (guestCookies.has(name) ? { value: guestCookies.get(name) } : undefined),
+    delete: (name) => guestCookies.delete(name),
+  }),
 }));
 
 // サーバー処理が使う分だけを、メモリ上で真似する小さなDB
 const db = { projects: [], participants: [], payments: [] };
 vi.mock("@/lib/prisma", () => {
   const matches = (row, where = {}) =>
-    Object.entries(where).every(([key, cond]) =>
-      cond && typeof cond === "object" && "in" in cond ? cond.in.includes(row[key]) : row[key] === cond
-    );
+    Object.entries(where).every(([key, cond]) => {
+      if (cond && typeof cond === "object" && "in" in cond) return cond.in.includes(row[key]);
+      if (cond && typeof cond === "object" && "not" in cond) return row[key] !== cond.not;
+      return row[key] === cond;
+    });
   return {
     prisma: {
       project: {
@@ -35,6 +40,8 @@ vi.mock("@/lib/prisma", () => {
       participant: {
         findUnique: async ({ where }) => db.participants.find((p) => matches(p, where)) ?? null,
         findMany: async ({ where }) => db.participants.filter((p) => matches(p, where)),
+        count: async ({ where }) => db.participants.filter((p) => matches(p, where)).length,
+        update: async ({ where, data }) => Object.assign(db.participants.find((p) => p.id === where.id), data),
         findFirst: async ({ where, include }) => {
           const participant = db.participants.find((p) => matches(p, where));
           if (!participant) return null;
@@ -55,6 +62,7 @@ vi.mock("@/lib/prisma", () => {
       },
       payment: {
         findUnique: async ({ where }) => db.payments.find((p) => p.id === where.id) ?? null,
+        count: async ({ where }) => db.payments.filter((p) => matches(p, where)).length,
         create: async ({ data }) => db.payments.push({ ...data }),
         createMany: async ({ data }) => {
           data.forEach((row, index) => db.payments.push({ id: `new-${index}`, ...row }));
@@ -75,9 +83,13 @@ const {
   deletePayment,
   editPayment,
   editProject,
+  deleteProject,
+  leaveProject,
+  makeOrganizer,
   removeParticipant,
   resetInviteLink,
   restorePayment,
+  stepDownOrganizer,
 } = await import("./actions");
 const { hashGuestCode, guestCookieName } = await import("@/lib/guestCode");
 
@@ -91,7 +103,7 @@ const loginAs = (userId) => {
 };
 
 beforeEach(() => {
-  // owner（作成者）・member（参加者）・outsider（無関係な人）の3人と、プロジェクト2つ
+  // owner（幹事）・member（参加者）・outsider（無関係な人）の3人と、プロジェクト2つ
   db.projects = [
     { id: "trip", title: "沖縄旅行", inviteToken: "invite-trip" },
     { id: "other", title: "別の旅行", inviteToken: "invite-other" },
@@ -101,7 +113,7 @@ beforeEach(() => {
     { id: "pMember", name: "はなこ", projectId: "trip", userId: "member" },
     { id: "pQuiet", name: "じろう", projectId: "trip", userId: "quiet" },
     { id: "pOther", name: "よそ", projectId: "other", userId: "outsider", isOwner: true },
-  ];
+  ].map((participant) => ({ isOwner: false, retired: false, ...participant }));
   db.payments = [{ id: "pay1", payerId: "pMember", memo: "宿", amount: 9000, projectId: "trip" }];
   loginAs("member");
 });
@@ -194,7 +206,7 @@ describe("ゲスト（復帰用コードの Cookie）", () => {
     expect(db.payments).toHaveLength(1);
   });
 
-  it("ゲストでも作成者なら、作成者だけの操作ができる", async () => {
+  it("ゲストでも幹事なら、幹事だけの操作ができる", async () => {
     db.participants.find((p) => p.id === "pGuest").isOwner = true;
     guestCookies.set(guestCookieName("trip"), "K7QM3-XRP4N");
     await editProject("trip", form([["title", "宮古島旅行"]]));
@@ -255,21 +267,21 @@ describe("restorePayment", () => {
 });
 
 describe("resetInviteLink", () => {
-  it("作成者は招待リンクを作り直せ、新しい鍵は推測できない長さの乱数になる", async () => {
+  it("幹事は招待リンクを作り直せ、新しい鍵は推測できない長さの乱数になる", async () => {
     loginAs("owner");
     expect(await resetInviteLink("trip")).toEqual({ ok: true });
     expect(db.projects[0].inviteToken).not.toBe("invite-trip");
     expect(db.projects[0].inviteToken).toMatch(/^[A-Za-z0-9_-]{24}$/);
   });
 
-  it("作成者でないメンバーは作り直せない", async () => {
+  it("幹事でないメンバーは作り直せない", async () => {
     expect((await resetInviteLink("trip")).error).toBeDefined();
     expect(db.projects[0].inviteToken).toBe("invite-trip");
   });
 });
 
 describe("editProject", () => {
-  it("作成者だけが編集できる", async () => {
+  it("幹事だけが編集できる", async () => {
     await editProject("trip", form([["title", "宮古島旅行"]]));
     expect(db.projects[0].title).toBe("沖縄旅行");
 
@@ -311,7 +323,7 @@ describe("日程調整との関係", () => {
 describe("removeParticipant", () => {
   beforeEach(() => loginAs("owner"));
 
-  it("作成者は、支払い記録のないメンバーを外せる", async () => {
+  it("幹事は、支払い記録のないメンバーを外せる", async () => {
     expect(await removeParticipant("trip", "pQuiet")).toEqual({ ok: true });
     expect(db.participants.map((p) => p.id)).not.toContain("pQuiet");
   });
@@ -322,13 +334,13 @@ describe("removeParticipant", () => {
     expect(db.participants.map((p) => p.id)).toContain("pMember");
   });
 
-  it("作成者自身は外せない", async () => {
-    expect((await removeParticipant("trip", "pOwner")).error).toBe("作成者は外せません");
+  it("幹事は外せない", async () => {
+    expect((await removeParticipant("trip", "pOwner")).error).toContain("幹事は外せません");
   });
 
-  it("作成者以外は外せない", async () => {
+  it("幹事以外は外せない", async () => {
     loginAs("member");
-    expect((await removeParticipant("trip", "pQuiet")).error).toBe("メンバーを外せるのは作成者だけです");
+    expect((await removeParticipant("trip", "pQuiet")).error).toBe("メンバーを外せるのは幹事だけです");
     expect(db.participants.map((p) => p.id)).toContain("pQuiet");
   });
 
@@ -351,5 +363,81 @@ describe("removeParticipant", () => {
     } finally {
       prisma.participant.findFirst = original;
     }
+  });
+});
+
+describe("makeOrganizer・stepDownOrganizer（幹事を複数にする）", () => {
+  it("幹事は、ほかのメンバーを幹事にできる", async () => {
+    loginAs("owner");
+    expect(await makeOrganizer("trip", "pMember")).toEqual({ ok: true });
+    expect(db.participants.find((p) => p.id === "pMember").isOwner).toBe(true);
+  });
+
+  it("幹事でない人や、ほかのプロジェクトの参加者は幹事にできない", async () => {
+    expect((await makeOrganizer("trip", "pQuiet")).error).toBe("この操作ができるのは幹事だけです");
+    loginAs("owner");
+    expect((await makeOrganizer("trip", "pOther")).error).toBe("メンバーが見つかりません");
+    expect(db.participants.find((p) => p.id === "pQuiet").isOwner).toBe(false);
+  });
+
+  it("ほかに幹事がいなければ、幹事をやめられない", async () => {
+    loginAs("owner");
+    expect((await stepDownOrganizer("trip")).error).toContain("ほかに幹事がいない");
+    expect(db.participants.find((p) => p.id === "pOwner").isOwner).toBe(true);
+  });
+
+  it("ほかに幹事がいれば、幹事をやめられる", async () => {
+    loginAs("owner");
+    await makeOrganizer("trip", "pMember");
+    expect(await stepDownOrganizer("trip")).toEqual({ ok: true });
+    expect(db.participants.find((p) => p.id === "pOwner").isOwner).toBe(false);
+  });
+});
+
+describe("leaveProject（自分で抜ける）", () => {
+  it("支払い記録のないメンバーは抜けられる", async () => {
+    loginAs("quiet");
+    expect(await leaveProject("trip")).toEqual({ ok: true });
+    expect(db.participants.map((p) => p.id)).not.toContain("pQuiet");
+  });
+
+  it("支払い記録がある人は抜けられない", async () => {
+    expect((await leaveProject("trip")).error).toContain("支払い記録があるため抜けられません");
+    expect(db.participants.map((p) => p.id)).toContain("pMember");
+  });
+
+  it("ほかに幹事がいない幹事は抜けられず、ほかの人を幹事にすれば抜けられる", async () => {
+    loginAs("owner");
+    expect((await leaveProject("trip")).error).toContain("ほかに幹事がいない");
+    await makeOrganizer("trip", "pQuiet");
+    expect(await leaveProject("trip")).toEqual({ ok: true });
+    expect(db.participants.map((p) => p.id)).not.toContain("pOwner");
+  });
+
+  it("メンバーが自分だけなら抜けられない（プロジェクトの削除をすすめる）", async () => {
+    loginAs("outsider");
+    expect((await leaveProject("other")).error).toContain("メンバーがあなただけ");
+  });
+
+  it("ゲストが抜けると、このブラウザのログイン状態も消える", async () => {
+    db.participants.push({ id: "pGuest", name: "さくら", projectId: "trip", userId: null, isOwner: false, retired: false, guestCodeHash: hashGuestCode("K7QM3XRP4N") });
+    guestCookies.set(guestCookieName("trip"), "K7QM3XRP4N");
+    loginAs(null);
+
+    expect(await leaveProject("trip")).toEqual({ ok: true });
+    expect(db.participants.map((p) => p.id)).not.toContain("pGuest");
+    expect(guestCookies.has(guestCookieName("trip"))).toBe(false);
+  });
+});
+
+describe("deleteProject", () => {
+  it("ゲストの幹事が削除すると、このブラウザのログイン状態も消える", async () => {
+    db.participants.push({ id: "pGuestOwner", name: "さくら", projectId: "trip", userId: null, isOwner: true, retired: false, guestCodeHash: hashGuestCode("K7QM3XRP4N") });
+    guestCookies.set(guestCookieName("trip"), "K7QM3XRP4N");
+    loginAs(null);
+
+    expect(await deleteProject("trip")).toEqual({ ok: true });
+    expect(db.projects.map((p) => p.id)).not.toContain("trip");
+    expect(guestCookies.has(guestCookieName("trip"))).toBe(false);
   });
 });

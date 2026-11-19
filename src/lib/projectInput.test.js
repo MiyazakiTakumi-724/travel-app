@@ -43,6 +43,11 @@ describe("parseProjectForm", () => {
     expect(parseProjectForm(form({ title: "沖縄旅行" })).data).toMatchObject({ startDate: "", endDate: "", days: null });
   });
 
+  it("決まっている日程は1か月（31日）まで", () => {
+    expect(parseProjectForm(form({ title: "長旅", startDate: "2026-12-01", endDate: "2026-12-31" })).data.endDate).toBe("2026-12-31");
+    expect(parseProjectForm(form({ title: "長旅", startDate: "2026-12-01", endDate: "2027-01-01" })).error).toBe("旅行の期間は31日以内にしてください");
+  });
+
   it("タイトルが空・長すぎるときはエラー", () => {
     expect(parseProjectForm(form({ title: "  " })).error).toBe("タイトルを入力してください");
     expect(parseProjectForm(form({ title: "あ".repeat(31) })).error).toContain("30文字以内");

@@ -7,7 +7,7 @@ import { LIMITS } from "@/lib/limits";
 
 export default function NicknameOverlay() {
   return (
-    <Modal title="ニックネームを設定してください" description="他のメンバーに表示される名前です">
+    <Modal title="ニックネームを設定してください" description="ほかのメンバーに表示される名前です。">
       <form action={setNickname} className="flex flex-col gap-5">
         <input
           type="text"

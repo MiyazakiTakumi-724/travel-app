@@ -1,6 +1,6 @@
 import { daysBetween, isValidDate } from "./dates";
 import { isWithinLength, LIMITS } from "./limits";
-import { isValidDays, MAX_DAYS, MAX_RANGE_DAYS } from "./schedule";
+import { isValidDays, MAX_DAYS, MAX_RANGE_DAYS, MAX_TRIP_DAYS } from "./schedule";
 
 // プロジェクトの作成・編集フォームの内容をチェックして、保存する値にする。
 // 日程は「決まっている（開始日・終了日）」か「これから決める（日数と、行ける日を聞く期間）」のどちらか
@@ -37,6 +37,9 @@ export function parseProjectForm(formData) {
   }
   if (startDate && endDate && daysBetween(startDate, endDate) < 0) {
     return { error: "終了日は開始日より後にしてください" };
+  }
+  if (startDate && endDate && daysBetween(startDate, endDate) + 1 > MAX_TRIP_DAYS) {
+    return { error: `旅行の期間は${MAX_TRIP_DAYS}日以内にしてください` };
   }
   // 日程が決まっているときも、決め直すときのために日数を覚えておく
   const tripDays = startDate && endDate ? daysBetween(startDate, endDate) + 1 : null;

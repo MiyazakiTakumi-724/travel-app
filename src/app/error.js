@@ -22,8 +22,9 @@ export default function Error({ error, retry }) {
           <button onClick={() => retry()} className={`${primaryButtonClass} min-h-12 px-6`}>
             もう一度読み込む
           </button>
-          <Link href="/projects" className={`${secondaryButtonClass} min-h-12 px-6`}>
-            マイプロジェクトへ
+          {/* トップページは、Googleでログインしていればマイプロジェクトへ移る。ゲストは参加中のプロジェクトを選べる */}
+          <Link href="/" className={`${secondaryButtonClass} min-h-12 px-6`}>
+            トップページへ
           </Link>
         </div>
       </main>

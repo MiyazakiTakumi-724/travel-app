@@ -118,7 +118,7 @@ describe("1. 行ける日を付けて提出する", () => {
   });
 });
 
-describe("2. 作成者が仮決定する", () => {
+describe("2. 幹事が仮決定する", () => {
   beforeEach(() => loginAs("owner"));
 
   it("提出していないメンバーがいるうちは、仮決定できない", async () => {
@@ -128,7 +128,7 @@ describe("2. 作成者が仮決定する", () => {
     expect(trip().tentativeStart).toBeNull();
   });
 
-  it("全員が提出したら仮決定でき、作成者は ○ と答えたことになる", async () => {
+  it("全員が提出したら仮決定でき、幹事は ○ と答えたことになる", async () => {
     submitAll();
     expect(await proposeSchedule("trip", "2026-11-14")).toEqual({ ok: true });
     expect(trip().tentativeStart).toBe("2026-11-14");
@@ -140,10 +140,10 @@ describe("2. 作成者が仮決定する", () => {
     expect((await proposeSchedule("trip", "2026-11-29")).error).toBe("期間の中の日程を選んでください");
   });
 
-  it("作成者以外は仮決定できない", async () => {
+  it("幹事以外は仮決定できない", async () => {
     submitAll();
     loginAs("member");
-    expect((await proposeSchedule("trip", "2026-11-14")).error).toBe("この操作ができるのは作成者だけです");
+    expect((await proposeSchedule("trip", "2026-11-14")).error).toBe("この操作ができるのは幹事だけです");
   });
 
   it("仮決定したあとは、行ける日の提出を取り消せない", async () => {
@@ -171,7 +171,7 @@ describe("3. ○× で答えて、全員 ○ なら確定する", () => {
     expect(trip()).toMatchObject({ startDate: "2026-11-14", endDate: "2026-11-16", tentativeStart: null });
   });
 
-  it("× の人がいると確定しない。作成者は仮決定を取り消して選び直せる", async () => {
+  it("× の人がいると確定しない。幹事は仮決定を取り消して選び直せる", async () => {
     loginAs("member");
     await answerTentative("trip", "no");
     loginAs("third");
@@ -199,7 +199,7 @@ describe("3. ○× で答えて、全員 ○ なら確定する", () => {
     expect((await answerTentative("trip", "yes")).error).toContain("仮決定の日程がありません");
   });
 
-  it("確定したあと、作成者は日程を選び直せる（行ける日の提出は残る）", async () => {
+  it("確定したあと、幹事は日程を選び直せる（行ける日の提出は残る）", async () => {
     for (const user of ["member", "third"]) {
       loginAs(user);
       await answerTentative("trip", "yes");
@@ -211,7 +211,7 @@ describe("3. ○× で答えて、全員 ○ なら確定する", () => {
   });
 });
 
-describe("メンバーが作成者だけのとき", () => {
+describe("メンバーが幹事だけのとき", () => {
   it("仮決定した時点で確定する", async () => {
     db.participants = [{ id: "pOwner", projectId: "trip", userId: "owner", isOwner: true, availabilitySubmitted: true, tentativeAnswer: null }];
     loginAs("owner");
