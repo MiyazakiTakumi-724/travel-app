@@ -7,7 +7,7 @@ export const metadata = {
   title: "使い方 | 旅行清算アプリ",
 };
 
-// 精算のしかたの説明に使う計算例（README と同じ、4人で76,000円）
+// 精算のしかたの説明に使う計算例（トップページ・README と同じ、沖縄旅行を4人で76,000円）
 const SHARE = 19000;
 const example = [
   ["あきら", 40000],
@@ -81,7 +81,7 @@ const steps = [
           「精算」タブのレシートに、支払いの合計・1人あたり・メンバーごとの内訳と、「あなたが受け取る金額／支払う金額」、だれがだれにいくら送ればいいかが表示されます。
         </p>
         <div className="mt-4 rounded-lg border border-line-soft bg-paper px-3.5 py-4 sm:px-4.5">
-          <p className="font-bold text-ink">計算のしかた（4人で ¥76,000 使った例）</p>
+          <p className="font-bold text-ink">計算のしかた（沖縄旅行を4人で ¥76,000 使った例）</p>
           <div className="mt-2 overflow-x-auto">
             <table className="w-full border-collapse text-[13px] sm:text-sm">
               <thead>
@@ -111,7 +111,7 @@ const steps = [
             </table>
           </div>
           <p className="mt-3">
-            合計を人数で割った負担額と、実際に払った額の差が「収支」です。払う額が大きい人から、受け取る額が大きい人へ順に送金するので、この例では送金は3回で済みます。
+            合計を人数で割った負担額と、実際に払った額の差が「収支」です。払う額が大きい人から、受け取る額が大きい人へ順に送金するので、この例では送金は「じろう → あきら ¥19,000」「はなこ → あきら ¥2,000」「はなこ → ゆうき ¥11,000」の3回で済みます。
           </p>
         </div>
       </>

@@ -29,10 +29,10 @@ const points = [
   ["精算額", "を自動で計算"],
 ];
 
-// ヒーロー右側の精算券は装飾用のダミー（4人で76,000円を割った場合の計算例）
+// ヒーロー右側の精算券は装飾用のダミー。使い方ページ・README と同じ「沖縄旅行：4人で ¥76,000」の例の送金3回
 const sampleTransfers = [
-  ["さくら → はなこ", "¥8,000"],
-  ["さくら → たろう", "¥5,000"],
+  ["はなこ → あきら", "¥2,000"],
+  ["はなこ → ゆうき", "¥11,000"],
 ];
 
 // Google のブランドガイドラインのダークテーマ（#131314 の塗り・#8E918F の枠）に合わせたピル型ボタン。
@@ -100,7 +100,7 @@ export default async function Home({ searchParams }) {
 
           <div
             role="img"
-            aria-label="精算の例：じろうさんがはなこさんに13,000円支払う"
+            aria-label="精算の例：沖縄旅行を4人で精算。じろうさんがあきらさんに19,000円、はなこさんがあきらさんに2,000円とゆうきさんに11,000円を支払う"
             className="mx-auto w-full max-w-110 -rotate-2 drop-shadow-[0_24px_28px_rgb(21_128_196/0.18)]"
           >
             <div className="ticket-top px-6 pt-5 pb-6 sm:px-7.5">
@@ -111,9 +111,9 @@ export default async function Home({ searchParams }) {
               <div className="mt-5 flex items-center gap-3.5 heading text-[26px] leading-tight sm:text-[32px]">
                 <span>じろう</span>
                 <span aria-hidden="true" className="relative h-0.5 min-w-7 flex-1 bg-pay after:absolute after:-top-1.5 after:-right-0.5 after:border-y-[7px] after:border-l-[10px] after:border-y-transparent after:border-l-pay" />
-                <span>はなこ</span>
+                <span>あきら</span>
               </div>
-              <div className="mt-1 amount text-[44px] leading-tight text-pay sm:text-[54px]">¥13,000</div>
+              <div className="mt-1 amount text-[44px] leading-tight text-pay sm:text-[54px]">¥19,000</div>
             </div>
             <div className="ticket-bottom grid gap-1 px-6 pt-4 pb-5 text-[15px] sm:px-7.5">
               {sampleTransfers.map(([label, value]) => (
