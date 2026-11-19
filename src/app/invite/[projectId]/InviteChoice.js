@@ -30,10 +30,8 @@ export default function InviteChoice({ projectId, projectTitle, signInAction }) 
       {/* 「Googleで参加」と「ゲストで参加」を続けて並べ、どちらかを選んでもらう */}
       <div className="ticket-bottom flex flex-col gap-3 px-7 pt-6 pb-7">
         <GoogleSignInButton action={signInAction} label="Googleでログインして参加" />
-        <p aria-hidden="true" className="flex items-center gap-3 text-xs font-bold text-ink-muted before:h-px before:flex-1 before:bg-line-dashed after:h-px after:flex-1 after:bg-line-dashed">
-          または
-        </p>
-        <form onSubmit={join} className="flex flex-col gap-2.5">
+        {/* Google のボタンとゲストの入力欄がひと続きに見えないよう、少し間を空ける */}
+        <form onSubmit={join} className="mt-3 flex flex-col gap-2.5">
           <input
             type="text"
             name="nickname"
