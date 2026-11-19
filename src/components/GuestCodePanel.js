@@ -69,7 +69,7 @@ export default function GuestCodePanel({ code, projectId, projectTitle, heading 
         <p className="text-sm font-bold text-ink-sub">{heading}</p>
         <h1 className="mt-1 wrap-break-word heading text-2xl leading-snug">「{projectTitle}」</h1>
         <p className="mt-3 text-sm leading-relaxed text-ink-sub">
-          このブラウザでは、次からはトップページの「このブラウザで参加中のプロジェクト」から、コードなしで開けます。別のスマホやブラウザで開くときは、トップページで下のコードを入力するか、専用リンクを開いてください。
+          このブラウザなら、次からはトップページからコードなしで開けます。ほかのスマホやブラウザでは、下のコードか専用リンクで戻れます。
         </p>
         {organizerHint && (
           <p className="mt-3 rounded-lg bg-sky-ground px-3.5 py-2.5 text-sm leading-relaxed text-ink-sub">

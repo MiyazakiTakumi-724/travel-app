@@ -160,8 +160,15 @@ export default function ScheduleSection({ project, currentParticipantId, isOwner
               className={`rounded-lg px-1.5 py-2 ${
                 index === stepIndex ? "bg-primary text-white" : index < stepIndex ? "bg-line-soft text-primary" : "bg-sky-ground text-ink-faint"
               }`}>
-              {index < stepIndex && <span aria-hidden="true">✓ </span>}
-              {index + 1}.{" "}
+              {/* 終わった段階は、番号の代わりに ✓ を出す（番号と ✓ を並べると狭い画面で3行になるため） */}
+              {index < stepIndex ? (
+                <>
+                  <span aria-hidden="true">✓ </span>
+                  <span className="sr-only">{index + 1}.（済み）</span>
+                </>
+              ) : (
+                `${index + 1}. `
+              )}
               {step.label.map((part) => (
                 <span key={part} className="inline-block">
                   {part}
@@ -318,7 +325,11 @@ function TentativeVote({ project, people, isOwner, myAnswer, displayNames, onAns
             仮決定の日程
           </p>
           <p className="mt-1 amount text-[30px] leading-tight text-primary sm:text-[36px]">{range}</p>
-          <p className="mt-1 text-sm text-ink-sub">全員が ○ と答えると、この日程に決まります。</p>
+          {/* 狭い画面では「全員が ○ と答えると、／この日程に決まります。」で改行する */}
+          <p className="mt-1 text-sm text-ink-sub">
+            <span className="inline-block">全員が ○ と答えると、</span>
+            <span className="inline-block">この日程に決まります。</span>
+          </p>
         </div>
         <div className="ticket-bottom flex flex-col gap-4 px-6 pt-4.5 pb-5">
           <div role="group" aria-label="あなたの答え" className="grid grid-cols-2 gap-2.5">
