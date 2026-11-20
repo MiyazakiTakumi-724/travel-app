@@ -24,14 +24,14 @@ export default function LegalPage({ title, intro, sections, updatedAt }) {
               <h2 className="heading text-lg">
                 {index + 1}. {section.title}
               </h2>
-              <div className="mt-2 flex flex-col gap-2 text-[15px] leading-[1.85] text-ink-sub [&_li]:ml-5 [&_li]:list-disc">
+              <div className="mt-2 flex flex-col gap-2 text-[15px] leading-[1.85] text-ink-sub [&_a]:whitespace-nowrap [&_li]:ml-5 [&_li]:list-disc">
                 {section.body}
               </div>
             </li>
           ))}
         </ol>
 
-        <p className="mt-10 text-sm text-ink-muted">制定日：{updatedAt}</p>
+        <p className="mt-10 text-sm text-ink-muted">最終更新日：{updatedAt}</p>
       </main>
 
       <SiteFooter />

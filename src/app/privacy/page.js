@@ -1,5 +1,4 @@
 import LegalPage from "@/components/LegalPage";
-import { REPOSITORY_URL } from "@/components/SiteFooter";
 
 export const metadata = {
   title: "プライバシーポリシー | 旅行清算アプリ",
@@ -63,7 +62,7 @@ const sections = [
     title: "Cookie",
     body: (
       <p>
-        ログイン状態を保つために Cookie を使います。ゲストとして使う場合は、プロジェクトごとに、復帰用コードを Cookie に保存します（約400日。ログアウトすると消えます）。Googleアカウントへの引き継ぎのときは、その手続きのあいだ（10分）だけ使う Cookie も保存します。ブラウザの設定で Cookie を無効にすると、ログインできなくなります。
+        ログイン状態を保つために Cookie を使います。ゲストとして使う場合は、プロジェクトごとに、復帰用コードを Cookie に保存します（約400日。ログアウトすると消えます）。Googleアカウントへの引き継ぎのときは、その手続きのあいだ<span className="whitespace-nowrap">（10分）</span>だけ使う Cookie も保存します。ブラウザの設定で Cookie を無効にすると、ログインできなくなります。
       </p>
     ),
   },
@@ -85,13 +84,14 @@ const sections = [
   {
     title: "問い合わせ先",
     body: (
-      <p>
-        このアプリは個人で開発しています。お問い合わせは、
-        <a href={`${REPOSITORY_URL}/issues`} target="_blank" rel="noreferrer" className="font-bold text-primary underline">
-          GitHub のリポジトリ
-        </a>
-        からお願いします。書き込んだ内容は公開されるので、メールアドレスなどの個人情報は書かないでください。
-      </p>
+      <>
+        <p>このアプリは、宮崎卓己が個人で運営しています。情報の扱いについてのお問い合わせや、削除のご希望は、次のメールアドレスへご連絡ください。</p>
+        <p>
+          <a href="mailto:miyataku724@gmail.com" className="font-bold text-primary underline">
+            miyataku724@gmail.com
+          </a>
+        </p>
+      </>
     ),
   },
   {
@@ -106,7 +106,7 @@ export default function PrivacyPage() {
       title="プライバシーポリシー"
       intro="旅行清算アプリ（以下「このアプリ」）が、利用者の情報をどのように扱うかを説明します。"
       sections={sections}
-      updatedAt="2026年11月19日"
+      updatedAt="2026年11月20日"
     />
   );
 }

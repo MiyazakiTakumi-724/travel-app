@@ -200,7 +200,7 @@ export default async function Home({ searchParams }) {
                       }`}
                     />
                     <h3 className="heading text-lg md:mt-4.5">{step.title}</h3>
-                    <p className="mt-1.5 max-w-[18em] text-[15px] leading-[1.8] text-ink-sub">{step.description}</p>
+                    <p className="phrase mt-1.5 max-w-[18em] text-[15px] leading-[1.8] text-ink-sub">{step.description}</p>
                   </li>
                 ))}
               </ol>

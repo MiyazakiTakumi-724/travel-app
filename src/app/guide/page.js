@@ -10,6 +10,12 @@ export const metadata = {
 
 // 精算のしかたの説明に使う計算例（トップページ・README と同じ、沖縄旅行を4人で76,000円）
 const SHARE = 19000;
+// この例の送金（払う額が大きい人から、受け取る額が大きい人へ）
+const transfersExample = [
+  ["じろう", "あきら", 19000],
+  ["はなこ", "あきら", 2000],
+  ["はなこ", "ゆうき", 11000],
+];
 const example = [
   ["あきら", 40000],
   ["ゆうき", 30000],
@@ -18,8 +24,10 @@ const example = [
 ];
 
 // 画面のボタンや項目の名前。本文の中で目立つよう太字にする
+// 短い名前は途中で改行しない（「編 / 集」のように切れないように）。長い名前は、はみ出さないよう折り返してよい
 function UI({ children }) {
-  return <b className="font-bold text-ink">「{children}」</b>;
+  const short = String(children).length <= 12;
+  return <b className={`font-bold text-ink ${short ? "whitespace-nowrap" : ""}`}>「{children}」</b>;
 }
 
 // 大事な言葉（ボタンではないもの）
@@ -69,7 +77,7 @@ const steps = [
         </p>
         <ul className="mt-2 list-disc pl-5">
           <li>
-            参加すると<Em>復帰用コード</Em>（例：K7QM3-XRP4N）と<Em>専用リンク</Em>が出ます。別の端末から戻るときに使うので、必ず控えておきます。
+            参加すると<Em>復帰用コード</Em>（例：<span className="whitespace-nowrap">K7QM3-XRP4N</span>）と<Em>専用リンク</Em>が出ます。別の端末から戻るときに使うので、必ず控えておきます。
           </li>
           <li>
             <Em>同じブラウザ</Em>なら、次からはトップページの<UI>このブラウザで参加中のプロジェクト</UI>からコードなしで開けます。
@@ -237,7 +245,8 @@ const steps = [
           「精算」の画面の<Em>精算レシート</Em>に、支払いの合計・1人あたり・メンバーごとの内訳と、<Em>あなたが受け取る金額（または支払う金額）</Em>、<Em>誰にいくら送ればいいか</Em>が上から順に出ます。ほかのメンバーの金額と送金のしかたは、レシートの下の<UI>ほかのメンバーの精算</UI>を開くと見られます。
         </p>
         <div className="mt-4 rounded-lg border border-line-soft bg-paper px-3.5 py-4 sm:px-4.5">
-          <p className="font-bold text-ink">計算のしかた（沖縄旅行を4人で ¥76,000 使った例）</p>
+          <p className="font-bold text-ink">計算のしかた</p>
+          <p className="text-sm text-ink-muted">例：沖縄旅行を4人で、合計 ¥76,000 使った場合</p>
           <div className="mt-2 overflow-x-auto">
             <table className="w-full border-collapse text-[13px] sm:text-sm">
               <thead>
@@ -267,8 +276,18 @@ const steps = [
             </table>
           </div>
           <p className="mt-3">
-            合計を人数で割った負担額と、実際に払った額の差が「収支」です。払う額が大きい人から、受け取る額が大きい人へ順に送金するので、この例では送金は「じろう → あきら ¥19,000」「はなこ → あきら ¥2,000」「はなこ → ゆうき ¥11,000」の3回で済みます。
+            合計を人数で割った<Em>負担額</Em>と、実際に払った額の差が<Em>収支</Em>です。払う額が大きい人から、受け取る額が大きい人へ順に送金するので、この例では送金は次の3回で済みます。
           </p>
+          <ul className="mt-2 flex flex-col gap-1 rounded-lg bg-sky-ground/60 px-3.5 py-2.5 text-sm">
+            {transfersExample.map(([from, to, amount]) => (
+              <li key={`${from}-${to}`} className="flex justify-between gap-3">
+                <span>
+                  {from} <span className="text-pay">→</span> {to}
+                </span>
+                <span className="amount font-semibold text-ink">{formatYen(amount)}</span>
+              </li>
+            ))}
+          </ul>
           <p className="mt-2">
             <Em>割り切れないときの端数（数円）は、多く払った人が1円ずつ負担します。</Em>そのぶん受け取る金額が少し減りますが、表示される金額と送金の合計はぴったり合います。
           </p>
@@ -299,7 +318,7 @@ export default async function GuidePage() {
               <li key={step.id}>
                 <a
                   href={`#${step.id}`}
-                  className="block border-l-3 border-line-soft px-3 py-2 text-ink-sub transition-colors hover:border-primary hover:text-primary">
+                  className="phrase block border-l-3 border-line-soft px-3 py-2 text-ink-sub transition-colors hover:border-primary hover:text-primary">
                   {index + 1}. {step.title}
                 </a>
               </li>
@@ -316,16 +335,17 @@ export default async function GuidePage() {
 
           <ol className="mt-4">
             {steps.map((step, index) => (
-              <li key={step.id} id={step.id} className="mt-9 grid scroll-mt-6 grid-cols-[44px_1fr] gap-4.5">
+              // スマホでは番号と見出しを横に並べ、本文は画面の幅いっぱいに使う。PCでは番号の列を左に取る
+              <li key={step.id} id={step.id} className="mt-10 grid scroll-mt-6 grid-cols-[36px_1fr] gap-x-3 md:grid-cols-[44px_1fr] md:gap-x-4.5">
                 <span
                   aria-hidden="true"
-                  className={`grid size-11 place-items-center rounded-full amount text-xl text-white ${
+                  className={`grid size-9 place-items-center rounded-full amount text-lg text-white md:size-11 md:text-xl ${
                     index === steps.length - 1 ? "bg-pay" : "bg-primary"
                   }`}>
                   {index + 1}
                 </span>
-                <div className="min-w-0 text-[15px] leading-[1.85] text-ink-sub">
-                  <h2 className="mt-1.5 mb-1.5 heading text-xl text-ink">{step.title}</h2>
+                <h2 className="self-center heading text-xl text-ink">{step.title}</h2>
+                <div className="col-span-2 mt-1.5 min-w-0 text-[15px] leading-[1.85] text-ink-sub md:col-span-1 md:col-start-2">
                   {step.body}
                 </div>
               </li>
