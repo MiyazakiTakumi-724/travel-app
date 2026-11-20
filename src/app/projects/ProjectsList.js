@@ -112,9 +112,9 @@ export default function ProjectsList({ projects, guestProjects = [] }) {
     <div className="flex min-h-screen flex-col">
       <SiteHeader logoHref="/projects">
         <GuideLink />
-        {/* このブラウザにあるゲストとしてのログイン状態も一緒に消す */}
-        <form action={logout}>
-          <button type="submit" className="min-h-11 px-1 text-sm font-medium text-ink-muted transition-colors hover:text-ink">
+        {/* このブラウザにあるゲストとしてのログイン状態も一緒に消す。スマホでは、ヘッダーが窮屈にならないよう下に置く */}
+        <form action={logout} className="max-sm:hidden">
+          <button type="submit" className="min-h-11 px-1 text-sm font-bold text-ink-muted transition-colors hover:text-ink">
             ログアウト
           </button>
         </form>
@@ -185,12 +185,16 @@ export default function ProjectsList({ projects, guestProjects = [] }) {
           </Link>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsDeletingAccount(true)}
-          className={`${textButtonClass} self-center hover:text-pay`}>
-          アカウントを削除
-        </button>
+        <div className="flex flex-wrap justify-center gap-x-4 border-t border-line-soft pt-3">
+          <form action={logout} className="sm:hidden">
+            <button type="submit" className={`${textButtonClass} hover:text-ink`}>
+              ログアウト
+            </button>
+          </form>
+          <button type="button" onClick={() => setIsDeletingAccount(true)} className={`${textButtonClass} hover:text-pay`}>
+            アカウントを削除
+          </button>
+        </div>
       </main>
       <SiteFooter />
 
