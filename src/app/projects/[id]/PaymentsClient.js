@@ -319,7 +319,8 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
             </div>
 
             {payments.length > 0 && (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-1.5">
+                <p className="text-xs text-ink-muted">支払った人で絞り込み（複数選べます）</p>
                 {/* 支払った人で絞り込む。複数人を選べる。「全員」で選択をすべて外す */}
                 <div role="group" aria-label="支払った人で絞り込む" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-0.5 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
                   {[{ id: null, name: "全員" }, ...project.participants.map((p) => ({ id: p.id, name: displayNames.get(p.id) }))].map(

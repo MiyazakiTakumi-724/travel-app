@@ -50,9 +50,9 @@ export function schedulePhase(project, participants) {
   return "collecting";
 }
 
-// その日に行ける人数（表の一番下の行に出す）
+// その日に行ける人数（表の一番下の行に出す）。まだ提出していない人の選びかけの日は数えない
 export function availableCount(date, participants) {
-  return activeMembers(participants).filter((p) => p.availableDays.includes(date)).length;
+  return activeMembers(participants).filter((p) => p.availabilitySubmitted && p.availableDays.includes(date)).length;
 }
 
 // 仮決定の日程への答えを集計する。全員が ○ なら確定してよい

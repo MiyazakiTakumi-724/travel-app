@@ -530,7 +530,7 @@ function MonthCalendars({ rangeStart, rangeEnd, available, locked, onToggle }) {
   );
 }
 
-// メンバー × 日付の表。○ が行ける日、一番下は行ける人数。まだ提出していない人は薄く表示する
+// メンバー × 日付の表。○ が行ける日、一番下は行ける人数（提出した人だけで数える）。まだ提出していない人は薄く表示する
 function EveryoneTable({ dates, people, displayNames, currentParticipantId }) {
   const counts = dates.map((date) => availableCount(date, people));
   const maxCount = Math.max(...counts);

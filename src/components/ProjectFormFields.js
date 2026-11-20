@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
-import { fieldLabelClass, textFieldClass } from "./ui";
+import { fieldLabelClass, RequiredMark, textFieldClass } from "./ui";
 import { LIMITS } from "@/lib/limits";
-import { addDays, formatDays } from "@/lib/dates";
-import { MAX_DAYS, MAX_RANGE_DAYS } from "@/lib/schedule";
+import { addDays, daysBetween, formatDays, isValidDate } from "@/lib/dates";
+import { MAX_DAYS, MAX_RANGE_DAYS, MAX_TRIP_DAYS } from "@/lib/schedule";
 
 const DATE_MODES = [
   { id: "undecided", label: "これから決める" },
@@ -17,11 +17,19 @@ const today = () => new Date().toLocaleDateString("sv-SE");
 export default function ProjectFormFields({ project }) {
   // 日付が入っていれば「決まっている」。新しく作るときは、日程調整から始める「これから決める」
   const [dateMode, setDateMode] = useState(project?.startDate || project?.endDate || (project && !project.days) ? "fixed" : "undecided");
+  // 決まっている日程の開始日・終了日（「2泊3日」のように日数を出すため）
+  const [fixedStart, setFixedStart] = useState(project?.startDate ?? "");
+  const [fixedEnd, setFixedEnd] = useState(project?.endDate ?? "");
+  const fixedDays =
+    isValidDate(fixedStart) && isValidDate(fixedEnd) && daysBetween(fixedStart, fixedEnd) >= 0 ? daysBetween(fixedStart, fixedEnd) + 1 : null;
 
   return (
     <>
       <label className="flex flex-col gap-1.5">
-        <span className={fieldLabelClass}>タイトル</span>
+        <span className={fieldLabelClass}>
+          タイトル
+          <RequiredMark />
+        </span>
         <input
           type="text"
           name="title"
@@ -108,22 +116,31 @@ export default function ProjectFormFields({ project }) {
             </div>
           </div>
         ) : (
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              type="date"
-              name="startDate"
-              aria-label="開始日"
-              defaultValue={project?.startDate}
-              className={`${textFieldClass} flex-1 px-2.5 text-sm`}
-            />
-            <span aria-hidden="true" className="shrink-0 text-ink-muted">〜</span>
-            <input
-              type="date"
-              name="endDate"
-              aria-label="終了日"
-              defaultValue={project?.endDate}
-              className={`${textFieldClass} flex-1 px-2.5 text-sm`}
-            />
+          <div className="mt-3 flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                name="startDate"
+                aria-label="開始日"
+                value={fixedStart}
+                onChange={(e) => setFixedStart(e.target.value)}
+                className={`${textFieldClass} flex-1 px-2.5 text-sm`}
+              />
+              <span aria-hidden="true" className="shrink-0 text-ink-muted">〜</span>
+              <input
+                type="date"
+                name="endDate"
+                aria-label="終了日"
+                value={fixedEnd}
+                onChange={(e) => setFixedEnd(e.target.value)}
+                className={`${textFieldClass} flex-1 px-2.5 text-sm`}
+              />
+            </div>
+            {fixedDays && (
+              <p className={`text-sm font-bold ${fixedDays > MAX_TRIP_DAYS ? "text-pay" : "text-ink-sub"}`}>
+                {fixedDays > MAX_TRIP_DAYS ? `旅行の期間は${MAX_TRIP_DAYS}日以内にしてください` : formatDays(fixedDays)}
+              </p>
+            )}
           </div>
         )}
       </fieldset>

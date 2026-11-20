@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
@@ -11,10 +11,8 @@ import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { logoutGuest, reissueGuestCode, startGuestClaim } from "@/app/guestActions";
 import { leaveProject, makeOrganizer, removeParticipant, resetInviteLink, stepDownOrganizer } from "./actions";
 import { runServerAction } from "@/lib/runServerAction";
-import { canShare, shareOrCopy } from "@/lib/share";
-
-// 端末の機能（共有メニューが使えるか）は変わらないので、変化を知らせる仕組みはいらない
-const noopSubscribe = () => () => {};
+import { shareOrCopy } from "@/lib/share";
+import { useCanShare, useOrigin } from "@/lib/useBrowser";
 
 const BADGE_CLASS = {
   organizer: "bg-sky-ground text-ink-sub",
@@ -62,7 +60,10 @@ export default function MembersPanel({ project, displayNames, payments, currentP
   const [reissued, setReissued] = useState(null);
   const [copied, setCopied] = useState(false);
   // 共有メニューが使える端末（スマホなど）か。サーバーで描画するときは false にして、食い違いを防ぐ
-  const shareable = useSyncExternalStore(noopSubscribe, canShare, () => false);
+  const shareable = useCanShare();
+  // 招待リンクは、コピーできない環境でも使えるよう、画面にも文字で出す
+  const origin = useOrigin();
+  const inviteUrl = origin ? `${origin}/invite/${project.inviteToken}` : "";
 
   const participants = project.participants;
   const me = participants.find((p) => p.id === currentParticipantId);
@@ -178,7 +179,7 @@ export default function MembersPanel({ project, displayNames, payments, currentP
     const result = await shareOrCopy({
       title: `${project.title}の招待`,
       text: `旅行清算アプリの「${project.title}」に参加してください`,
-      url: `${window.location.origin}/invite/${project.inviteToken}`,
+      url: inviteUrl,
     });
     if (result === "copied") {
       setCopied(true);
@@ -318,6 +319,14 @@ export default function MembersPanel({ project, displayNames, payments, currentP
           <LinkIcon />
           <span aria-live="polite">{copied ? "コピーしました！" : shareable ? "招待リンクを送る" : "招待リンクをコピー"}</span>
         </button>
+        {inviteUrl && (
+          <div className="rounded-lg bg-paper px-3.5 py-2.5">
+            <p className="text-xs font-bold text-ink-muted">招待リンク（長押しや選択でもコピーできます）</p>
+            <a href={inviteUrl} className="mt-0.5 block text-sm break-all text-primary underline select-all">
+              {inviteUrl}
+            </a>
+          </div>
+        )}
         {isOwner && (
           <button type="button" onClick={handleResetInvite} disabled={isPending} className={`${textButtonClass} self-center hover:text-ink`}>
             招待リンクを作り直す
@@ -325,14 +334,14 @@ export default function MembersPanel({ project, displayNames, payments, currentP
         )}
       </div>
 
-      {/* 自分のこと（幹事をやめる・プロジェクトを抜ける） */}
-      <div className="flex flex-wrap justify-center gap-x-2">
+      {/* 自分のこと（幹事をやめる・プロジェクトを抜ける）。押し間違えないよう、区切って下の方に小さく置く */}
+      <div className="mt-6 flex flex-wrap justify-center gap-x-2 border-t border-line-soft pt-3">
         {me?.isOwner && organizerCount > 1 && (
-          <button type="button" onClick={handleStepDown} disabled={isPending} className={`${textButtonClass} hover:text-ink`}>
+          <button type="button" onClick={handleStepDown} disabled={isPending} className={`${textButtonClass} text-xs hover:text-ink`}>
             幹事をやめる
           </button>
         )}
-        <button type="button" onClick={handleLeave} disabled={isPending} className={`${textButtonClass} hover:text-pay`}>
+        <button type="button" onClick={handleLeave} disabled={isPending} className={`${textButtonClass} text-xs hover:text-pay`}>
           このプロジェクトを抜ける
         </button>
       </div>

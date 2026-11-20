@@ -11,3 +11,8 @@ export const textFieldClass =
   "min-h-12 w-full min-w-0 rounded-lg border-[1.5px] border-line-dashed bg-paper px-3.5 text-base text-ink placeholder:text-ink-faint focus:border-primary focus:outline-2 focus:outline-offset-0 focus:outline-primary";
 
 export const fieldLabelClass = "text-sm font-bold text-ink-sub";
+
+// 入力が必須の項目のラベルに付ける印
+export function RequiredMark() {
+  return <span className="ml-1.5 rounded bg-[#FCECE8] px-1.5 py-0.5 align-[1px] text-[11px] font-bold text-pay">必須</span>;
+}

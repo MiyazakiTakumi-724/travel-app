@@ -76,9 +76,15 @@ describe("そのほか", () => {
     expect(fitsInRange("2026-10-31", range)).toBe(false);
   });
 
-  it("その日に行ける人数を数える", () => {
-    expect(availableCount("2026-11-03", participants)).toBe(3);
-    expect(availableCount("2026-11-06", participants)).toBe(1);
+  it("その日に行ける人数を、提出した人だけで数える", () => {
+    const submitted = participants.map((p) => ({ ...p, availabilitySubmitted: true }));
+    expect(availableCount("2026-11-03", submitted)).toBe(3);
+    expect(availableCount("2026-11-06", submitted)).toBe(1);
+
+    // c がまだ提出していなければ、選びかけの日は数えない
+    const withDraft = submitted.map((p) => (p.id === "c" ? { ...p, availabilitySubmitted: false } : p));
+    expect(availableCount("2026-11-03", withDraft)).toBe(2);
+    expect(availableCount("2026-11-06", withDraft)).toBe(0);
   });
 });
 

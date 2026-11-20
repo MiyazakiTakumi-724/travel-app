@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { addItineraryItem, deleteItineraryItem, restoreItineraryItem, updateItineraryItem } from "./itineraryActions";
 import { PlusIcon } from "@/components/icons";
 import { primaryButtonClass, textButtonClass, textFieldClass } from "@/components/ui";
@@ -25,24 +25,50 @@ function applyItemChange(items, change) {
 function ItemForm({ initial, submitLabel, onSubmit, onCancel, onDelete }) {
   const [time, setTime] = useState(initial?.time ?? "");
   const [text, setText] = useState(initial?.text ?? "");
+  const [timeError, setTimeError] = useState("");
+  const timeRef = useRef(null);
+
+  // 時刻は「時」と「分」の両方が入っているか、空のときだけ受け付ける（ブラウザの入力チェックでは止めない）
+  const clearTime = () => {
+    setTime("");
+    setTimeError("");
+    if (timeRef.current) timeRef.current.value = "";
+  };
 
   return (
     <form
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
+        if (timeRef.current?.validity.badInput) {
+          setTimeError("時刻は「時」と「分」の両方を入れるか、×で消してください");
+          return;
+        }
         if (text.trim()) onSubmit({ time, text: text.trim() });
       }}
       className="flex flex-col gap-2.5 rounded-lg bg-sky-ground/60 p-3">
       <div className="flex gap-2">
         {/* 入力欄の共通スタイルは幅いっぱいなので、外側で幅を決める */}
-        <div className="w-28 shrink-0">
+        <div className="relative w-32 shrink-0">
           <input
+            ref={timeRef}
             type="time"
             aria-label="時刻（なくてもよい）"
             value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className={`${textFieldClass} px-2.5 text-sm`}
+            onChange={(e) => {
+              setTime(e.target.value);
+              setTimeError("");
+            }}
+            className={`${textFieldClass} pr-8 pl-2.5 text-sm`}
           />
+          {/* 時刻をやめるときに、時と分をまとめて消す */}
+          <button
+            type="button"
+            onClick={clearTime}
+            aria-label="時刻を消す"
+            className="absolute top-1/2 right-1 grid size-7 -translate-y-1/2 place-items-center rounded-full text-ink-faint transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
+            ×
+          </button>
         </div>
         <input
           type="text"
@@ -52,10 +78,15 @@ function ItemForm({ initial, submitLabel, onSubmit, onCancel, onDelete }) {
           maxLength={LIMITS.itinerary}
           required
           autoFocus
-          placeholder="例：京都駅に集合"
+          placeholder="例：9時に駅で集合"
           className={`${textFieldClass} min-w-0 flex-1 text-sm`}
         />
       </div>
+      {timeError && (
+        <p role="alert" className="text-xs font-bold text-pay">
+          {timeError}
+        </p>
+      )}
       <div className="flex items-center gap-2">
         {onDelete && (
           <button type="button" onClick={onDelete} className={`${textButtonClass} -ml-2.5 hover:text-pay`}>

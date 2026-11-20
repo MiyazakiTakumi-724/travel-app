@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { createGuestProject } from "@/app/guestActions";
 import ProjectFormFields from "@/components/ProjectFormFields";
-import { fieldLabelClass, primaryButtonClass, textFieldClass } from "@/components/ui";
+import { fieldLabelClass, primaryButtonClass, RequiredMark, textFieldClass } from "@/components/ui";
 import { LIMITS } from "@/lib/limits";
 
 // ゲストのまま、ニックネームとプロジェクトの内容を入れて作る
@@ -30,7 +30,10 @@ export default function GuestProjectForm() {
 
       <form onSubmit={submit} className="mt-6 flex flex-col gap-5 rounded-2xl bg-paper p-5 sm:p-7">
         <label className="flex flex-col gap-1.5">
-          <span className={fieldLabelClass}>あなたのニックネーム</span>
+          <span className={fieldLabelClass}>
+            あなたのニックネーム
+            <RequiredMark />
+          </span>
           <input
             type="text"
             name="nickname"
