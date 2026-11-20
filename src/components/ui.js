@@ -14,5 +14,5 @@ export const fieldLabelClass = "text-sm font-bold text-ink-sub";
 
 // 入力が必須の項目のラベルに付ける印
 export function RequiredMark() {
-  return <span className="ml-1.5 rounded bg-[#FCECE8] px-1.5 py-0.5 align-[1px] text-[11px] font-bold text-pay">必須</span>;
+  return <span className="ml-1 text-xs font-bold text-pay">必須</span>;
 }

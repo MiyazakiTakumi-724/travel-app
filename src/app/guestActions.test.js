@@ -120,7 +120,7 @@ describe("joinAsGuest", () => {
 
   it("ニックネームが空・長すぎる、プロジェクトがないときは参加できない", async () => {
     expect((await joinAsGuest("invite-trip", form({ nickname: "  " }))).error).toBe("ニックネームを入力してください");
-    expect((await joinAsGuest("invite-trip", form({ nickname: "あ".repeat(21) }))).error).toContain("20文字以内");
+    expect((await joinAsGuest("invite-trip", form({ nickname: "あ".repeat(11) }))).error).toContain("10文字以内");
     expect((await joinAsGuest("none", form({ nickname: "たろう" }))).error).toContain("招待リンクが見つかりません");
     expect(db.participants).toEqual([]);
   });

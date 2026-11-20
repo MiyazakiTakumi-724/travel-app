@@ -315,18 +315,21 @@ export default function MembersPanel({ project, displayNames, payments, currentP
         <p className="phrase text-sm leading-relaxed text-ink-sub">
           招待リンクを送ると、友達がGoogleでログインするか、ゲストとしてメンバーになれます。
         </p>
-        <button onClick={handleCopyInviteLink} className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
-          <LinkIcon />
-          <span aria-live="polite">{copied ? "コピーしました！" : shareable ? "招待リンクを送る" : "招待リンクをコピー"}</span>
-        </button>
-        {inviteUrl && (
-          <div className="rounded-lg bg-paper px-3.5 py-2.5">
-            <p className="text-xs font-bold text-ink-muted">招待リンク（長押しや選択でもコピーできます）</p>
-            <a href={inviteUrl} className="mt-0.5 block text-sm break-all text-primary underline select-all">
-              {inviteUrl}
-            </a>
-          </div>
-        )}
+        {/* 招待リンクの URL とボタンを1行に。コピーできない環境でも、URL を長押しや選択で写せる */}
+        <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-line-dashed bg-paper py-1.5 pr-1.5 pl-3">
+          <a
+            href={inviteUrl || undefined}
+            aria-label="招待リンク"
+            className="min-w-0 flex-1 truncate text-sm text-primary underline select-all">
+            {inviteUrl || "招待リンク"}
+          </a>
+          <button
+            onClick={handleCopyInviteLink}
+            className={`${secondaryButtonClass} min-h-10 shrink-0 gap-1.5 px-3 text-sm whitespace-nowrap`}>
+            <LinkIcon className="shrink-0" />
+            <span aria-live="polite">{copied ? "コピーしました" : shareable ? "送る" : "コピー"}</span>
+          </button>
+        </div>
         {isOwner && (
           <button type="button" onClick={handleResetInvite} disabled={isPending} className={`${textButtonClass} self-center hover:text-ink`}>
             招待リンクを作り直す

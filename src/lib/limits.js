@@ -4,7 +4,7 @@ export const LIMITS = {
   title: 30,
   destination: 30,
   memo: 30,
-  nickname: 20,
+  nickname: 10, // 表やレシートで読みやすい長さ（以前に登録した長い名前はそのまま使える）
   itinerary: 50, // 旅行の予定1件の文字数
 };
 

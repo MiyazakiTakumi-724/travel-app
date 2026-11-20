@@ -137,8 +137,8 @@ export default function ProjectFormFields({ project }) {
               />
             </div>
             {fixedDays && (
-              <p className={`text-sm font-bold ${fixedDays > MAX_TRIP_DAYS ? "text-pay" : "text-ink-sub"}`}>
-                {fixedDays > MAX_TRIP_DAYS ? `旅行の期間は${MAX_TRIP_DAYS}日以内にしてください` : formatDays(fixedDays)}
+              <p className={`text-xs leading-relaxed ${fixedDays > MAX_TRIP_DAYS ? "font-bold text-pay" : "text-ink-muted"}`}>
+                {fixedDays > MAX_TRIP_DAYS ? `旅行の期間は${MAX_TRIP_DAYS}日以内にしてください` : `旅行の日数：${formatDays(fixedDays)}`}
               </p>
             )}
           </div>
