@@ -10,22 +10,27 @@ import GuestCodeForm from "@/components/GuestCodeForm";
 import { secondaryButtonClass } from "@/components/ui";
 import SiteFooter from "@/components/SiteFooter";
 
+// トップページの「使い方」。ひとことずつで流れが分かるようにする（くわしくは使い方ページ）
 const steps = [
   {
     title: "Googleかゲストで始める",
-    description: "はじめにメンバーに表示するニックネームを決めます。",
+    description: "アカウントがなくても、ニックネームだけで使えます。",
   },
   {
-    title: "プロジェクトを作って招待",
-    description: "招待リンクを送るだけでメンバーが参加できます。",
+    title: "旅行を作って招待",
+    description: "招待リンクを送るだけで、友達が参加できます。",
+  },
+  {
+    title: "日程を決める",
+    description: "みんなの行ける日を集めて、幹事が日程を決めます。",
   },
   {
     title: "支払いを記録",
-    description: "誰が何にいくら払ったかを記録します。",
+    description: "誰が何にいくら払ったかを、その場で記録します。",
   },
   {
-    title: "精算方法が分かる",
-    description: "誰が誰にいくら払うかを自動で計算して表示します。",
+    title: "精算する",
+    description: "誰が誰にいくら払えばいいかを、自動で計算します。",
   },
 ];
 
@@ -185,7 +190,7 @@ export default async function Home({ searchParams }) {
                 aria-hidden="true"
                 className="absolute top-3 bottom-3 left-[11px] w-1.5 rounded-full bg-primary md:top-[11px] md:right-3 md:bottom-auto md:left-3 md:h-1.5 md:w-auto"
               />
-              <ol className="relative grid gap-7 md:grid-cols-4 md:gap-0">
+              <ol className="relative grid gap-7 md:grid-cols-5 md:gap-0">
                 {steps.map((step, index) => (
                   <li key={step.title} className="relative pl-12 md:pl-0 md:pr-6">
                     <span

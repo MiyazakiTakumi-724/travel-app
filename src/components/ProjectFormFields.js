@@ -136,10 +136,26 @@ export default function ProjectFormFields({ project }) {
                 className={`${textFieldClass} flex-1 px-2.5 text-sm`}
               />
             </div>
-            {fixedDays && (
-              <p className={`text-xs leading-relaxed ${fixedDays > MAX_TRIP_DAYS ? "font-bold text-pay" : "text-ink-muted"}`}>
-                {fixedDays > MAX_TRIP_DAYS ? `旅行の期間は${MAX_TRIP_DAYS}日以内にしてください` : `旅行の日数：${formatDays(fixedDays)}`}
-              </p>
+            <label className="mt-1.5 flex flex-col gap-1.5">
+              <span className={fieldLabelClass}>旅行の日数</span>
+              <select
+                value={fixedDays && fixedDays <= MAX_TRIP_DAYS ? fixedDays : ""}
+                onChange={(e) => setFixedEnd(addDays(fixedStart, Number(e.target.value) - 1))}
+                disabled={!isValidDate(fixedStart)}
+                className={`${textFieldClass} disabled:opacity-60`}>
+                <option value="" disabled>
+                  {isValidDate(fixedStart) ? "日数を選ぶ" : "先に開始日を選んでください"}
+                </option>
+                {Array.from({ length: MAX_TRIP_DAYS }, (_, index) => index + 1).map((days) => (
+                  <option key={days} value={days}>
+                    {formatDays(days)}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs leading-relaxed text-ink-muted">日数を選ぶと、終了日が自動で入ります。</span>
+            </label>
+            {fixedDays > MAX_TRIP_DAYS && (
+              <p className="text-xs font-bold text-pay">旅行の期間は{MAX_TRIP_DAYS}日以内にしてください</p>
             )}
           </div>
         )}

@@ -68,6 +68,23 @@ const sections = [
     ),
   },
   {
+    title: "運営者・お問い合わせ",
+    body: (
+      <>
+        <p>このアプリは、次の個人が運営しています。</p>
+        <ul>
+          <li>運営者：宮崎卓己</li>
+          <li>
+            連絡先：
+            <a href="mailto:miyataku724@gmail.com" className="font-bold text-primary underline">
+              miyataku724@gmail.com
+            </a>
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
     title: "規約の変更",
     body: <p>この規約は、必要に応じて変更することがあります。変更したときは、このページでお知らせします。</p>,
   },
@@ -83,7 +100,7 @@ export default function TermsPage() {
       title="利用規約"
       intro="旅行清算アプリを使うときの決まりです。"
       sections={sections}
-      updatedAt="2026年11月19日"
+      updatedAt="2026年11月20日"
     />
   );
 }
