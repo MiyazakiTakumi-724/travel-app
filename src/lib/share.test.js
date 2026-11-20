@@ -3,13 +3,16 @@ import { canShare, shareOrCopy } from "./share";
 
 const data = { title: "招待", text: "参加してください", url: "https://example.com/invite/1" };
 const setNavigator = (value) => vi.stubGlobal("navigator", value);
+// 指で操作する端末か（pointer: coarse）
+const setTouch = (touch) => vi.stubGlobal("window", { matchMedia: () => ({ matches: touch }) });
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("shareOrCopy", () => {
-  it("共有メニューが使える端末では、共有メニューを開く", async () => {
+  it("共有メニューが使えるスマホでは、共有メニューを開く", async () => {
     const share = vi.fn().mockResolvedValue();
     setNavigator({ share, clipboard: { writeText: vi.fn() } });
+    setTouch(true);
 
     expect(await shareOrCopy(data)).toBe("shared");
     expect(share).toHaveBeenCalledWith(data);
@@ -19,6 +22,7 @@ describe("shareOrCopy", () => {
   it("共有メニューを閉じたときは、コピーもしない", async () => {
     const writeText = vi.fn();
     setNavigator({ share: vi.fn().mockRejectedValue(Object.assign(new Error(), { name: "AbortError" })), clipboard: { writeText } });
+    setTouch(true);
 
     expect(await shareOrCopy(data)).toBe("cancelled");
     expect(writeText).not.toHaveBeenCalled();
@@ -33,9 +37,21 @@ describe("shareOrCopy", () => {
     expect(canShare()).toBe(false);
   });
 
+  it("PC では、共有メニューがあってもコピーにする", async () => {
+    const share = vi.fn();
+    const writeText = vi.fn().mockResolvedValue();
+    setNavigator({ share, clipboard: { writeText } });
+    setTouch(false);
+
+    expect(await shareOrCopy(data)).toBe("copied");
+    expect(share).not.toHaveBeenCalled();
+    expect(canShare()).toBe(false);
+  });
+
   it("共有に失敗したらコピーに切り替え、コピーもできなければ failed", async () => {
     const writeText = vi.fn().mockRejectedValue(new Error("denied"));
     setNavigator({ share: vi.fn().mockRejectedValue(new Error("NotAllowed")), clipboard: { writeText } });
+    setTouch(true);
 
     expect(await shareOrCopy(data)).toBe("failed");
     expect(writeText).toHaveBeenCalled();

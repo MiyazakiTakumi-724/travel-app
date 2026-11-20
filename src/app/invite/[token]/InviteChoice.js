@@ -4,9 +4,10 @@ import { joinAsGuest } from "@/app/guestActions";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { secondaryButtonClass, textFieldClass } from "@/components/ui";
 import { LIMITS } from "@/lib/limits";
+import InviteSummary from "./InviteSummary";
 
 // ログインしていない人に、「Googleでログインして参加」と「ゲストとして参加」を選んでもらう
-export default function InviteChoice({ inviteToken, projectTitle, signInAction }) {
+export default function InviteChoice({ inviteToken, projectTitle, details, signInAction }) {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -25,6 +26,7 @@ export default function InviteChoice({ inviteToken, projectTitle, signInAction }
     <div className="w-full max-w-sm drop-shadow-[0_16px_24px_rgb(21_128_196/0.15)]">
       <div className="ticket-top px-7 pt-7 pb-6">
         <h1 className="wrap-break-word heading text-2xl leading-snug">「{projectTitle}」に参加</h1>
+        <InviteSummary details={details} />
       </div>
 
       {/* 「Googleで参加」と「ゲストで参加」を続けて並べ、どちらかを選んでもらう */}

@@ -4,15 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Modal from "@/components/Modal";
 import { useConfirm } from "@/components/ConfirmDialog";
-import { LinkIcon } from "@/components/icons";
 import { secondaryButtonClass, textButtonClass } from "@/components/ui";
 import { GuestCodeDetails } from "@/components/GuestCodePanel";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { logoutGuest, reissueGuestCode, startGuestClaim } from "@/app/guestActions";
-import { leaveProject, makeOrganizer, removeParticipant, resetInviteLink, stepDownOrganizer } from "./actions";
+import { leaveProject, makeOrganizer, removeParticipant, stepDownOrganizer } from "./actions";
+import InviteLinkBox from "./InviteLinkBox";
 import { runServerAction } from "@/lib/runServerAction";
-import { shareOrCopy } from "@/lib/share";
-import { useCanShare, useOrigin } from "@/lib/useBrowser";
 
 const BADGE_CLASS = {
   organizer: "bg-sky-ground text-ink-sub",
@@ -58,12 +56,6 @@ export default function MembersPanel({ project, displayNames, payments, currentP
   const [selected, setSelected] = useState(null);
   // 発行し直した復帰用コード（モーダルで見せる）
   const [reissued, setReissued] = useState(null);
-  const [copied, setCopied] = useState(false);
-  // 共有メニューが使える端末（スマホなど）か。サーバーで描画するときは false にして、食い違いを防ぐ
-  const shareable = useCanShare();
-  // 招待リンクは、コピーできない環境でも使えるよう、画面にも文字で出す
-  const origin = useOrigin();
-  const inviteUrl = origin ? `${origin}/invite/${project.inviteToken}` : "";
 
   const participants = project.participants;
   const me = participants.find((p) => p.id === currentParticipantId);
@@ -173,30 +165,6 @@ export default function MembersPanel({ project, displayNames, payments, currentP
     startTransition(async () => {
       await logoutGuest(project.id);
     });
-  };
-
-  const handleCopyInviteLink = async () => {
-    const result = await shareOrCopy({
-      title: `${project.title}の招待`,
-      text: `旅行清算アプリの「${project.title}」に参加してください`,
-      url: inviteUrl,
-    });
-    if (result === "copied") {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } else if (result === "failed") {
-      setError("リンクをコピーできませんでした");
-    }
-  };
-
-  const handleResetInvite = async () => {
-    const ok = await confirm({
-      title: "招待リンクを作り直しますか？",
-      message: "今の招待リンクは使えなくなります（参加済みのメンバーはそのままです）。",
-      confirmLabel: "作り直す",
-    });
-    if (!ok) return;
-    run(() => resetInviteLink(project.id), () => setNotice("新しい招待リンクにしました。参加してほしい人には、新しいリンクを送ってください"));
   };
 
   const selectedActions = selected ? actionsFor(selected) : [];
@@ -315,26 +283,7 @@ export default function MembersPanel({ project, displayNames, payments, currentP
         <p className="phrase text-sm leading-relaxed text-ink-sub">
           招待リンクを送ると、友達がGoogleでログインするか、ゲストとしてメンバーになれます。
         </p>
-        {/* 招待リンクの URL とボタンを1行に。コピーできない環境でも、URL を長押しや選択で写せる */}
-        <div className="flex items-center gap-2 rounded-lg border-[1.5px] border-line-dashed bg-paper py-1.5 pr-1.5 pl-3">
-          <a
-            href={inviteUrl || undefined}
-            aria-label="招待リンク"
-            className="min-w-0 flex-1 truncate text-sm text-primary underline select-all">
-            {inviteUrl || "招待リンク"}
-          </a>
-          <button
-            onClick={handleCopyInviteLink}
-            className={`${secondaryButtonClass} min-h-10 shrink-0 gap-1.5 px-3 text-sm whitespace-nowrap`}>
-            <LinkIcon className="shrink-0" />
-            <span aria-live="polite">{copied ? "コピーしました" : shareable ? "送る" : "コピー"}</span>
-          </button>
-        </div>
-        {isOwner && (
-          <button type="button" onClick={handleResetInvite} disabled={isPending} className={`${textButtonClass} self-center hover:text-ink`}>
-            招待リンクを作り直す
-          </button>
-        )}
+        <InviteLinkBox project={project} isOwner={isOwner} allowReset />
       </div>
 
       {/* 自分のこと（幹事をやめる・プロジェクトを抜ける）。押し間違えないよう、区切って下の方に小さく置く */}

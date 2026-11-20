@@ -7,13 +7,14 @@ import Modal, { ModalActions } from "@/components/Modal";
 import { useConfirm } from "@/components/ConfirmDialog";
 import ProjectFormFields from "@/components/ProjectFormFields";
 import { CloseIcon, CalendarIcon, ListIcon, PlusIcon, ReceiptIcon, UsersIcon } from "@/components/icons";
-import { primaryButtonClass, textButtonClass } from "@/components/ui";
+import { primaryButtonClass, secondaryButtonClass, textButtonClass } from "@/components/ui";
 import { formatTripPeriod, formatYen } from "@/lib/format";
 import ScheduleSection from "./ScheduleSection";
 import SettlementReceipt from "./SettlementReceipt";
 import MembersPanel from "./MembersPanel";
 import PaymentFormModal from "./PaymentFormModal";
 import PaymentRow from "./PaymentRow";
+import InviteLinkBox from "./InviteLinkBox";
 import { buildDisplayNames, calculateSettlements } from "@/lib/settlement";
 import { applyPaymentChange, filterPayments } from "@/lib/payments";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
@@ -68,6 +69,8 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
   const [isOpen, setIsOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
   const [isEditingProject, setIsEditingProject] = useState(false);
+  // PCのヘッダーの「メンバーを招待」で開くシート
+  const [isInviting, setIsInviting] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [confirmDialog, confirm] = useConfirm();
   // 保存中に読み直すと楽観的更新の表示が揺れるので、その間は止める
@@ -191,6 +194,8 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
   };
 
   const displayNames = buildDisplayNames(project.participants);
+  // 退会した人を除いたメンバーの人数
+  const activeMemberCount = project.participants.filter((p) => !p.retired).length;
   // 日程調整で自分がやること（行ける日の提出・仮決定・○×の回答）があれば、日程タブに印を付ける
   const scheduleTodo = myScheduleTodo(project, project.participants, currentParticipantId, isOwner);
   const { balances } = calculateSettlements(project.participants, payments);
@@ -251,7 +256,12 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
             </div>
           </div>
 
+          {/* PCは、どのタブからでも招待できるよう、ヘッダーにも置く（スマホは「メンバー」タブ） */}
           <div className="flex flex-wrap gap-3 max-lg:hidden">
+            <button onClick={() => setIsInviting(true)} className={`${secondaryButtonClass} min-h-12 text-[15px]`}>
+              <UsersIcon />
+              メンバーを招待
+            </button>
             <button
               onClick={() => setIsOpen(true)}
               className={`${primaryButtonClass} min-h-12 text-[15px]`}>
@@ -286,6 +296,18 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
         </div>
 
         <section id="panel-schedule" role="tabpanel" aria-label="日程" className={tab === "schedule" ? "" : "hidden"}>
+          {/* メンバーが自分だけのうちは、まず招待するよう案内する（行ける日を集める前に、みんなを呼ぶ） */}
+          {activeMemberCount <= 1 && (
+            <div className="mb-8 flex flex-col gap-3 rounded-xl border-2 border-dashed border-line-dashed px-4.5 py-4">
+              <div>
+                <p className="font-bold">まずは友達を招待しましょう</p>
+                <p className="phrase mt-0.5 text-sm leading-relaxed text-ink-sub">
+                  まだメンバーがあなただけです。招待リンクを送ると、友達が参加して行ける日を出せるようになります。
+                </p>
+              </div>
+              <InviteLinkBox project={project} />
+            </div>
+          )}
           <ScheduleSection
             project={project}
             currentParticipantId={currentParticipantId}
@@ -481,6 +503,15 @@ export default function PaymentsClient({ project, currentParticipantId, isOwner,
       )}
 
       {confirmDialog}
+
+      {isInviting && (
+        <Modal
+          title="メンバーを招待"
+          description="招待リンクを送ると、友達がGoogleでログインするか、ゲストとしてメンバーになれます。"
+          onClose={() => setIsInviting(false)}>
+          <InviteLinkBox project={project} />
+        </Modal>
+      )}
 
       {isEditingProject && (
         <Modal title="プロジェクトを編集" onClose={() => setIsEditingProject(false)}>

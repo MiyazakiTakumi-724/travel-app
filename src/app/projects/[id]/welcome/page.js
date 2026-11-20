@@ -35,6 +35,8 @@ export default async function GuestWelcomePage({ params, searchParams }) {
           heading={heading}
           // ゲストで作った人は幹事。コードをなくしたときに備えて、ほかの人も幹事にしておくようすすめる
           organizerHint={Boolean(created)}
+          // 参加・作成した直後だけ、控えずに進もうとしたら確かめる
+          requireSave={Boolean(created || joined)}
         />
       </main>
     </div>

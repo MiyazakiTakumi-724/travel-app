@@ -4,8 +4,9 @@ import { setNicknameAndJoin } from "./actions";
 import SiteHeader from "@/components/SiteHeader";
 import { primaryButtonClass, textFieldClass } from "@/components/ui";
 import { LIMITS } from "@/lib/limits";
+import InviteSummary from "./InviteSummary";
 
-export default function JoinNicknameForm({ inviteToken, projectTitle }) {
+export default function JoinNicknameForm({ inviteToken, projectTitle, details }) {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader />
@@ -14,6 +15,7 @@ export default function JoinNicknameForm({ inviteToken, projectTitle }) {
         <div className="w-full max-w-sm drop-shadow-[0_16px_24px_rgb(21_128_196/0.15)]">
           <div className="ticket-top px-7 pt-7 pb-6">
             <h1 className="wrap-break-word heading text-2xl leading-snug">「{projectTitle}」に参加</h1>
+            <InviteSummary details={details} />
             <p className="mt-2 text-sm leading-relaxed text-ink-sub">
               ほかのメンバーに表示されるニックネームを決めてください。
             </p>
