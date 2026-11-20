@@ -105,7 +105,7 @@ export default function GuestCodePanel({ code, projectId, projectTitle, heading 
       <div className="ticket-bottom flex flex-col gap-4 px-7 pt-6 pb-7">
         {/* コードをなくすと別の端末から戻れなくなるのが一番困るので、コードのすぐ上で必ず控えてもらう */}
         <div className="rounded-lg border-[1.5px] border-pay/40 bg-[#FCECE8] px-3.5 py-3">
-          <p className="font-bold text-pay">いま、コードを控えてください</p>
+          <p className="font-bold text-pay">コードを控えてください</p>
           <p className="mt-0.5 text-xs leading-relaxed text-ink-sub">
             別のスマホやブラウザで開くときに必要です。メモ・スクリーンショット・下のボタンで残せます。
           </p>
